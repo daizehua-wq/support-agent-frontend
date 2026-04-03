@@ -1,0 +1,5 @@
+<view class="page">
+  <view class="title">销售支持 Agent</view>
+  <view class="desc">这是重建后的最小入口首页</view>
+  <button type="primary" bindtap="goTestPage">进入测试页</button>
+</view>

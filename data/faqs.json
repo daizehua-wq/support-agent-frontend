@@ -1,0 +1,20 @@
+[
+  {
+    "id": "faq-001",
+    "question": "客户关注成本时怎么回应？",
+    "keywords": ["成本", "价格", "节省"],
+    "answer": "建议先结合客户现用体系和实际工艺做对比，再讨论综合成本表现。",
+    "riskNote": "避免直接承诺节省幅度。",
+    "sceneType": "customer_analysis",
+    "industryTypes": ["pcb", "semiconductor"]
+  },
+  {
+    "id": "faq-002",
+    "question": "客户说想先拿样品测试，应该追问什么？",
+    "keywords": ["样品", "测试", "寄样"],
+    "answer": "建议先确认测试时间、测试指标、样品规格和数量。",
+    "riskNote": "测试阶段需先统一评价标准，避免双方理解不一致。",
+    "sceneType": "customer_analysis",
+    "industryTypes": ["pcb", "semiconductor", "display"]
+  }
+]

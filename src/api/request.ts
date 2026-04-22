@@ -1,7 +1,12 @@
 import axios from 'axios';
 
+const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+const normalizedApiBaseUrl =
+  typeof rawApiBaseUrl === 'string' ? rawApiBaseUrl.trim().replace(/\/+$/, '') : '';
+
 const request = axios.create({
-  baseURL: 'http://localhost:3001',
+  // 默认走同源（配合 vite /api 代理），也允许通过 VITE_API_BASE_URL 显式覆盖。
+  baseURL: normalizedApiBaseUrl || undefined,
   timeout: 180000,
 });
 

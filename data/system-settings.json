@@ -1,0 +1,50 @@
+{
+  "database": {
+    "databaseType": "sqlite",
+    "host": "127.0.0.1",
+    "port": "543",
+    "databaseName": "sales_support_agent",
+    "username": "postgres",
+    "password": "123"
+  },
+  "model": {
+    "activeModelId": "Deepseek",
+    "models": [
+      {
+        "id": "Deepseek",
+        "label": "测试模型",
+        "modelProvider": "api",
+        "enabled": true,
+        "baseUrl": "https://api.deepseek.com",
+        "modelName": "deepseek-chat",
+        "timeout": "180000",
+        "apiKey": "sk-fe6f4b3a56444abf800225053898dc22"
+      },
+      {
+        "id": "default-local",
+        "label": "默认本地模型",
+        "modelProvider": "local",
+        "enabled": true,
+        "baseUrl": "http://localhost:11434/v1",
+        "modelName": "deepseek-r1:14b",
+        "timeout": "180000",
+        "apiKey": ""
+      }
+    ],
+    "moduleBindings": {
+      "analyze": "Deepseek",
+      "script": "Deepseek",
+      "search": "Deepseek"
+    },
+    "modelProvider": "api",
+    "baseUrl": "https://api.deepseek.com",
+    "apiKey": "sk-fe6f4b3a56444abf800225053898dc22",
+    "modelName": "deepseek-chat",
+    "timeout": "180000"
+  },
+  "strategy": {
+    "analyzeStrategy": "api-enhanced",
+    "searchStrategy": "external-enabled",
+    "scriptStrategy": "local-model"
+  }
+}

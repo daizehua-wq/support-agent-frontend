@@ -1,0 +1,18 @@
+{
+  "verifiedAt": "2026-04-18T03:05:27.406Z",
+  "flowSummary": {
+    "sessionId": "098b14f3-cacb-40bd-a56a-85417499ed2f",
+    "analyzeTraceId": "38162805-1f35-471a-85fc-0a5858549a86",
+    "searchTraceId": "dbcd3d20-a8ca-4ee4-9407-68b9f778b6f4",
+    "generateTraceId": "784c6f25-7054-4ea2-9fe9-236e060f2b4b",
+    "recommendedProducts": [
+      "双氧水体系蚀刻液"
+    ],
+    "evidenceCount": 4,
+    "referenceSummary": "已基于关键词“双氧水体系蚀刻液”返回 4 条证据。",
+    "llmRoute": "python-litellm",
+    "generatedPreview": "您好，关于您提到的“双氧水体系蚀刻液”，我们建议先基于现有资料确认关键条件，再安排下一步技术沟通。"
+  },
+  "jaegerSummary": null,
+  "typeCheck": "skipped"
+}

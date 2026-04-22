@@ -1,0 +1,31 @@
+{
+  "ruleEngine": {
+    "analyzeContext": {
+      "rules": [
+        {
+          "id": "keyword-rule",
+          "enabled": true
+        },
+        {
+          "id": "llm-rule",
+          "enabled": false
+        }
+      ]
+    },
+    "searchDocuments": {
+      "rules": [
+        {
+          "id": "keyword-rule",
+          "enabled": true
+        },
+        {
+          "id": "llm-rule",
+          "enabled": false
+        }
+      ]
+    }
+  },
+  "toolRegistry": {
+    "tools": []
+  }
+}

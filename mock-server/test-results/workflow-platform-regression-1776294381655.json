@@ -1,0 +1,25 @@
+{
+  "contractVersion": "workflow-platform-regression/v1",
+  "status": "passed",
+  "startedAt": "2026-04-15T23:06:03.579Z",
+  "completedAt": "2026-04-15T23:06:21.655Z",
+  "baseUrl": "http://127.0.0.1:3001",
+  "checkpoints": {
+    "analyze": {
+      "mode": "stable",
+      "executedPluginId": "builtin.analyze.default",
+      "selectedPluginId": "builtin.analyze.default"
+    },
+    "search": {
+      "mode": "stable",
+      "executedPluginId": "builtin.search.default",
+      "selectedPluginId": "builtin.search.default",
+      "evidenceCount": 1
+    },
+    "output": {
+      "status": "passed",
+      "reportFile": "/Users/tietiedemac/sales-support-agent-frontend/mock-server/test-results/workflow-release-regression-output-generate-script-1776294381651.json"
+    }
+  },
+  "error": null
+}

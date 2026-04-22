@@ -1,0 +1,235 @@
+{
+  "sessionId": "connector-v2-integration-example",
+  "primaryContract": {
+    "contractVersion": "settings-primary/v1",
+    "settings": {
+      "search": {
+        "contractVersion": "search-settings/v1",
+        "connectorContractVersion": "search-connector-platform/v2",
+        "summaryPolicy": {
+          "maxWhitelistedEvidenceItems": 6,
+          "maxEvidenceSummaryLength": 180
+        },
+        "connectors": {
+          "registry": [
+            {
+              "id": "knowledge-products-v2",
+              "adapterType": "knowledge",
+              "connectorType": "knowledge",
+              "enabled": true,
+              "whitelist": {
+                "docTypes": [
+                  "spec",
+                  "faq",
+                  "case",
+                  "project",
+                  "规格书",
+                  "FAQ",
+                  "案例资料",
+                  "项目资料"
+                ],
+                "outboundDocTypes": [
+                  "spec",
+                  "faq",
+                  "规格书",
+                  "FAQ"
+                ],
+                "sourceRefs": [],
+                "outboundSourceRefs": [],
+                "summaryAllowed": true,
+                "outboundAllowed": true
+              },
+              "fieldMapping": {
+                "title": "docName",
+                "docType": "docType",
+                "summary": "summaryText",
+                "applicableScene": "applicableScene"
+              },
+              "limits": {
+                "maxMatchCount": 8
+              },
+              "permissionIsolation": {
+                "enabled": true,
+                "readIsolationEnabled": false,
+                "outboundIsolationEnabled": true,
+                "sourceRefs": [],
+                "outboundSourceRefs": []
+              }
+            },
+            {
+              "id": "filesystem-default-v2",
+              "adapterType": "file-system",
+              "connectorType": "file-system",
+              "enabled": true,
+              "roots": [
+                "data",
+                "前端支持文件",
+                "后端支持文件"
+              ],
+              "whitelist": {
+                "extensions": [
+                  ".md",
+                  ".txt",
+                  ".json"
+                ],
+                "pathPrefixes": [
+                  "data/",
+                  "前端支持文件/",
+                  "后端支持文件/"
+                ],
+                "outboundPathPrefixes": [
+                  "data/"
+                ],
+                "sourceRefs": [],
+                "outboundSourceRefs": [],
+                "summaryAllowed": false,
+                "outboundAllowed": false
+              },
+              "fieldMapping": {
+                "title": "basename",
+                "applicableScene": "directory"
+              },
+              "limits": {
+                "maxScanCount": 120,
+                "maxMatchCount": 8
+              },
+              "permissionIsolation": {
+                "enabled": true,
+                "readIsolationEnabled": false,
+                "outboundIsolationEnabled": true,
+                "sourceRefs": [],
+                "outboundSourceRefs": []
+              }
+            },
+            {
+              "id": "mysql-sales-v2",
+              "adapterType": "database",
+              "connectorType": "database",
+              "enabled": true,
+              "databaseType": "mysql",
+              "connection": {
+                "databaseType": "mysql",
+                "host": "127.0.0.1",
+                "port": "3306",
+                "databaseName": "sales_support_mysql",
+                "username": "readonly_user",
+                "password": "replace-with-real-password",
+                "connectionTimeoutMs": 5000
+              },
+              "whitelist": {
+                "tables": [
+                  "customers",
+                  "orders",
+                  "tickets"
+                ],
+                "outboundTables": [
+                  "customers"
+                ],
+                "schemas": [],
+                "outboundSchemas": [],
+                "sourceRefs": [],
+                "outboundSourceRefs": [],
+                "summaryAllowed": false,
+                "outboundAllowed": false
+              },
+              "fieldMapping": {
+                "titleFields": [
+                  "customer_name",
+                  "title",
+                  "id"
+                ],
+                "summaryFields": [
+                  "description",
+                  "remark",
+                  "notes"
+                ],
+                "sceneFields": [
+                  "industry_type",
+                  "category",
+                  "scene"
+                ]
+              },
+              "limits": {
+                "maxTableCount": 12,
+                "maxRowCountPerTable": 20,
+                "maxMatchCount": 8
+              },
+              "permissionIsolation": {
+                "enabled": true,
+                "readIsolationEnabled": false,
+                "outboundIsolationEnabled": true,
+                "sourceRefs": [],
+                "outboundSourceRefs": []
+              }
+            },
+            {
+              "id": "postgres-sales-v2",
+              "adapterType": "database",
+              "connectorType": "database",
+              "enabled": true,
+              "databaseType": "postgres",
+              "connection": {
+                "databaseType": "postgres",
+                "host": "127.0.0.1",
+                "port": "5432",
+                "databaseName": "sales_support_pg",
+                "username": "readonly_user",
+                "password": "replace-with-real-password",
+                "connectionTimeoutMs": 5000
+              },
+              "whitelist": {
+                "tables": [
+                  "customers",
+                  "orders",
+                  "tickets"
+                ],
+                "outboundTables": [
+                  "customers"
+                ],
+                "schemas": [
+                  "public"
+                ],
+                "outboundSchemas": [
+                  "public"
+                ],
+                "sourceRefs": [],
+                "outboundSourceRefs": [],
+                "summaryAllowed": false,
+                "outboundAllowed": false
+              },
+              "fieldMapping": {
+                "titleFields": [
+                  "customer_name",
+                  "title",
+                  "id"
+                ],
+                "summaryFields": [
+                  "description",
+                  "remark",
+                  "notes"
+                ],
+                "sceneFields": [
+                  "industry_type",
+                  "category",
+                  "scene"
+                ]
+              },
+              "limits": {
+                "maxTableCount": 12,
+                "maxRowCountPerTable": 20,
+                "maxMatchCount": 8
+              },
+              "permissionIsolation": {
+                "enabled": true,
+                "readIsolationEnabled": false,
+                "outboundIsolationEnabled": true,
+                "sourceRefs": [],
+                "outboundSourceRefs": []
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

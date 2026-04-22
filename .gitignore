@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 config/database.env
 config/model.env
+data/secretVault.json
+runtime/

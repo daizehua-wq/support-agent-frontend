@@ -1,0 +1,775 @@
+{
+  "database": {
+    "databaseType": "sqlite",
+    "host": "",
+    "port": "",
+    "databaseName": "sales_support_agent",
+    "username": "",
+    "password": "",
+    "lightBindingSummary": {
+      "defaultAssociatedDatabase": "sales_support_agent",
+      "visibleDatabases": [
+        "sales_support_agent"
+      ],
+      "relationSource": "account-default"
+    },
+    "modifiedAt": "2026-04-15T10:34:26.690Z",
+    "databaseFile": "/Users/tietiedemac/sales-support-agent-frontend/data/sales_support_agent.db",
+    "environment": "默认环境",
+    "description": "当前用于承接销售支持 Agent 配置与运行数据的数据库对象。",
+    "version": 2,
+    "databaseId": "sales_support_agent",
+    "lastCheckedAt": "2026-04-15T10:34:26.690Z",
+    "healthMessage": "连接正常"
+  },
+  "model": {
+    "activeModelId": "model_1776251156612",
+    "models": [
+      {
+        "id": "default-local",
+        "label": "本地默认模型",
+        "modelProvider": "local",
+        "enabled": true,
+        "baseUrl": "http://localhost:11434",
+        "modelName": "deepseek-r1:14b",
+        "timeout": "180000",
+        "apiKey": "",
+        "modifiedAt": "2026-04-15T04:43:50.276Z",
+        "moduleBindingsSummary": [
+          {
+            "module": "analyze",
+            "modelId": "default-local",
+            "modelName": "deepseek-r1:14b",
+            "bindingType": "default-local",
+            "enabled": true
+          },
+          {
+            "module": "search",
+            "modelId": "default-local",
+            "modelName": "deepseek-r1:14b",
+            "bindingType": "default-local",
+            "enabled": true
+          },
+          {
+            "module": "script",
+            "modelId": "default-local",
+            "modelName": "deepseek-r1:14b",
+            "bindingType": "default-local",
+            "enabled": true
+          }
+        ],
+        "version": 13,
+        "fallbackSummary": {
+          "modelId": "model_1776149418548",
+          "modelName": "deepseek-chat",
+          "reason": "manual-fallback"
+        },
+        "testFeedbackSummary": {
+          "passFlag": true,
+          "provider": "local",
+          "baseUrl": "http://localhost:11434",
+          "modelName": "deepseek-r1:14b",
+          "endpoint": "http://localhost:11434/api/chat",
+          "testedAt": "2026-04-15T04:43:50.276Z"
+        },
+        "name": "deepseek-r1:14b"
+      },
+      {
+        "name": "DeepSeek Chat API",
+        "modelProvider": "api",
+        "modelName": "deepseek-chat",
+        "baseUrl": "https://api.deepseek.com/v1",
+        "apiKey": "123",
+        "timeout": "30000",
+        "id": "model_1776149418548",
+        "enabled": true,
+        "version": 8,
+        "modifiedAt": "2026-04-15T14:48:47.763Z",
+        "fallbackSummary": null,
+        "moduleBindingsSummary": [
+          {
+            "module": "analyze",
+            "modelId": "model_1776251156612",
+            "modelName": "deepseek-reasoner",
+            "bindingType": "model_1776251156612",
+            "enabled": true
+          },
+          {
+            "module": "search",
+            "modelId": "model_1776251156612",
+            "modelName": "deepseek-reasoner",
+            "bindingType": "model_1776251156612",
+            "enabled": true
+          },
+          {
+            "module": "script",
+            "modelId": "model_1776251156612",
+            "modelName": "deepseek-reasoner",
+            "bindingType": "model_1776251156612",
+            "enabled": true
+          }
+        ]
+      },
+      {
+        "name": "deepseek-reasoner",
+        "modelProvider": "api",
+        "modelName": "deepseek-reasoner",
+        "baseUrl": "https://api.deepseek.com/v1",
+        "apiKey": "sk-831433364f5f4067bc1b2bfa7012c0f0",
+        "timeout": "180000",
+        "id": "model_1776251156612",
+        "enabled": true,
+        "version": 1,
+        "modifiedAt": "2026-04-15T14:48:26.993Z",
+        "label": "deepseek-reasoner",
+        "provider": "api",
+        "testFeedbackSummary": {
+          "passFlag": true,
+          "provider": "api",
+          "baseUrl": "https://api.deepseek.com/v1",
+          "modelName": "deepseek-reasoner",
+          "endpoint": "https://api.deepseek.com/v1/chat/completions",
+          "testedAt": "2026-04-15T14:48:26.993Z"
+        }
+      },
+      {
+        "id": "deepseek",
+        "label": "deepseek",
+        "modelProvider": "api",
+        "enabled": true,
+        "baseUrl": "https://api.deepseek.com/v1",
+        "modelName": "deepseek-chat",
+        "timeout": "180000",
+        "apiKey": "sk-685e796bba0b49f0acf412cf914b022a"
+      }
+    ],
+    "moduleBindings": {
+      "analyze": "model_1776251156612",
+      "script": "model_1776251156612",
+      "search": "model_1776251156612"
+    },
+    "modelProvider": "api",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "apiKey": "sk-831433364f5f4067bc1b2bfa7012c0f0",
+    "modelName": "deepseek-reasoner",
+    "timeout": "180000"
+  },
+  "strategy": {
+    "analyzeStrategy": "api-enhanced",
+    "searchStrategy": "local-only",
+    "scriptStrategy": "local-model"
+  },
+  "assistant": {
+    "activeAssistantId": "pcb-sales-support",
+    "activePromptId": "pcb_analyze_prompt_v1",
+    "assistantVersion": "5",
+    "promptVersion": "v1",
+    "executionContext": null,
+    "assistantId": null,
+    "assistantName": "",
+    "description": "",
+    "publishState": "draft",
+    "version": 2,
+    "modifiedAt": "2026-04-14T22:38:11.610Z",
+    "publishedAt": "2026-04-14T15:12:04.214Z"
+  },
+  "search": {
+    "contractVersion": "search-settings/v1",
+    "connectorContractVersion": "search-connector-platform/v2",
+    "summaryPolicy": {
+      "maxWhitelistedEvidenceItems": 6,
+      "maxEvidenceSummaryLength": 180
+    },
+    "connectors": {
+      "registry": [
+        {
+          "id": "knowledge-products",
+          "adapterType": "knowledge",
+          "connectorType": "knowledge",
+          "enabled": true,
+          "whitelist": {
+            "docTypes": [
+              "spec",
+              "faq",
+              "case",
+              "project",
+              "规格书",
+              "FAQ",
+              "案例资料",
+              "项目资料"
+            ],
+            "outboundDocTypes": [
+              "spec",
+              "faq",
+              "规格书",
+              "FAQ"
+            ],
+            "extensions": [],
+            "pathPrefixes": [],
+            "outboundPathPrefixes": [],
+            "tables": [],
+            "outboundTables": [],
+            "schemas": [],
+            "outboundSchemas": [],
+            "sourceRefs": [],
+            "outboundSourceRefs": [],
+            "summaryAllowed": true
+          },
+          "fieldMapping": {
+            "title": "docName",
+            "docType": "docType",
+            "summary": "summaryText",
+            "applicableScene": "applicableScene"
+          },
+          "limits": {},
+          "permissionIsolation": {
+            "enabled": true,
+            "readIsolationEnabled": false,
+            "outboundIsolationEnabled": true,
+            "sourceRefs": [],
+            "outboundSourceRefs": []
+          }
+        },
+        {
+          "id": "filesystem-default",
+          "adapterType": "file-system",
+          "connectorType": "file-system",
+          "enabled": true,
+          "roots": [
+            "前端支持文件",
+            "后端支持文件",
+            "data"
+          ],
+          "whitelist": {
+            "docTypes": [],
+            "outboundDocTypes": [],
+            "extensions": [
+              ".md",
+              ".txt",
+              ".json"
+            ],
+            "pathPrefixes": [],
+            "outboundPathPrefixes": [],
+            "tables": [],
+            "outboundTables": [],
+            "schemas": [],
+            "outboundSchemas": [],
+            "sourceRefs": [],
+            "outboundSourceRefs": [],
+            "summaryAllowed": false
+          },
+          "fieldMapping": {
+            "title": "basename",
+            "applicableScene": "directory"
+          },
+          "limits": {
+            "maxScanCount": 120,
+            "maxMatchCount": 8
+          },
+          "permissionIsolation": {
+            "enabled": true,
+            "readIsolationEnabled": false,
+            "outboundIsolationEnabled": true,
+            "sourceRefs": [],
+            "outboundSourceRefs": []
+          }
+        },
+        {
+          "id": "database-sales_support_agent",
+          "adapterType": "database",
+          "connectorType": "database",
+          "enabled": true,
+          "databaseType": "sqlite",
+          "connection": {
+            "databaseType": "sqlite",
+            "host": "",
+            "port": "",
+            "databaseName": "sales_support_agent",
+            "username": "",
+            "password": "",
+            "lightBindingSummary": {
+              "defaultAssociatedDatabase": "sales_support_agent",
+              "visibleDatabases": [
+                "sales_support_agent"
+              ],
+              "relationSource": "account-default"
+            },
+            "modifiedAt": "2026-04-15T10:34:26.690Z",
+            "databaseFile": "/Users/tietiedemac/sales-support-agent-frontend/data/sales_support_agent.db",
+            "environment": "默认环境",
+            "description": "当前用于承接销售支持 Agent 配置与运行数据的数据库对象。",
+            "version": 2,
+            "databaseId": "sales_support_agent",
+            "lastCheckedAt": "2026-04-15T10:34:26.690Z",
+            "healthMessage": "连接正常"
+          },
+          "whitelist": {
+            "docTypes": [],
+            "outboundDocTypes": [],
+            "extensions": [],
+            "pathPrefixes": [],
+            "outboundPathPrefixes": [],
+            "tables": [],
+            "outboundTables": [],
+            "schemas": [],
+            "outboundSchemas": [],
+            "sourceRefs": [],
+            "outboundSourceRefs": [],
+            "summaryAllowed": false
+          },
+          "fieldMapping": {
+            "titleFields": [
+              "name",
+              "title",
+              "id"
+            ],
+            "summaryFields": [
+              "summary",
+              "description",
+              "remark",
+              "notes"
+            ],
+            "sceneFields": [
+              "scene",
+              "category",
+              "industryType"
+            ]
+          },
+          "limits": {
+            "maxTableCount": 12,
+            "maxRowCountPerTable": 20,
+            "maxMatchCount": 8
+          },
+          "permissionIsolation": {
+            "enabled": true,
+            "readIsolationEnabled": false,
+            "outboundIsolationEnabled": true,
+            "sourceRefs": [],
+            "outboundSourceRefs": []
+          }
+        }
+      ],
+      "knowledge": [
+        {
+          "id": "knowledge-products",
+          "adapterType": "knowledge",
+          "connectorType": "knowledge",
+          "enabled": true,
+          "whitelist": {
+            "docTypes": [
+              "spec",
+              "faq",
+              "case",
+              "project",
+              "规格书",
+              "FAQ",
+              "案例资料",
+              "项目资料"
+            ],
+            "outboundDocTypes": [
+              "spec",
+              "faq",
+              "规格书",
+              "FAQ"
+            ],
+            "extensions": [],
+            "pathPrefixes": [],
+            "outboundPathPrefixes": [],
+            "tables": [],
+            "outboundTables": [],
+            "schemas": [],
+            "outboundSchemas": [],
+            "sourceRefs": [],
+            "outboundSourceRefs": [],
+            "summaryAllowed": true
+          },
+          "fieldMapping": {
+            "title": "docName",
+            "docType": "docType",
+            "summary": "summaryText",
+            "applicableScene": "applicableScene"
+          },
+          "limits": {},
+          "permissionIsolation": {
+            "enabled": true,
+            "readIsolationEnabled": false,
+            "outboundIsolationEnabled": true,
+            "sourceRefs": [],
+            "outboundSourceRefs": []
+          }
+        }
+      ],
+      "fileSystems": [
+        {
+          "id": "filesystem-default",
+          "adapterType": "file-system",
+          "connectorType": "file-system",
+          "enabled": true,
+          "roots": [
+            "前端支持文件",
+            "后端支持文件",
+            "data"
+          ],
+          "whitelist": {
+            "docTypes": [],
+            "outboundDocTypes": [],
+            "extensions": [
+              ".md",
+              ".txt",
+              ".json"
+            ],
+            "pathPrefixes": [],
+            "outboundPathPrefixes": [],
+            "tables": [],
+            "outboundTables": [],
+            "schemas": [],
+            "outboundSchemas": [],
+            "sourceRefs": [],
+            "outboundSourceRefs": [],
+            "summaryAllowed": false
+          },
+          "fieldMapping": {
+            "title": "basename",
+            "applicableScene": "directory"
+          },
+          "limits": {
+            "maxScanCount": 120,
+            "maxMatchCount": 8
+          },
+          "permissionIsolation": {
+            "enabled": true,
+            "readIsolationEnabled": false,
+            "outboundIsolationEnabled": true,
+            "sourceRefs": [],
+            "outboundSourceRefs": []
+          }
+        }
+      ],
+      "databases": [
+        {
+          "id": "database-sales_support_agent",
+          "adapterType": "database",
+          "connectorType": "database",
+          "enabled": true,
+          "databaseType": "sqlite",
+          "connection": {
+            "databaseType": "sqlite",
+            "host": "",
+            "port": "",
+            "databaseName": "sales_support_agent",
+            "username": "",
+            "password": "",
+            "lightBindingSummary": {
+              "defaultAssociatedDatabase": "sales_support_agent",
+              "visibleDatabases": [
+                "sales_support_agent"
+              ],
+              "relationSource": "account-default"
+            },
+            "modifiedAt": "2026-04-15T10:34:26.690Z",
+            "databaseFile": "/Users/tietiedemac/sales-support-agent-frontend/data/sales_support_agent.db",
+            "environment": "默认环境",
+            "description": "当前用于承接销售支持 Agent 配置与运行数据的数据库对象。",
+            "version": 2,
+            "databaseId": "sales_support_agent",
+            "lastCheckedAt": "2026-04-15T10:34:26.690Z",
+            "healthMessage": "连接正常"
+          },
+          "whitelist": {
+            "docTypes": [],
+            "outboundDocTypes": [],
+            "extensions": [],
+            "pathPrefixes": [],
+            "outboundPathPrefixes": [],
+            "tables": [],
+            "outboundTables": [],
+            "schemas": [],
+            "outboundSchemas": [],
+            "sourceRefs": [],
+            "outboundSourceRefs": [],
+            "summaryAllowed": false
+          },
+          "fieldMapping": {
+            "titleFields": [
+              "name",
+              "title",
+              "id"
+            ],
+            "summaryFields": [
+              "summary",
+              "description",
+              "remark",
+              "notes"
+            ],
+            "sceneFields": [
+              "scene",
+              "category",
+              "industryType"
+            ]
+          },
+          "limits": {
+            "maxTableCount": 12,
+            "maxRowCountPerTable": 20,
+            "maxMatchCount": 8
+          },
+          "permissionIsolation": {
+            "enabled": true,
+            "readIsolationEnabled": false,
+            "outboundIsolationEnabled": true,
+            "sourceRefs": [],
+            "outboundSourceRefs": []
+          }
+        }
+      ]
+    }
+  },
+  "pythonRuntime": {
+    "contractVersion": "python-runtime-settings/v1",
+    "enabled": true,
+    "strictMode": false,
+    "baseUrl": "http://127.0.0.1:8008",
+    "healthGate": {
+      "enabled": true,
+      "strictGate": true,
+      "checkPath": "/health",
+      "timeoutMs": 1500,
+      "cacheTtlMs": 5000,
+      "maxConsecutiveFailures": 2,
+      "cooldownMs": 15000
+    },
+    "modelRouting": {
+      "enabled": true,
+      "fallbackEnabled": true,
+      "moduleRoutes": {
+        "analyze": "local",
+        "search": "local",
+        "script": "cloud"
+      }
+    },
+    "channels": {
+      "local": {
+        "model": "ollama/qwen2.5:7b",
+        "apiBase": "http://127.0.0.1:11434",
+        "apiKey": ""
+      },
+      "cloud": {
+        "model": "gpt-4o-mini",
+        "apiBase": "",
+        "apiKey": "demo-cloud-key"
+      }
+    }
+  },
+  "workflowRelease": {
+    "contractVersion": "workflow-release-settings/v1",
+    "routes": {
+      "analyze:analyze-customer": {
+        "kind": "analyze",
+        "route": "analyze-customer",
+        "displayName": "Analyze / analyze-customer",
+        "stablePluginId": "builtin.analyze.default",
+        "canaryPluginId": "",
+        "trafficPercent": 0,
+        "rollbackOnError": false,
+        "bucketBy": "sessionId",
+        "guardEnabled": false,
+        "minSampleSize": 20,
+        "maxErrorRatePercent": 20,
+        "maxP95LatencyMs": 25000,
+        "enabled": true,
+        "routeKey": "analyze:analyze-customer"
+      },
+      "search:search-documents": {
+        "kind": "search",
+        "route": "search-documents",
+        "displayName": "Search / search-documents",
+        "stablePluginId": "builtin.search.default",
+        "canaryPluginId": "",
+        "trafficPercent": 0,
+        "rollbackOnError": false,
+        "bucketBy": "sessionId",
+        "guardEnabled": false,
+        "minSampleSize": 20,
+        "maxErrorRatePercent": 20,
+        "maxP95LatencyMs": 25000,
+        "enabled": true,
+        "routeKey": "search:search-documents"
+      },
+      "output:generate-script": {
+        "kind": "output",
+        "route": "generate-script",
+        "displayName": "Output / generate-script",
+        "stablePluginId": "builtin.output.default",
+        "canaryPluginId": "custom.output.canary-annotator",
+        "trafficPercent": 20,
+        "rollbackOnError": true,
+        "bucketBy": "sessionId",
+        "guardEnabled": false,
+        "minSampleSize": 20,
+        "maxErrorRatePercent": 20,
+        "maxP95LatencyMs": 25000,
+        "enabled": true,
+        "routeKey": "output:generate-script"
+      }
+    }
+  },
+  "governance": {
+    "contractVersion": "settings-governance/v1",
+    "compatibility": {
+      "includeLegacySettingsInResponse": false
+    },
+    "workflowManifest": {
+      "contractVersion": "workflow-manifest-governance/v1",
+      "enabled": true,
+      "allowedRoles": [
+        "platform-owner",
+        "release-manager"
+      ],
+      "requiredApprovals": 1,
+      "requireApprovalToken": true,
+      "approvalTokenEnvVar": "WORKFLOW_MANIFEST_ADMIN_TOKEN",
+      "requireChangeTicket": true,
+      "allowDelete": true,
+      "allowRollback": true
+    },
+    "tenantIsolation": {
+      "contractVersion": "settings-tenant-isolation/v1",
+      "enabled": true,
+      "defaultTenantId": "default",
+      "enforceKnownTenants": false,
+      "knownTenants": [
+        "default"
+      ],
+      "tenantHeader": "x-tenant-id",
+      "actorHeader": "x-user-id",
+      "roleHeader": "x-user-role"
+    },
+    "rbac": {
+      "contractVersion": "settings-rbac/v1",
+      "enabled": true,
+      "defaultRole": "platform-owner",
+      "rolePermissions": {
+        "platform-owner": [
+          "settings:read",
+          "settings:update",
+          "settings:publish",
+          "settings:rollback",
+          "settings:audit",
+          "settings:release:manage"
+        ],
+        "release-manager": [
+          "settings:read",
+          "settings:publish",
+          "settings:rollback",
+          "settings:audit"
+        ],
+        "config-editor": [
+          "settings:read",
+          "settings:update",
+          "settings:audit"
+        ],
+        "auditor": [
+          "settings:read",
+          "settings:audit"
+        ],
+        "viewer": [
+          "settings:read"
+        ]
+      }
+    },
+    "releaseControl": {
+      "contractVersion": "settings-release-control/v1",
+      "enabled": true,
+      "requireChangeTicket": true,
+      "rollbackSlaMinutes": 5,
+      "autoPublishOnSave": false,
+      "allowRollback": true
+    },
+    "security": {
+      "contractVersion": "settings-security/v1",
+      "keyManagement": {
+        "contractVersion": "settings-key-management/v1",
+        "enabled": true,
+        "provider": "encrypted-file-vault",
+        "providerConfig": {
+          "encryptedFileVault": {
+            "vaultFile": "secretVault.json"
+          },
+          "hashicorpVault": {
+            "endpointEnvVar": "SETTINGS_HASHICORP_VAULT_ADDR",
+            "tokenEnvVar": "SETTINGS_HASHICORP_VAULT_TOKEN",
+            "namespaceEnvVar": "SETTINGS_HASHICORP_VAULT_NAMESPACE",
+            "mountPath": "secret",
+            "secretPathPrefix": "sales-support-agent"
+          },
+          "cloudKms": {
+            "vendor": "aws-kms",
+            "credentialsEnvVar": "SETTINGS_CLOUD_KMS_CREDENTIALS",
+            "keyIdEnvVar": "SETTINGS_CLOUD_KMS_KEY_ID",
+            "regionEnvVar": "SETTINGS_CLOUD_KMS_REGION",
+            "secretPathPrefix": "sales-support-agent"
+          }
+        },
+        "strict": false,
+        "allowPlaintextWhenVaultUnavailable": true,
+        "masterKeyEnvVar": "SETTINGS_SECRET_MASTER_KEY",
+        "rotateAfterDays": 90
+      },
+      "sso": {
+        "contractVersion": "settings-sso/v1",
+        "enabled": false,
+        "mode": "header-trusted",
+        "required": true,
+        "allowAnonymousRead": false,
+        "bypassPaths": [
+          "/health"
+        ],
+        "userIdHeader": "x-sso-user-id",
+        "roleHeader": "x-sso-role",
+        "tenantHeader": "x-sso-tenant-id",
+        "domainsHeader": "x-sso-domains",
+        "jwtSecretEnvVar": "SETTINGS_SSO_JWT_SECRET",
+        "userIdClaim": "sub",
+        "roleClaim": "role",
+        "tenantClaim": "tenantId",
+        "domainsClaim": "domains",
+        "issuer": "",
+        "audience": ""
+      },
+      "permissionDomains": {
+        "contractVersion": "settings-permission-domain/v1",
+        "enabled": true,
+        "strictTenantMatch": true,
+        "routeDomains": {
+          "/api/settings": "settings",
+          "/api/agent": "runtime",
+          "/api/database-manager": "database"
+        }
+      }
+    }
+  },
+  "databases": [
+    {
+      "databaseType": "sqlite",
+      "host": "",
+      "port": "",
+      "databaseName": "sales_support_agent",
+      "username": "",
+      "password": "",
+      "lightBindingSummary": {
+        "defaultAssociatedDatabase": "sales_support_agent",
+        "visibleDatabases": [
+          "sales_support_agent"
+        ],
+        "relationSource": "account-default"
+      },
+      "modifiedAt": "2026-04-15T10:34:26.690Z",
+      "databaseFile": "/Users/tietiedemac/sales-support-agent-frontend/data/sales_support_agent.db",
+      "environment": "默认环境",
+      "description": "当前用于承接销售支持 Agent 配置与运行数据的数据库对象。",
+      "version": 2,
+      "databaseId": "sales_support_agent",
+      "lastCheckedAt": "2026-04-15T10:34:26.690Z",
+      "healthMessage": "连接正常"
+    }
+  ]
+}

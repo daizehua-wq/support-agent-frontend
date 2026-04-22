@@ -1,0 +1,40 @@
+{
+  "contractVersion": "database-enterprise-regression/v1",
+  "status": "failed",
+  "startedAt": "2026-04-16T03:40:22.317Z",
+  "apiBaseUrl": "http://127.0.0.1:3001",
+  "envFilePath": "/Users/tietiedemac/sales-support-agent-frontend/config/database-enterprise.env",
+  "requireAll": false,
+  "summary": {
+    "configuredCount": 0,
+    "passedCount": 0,
+    "failedCount": 0,
+    "skippedCount": 2
+  },
+  "results": [
+    {
+      "dbType": "mysql",
+      "status": "skipped",
+      "reason": "missing-runtime-credentials",
+      "startedAt": "2026-04-16T03:40:22.316Z",
+      "completedAt": "2026-04-16T03:40:22.317Z",
+      "durationMs": 0,
+      "command": [],
+      "stdout": "",
+      "stderr": "",
+      "exitCode": 0
+    },
+    {
+      "dbType": "postgres",
+      "status": "skipped",
+      "reason": "missing-runtime-credentials",
+      "startedAt": "2026-04-16T03:40:22.317Z",
+      "completedAt": "2026-04-16T03:40:22.317Z",
+      "durationMs": 0,
+      "command": [],
+      "stdout": "",
+      "stderr": "",
+      "exitCode": 0
+    }
+  ]
+}

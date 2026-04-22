@@ -17,12 +17,37 @@ const normalizeStringArray = (value, fallback = []) => {
     .filter(Boolean);
 };
 
+const resolveAnalyzeModelConfig = (options = {}) => {
+  const modelConfig = options.modelConfig || options.model || {};
+  const executionStrategy = options.executionStrategy || '';
+  const outboundAllowed = options.outboundAllowed === true;
+
+  const provider =
+    executionStrategy === 'masked-api' && outboundAllowed
+      ? 'api'
+      : modelConfig.modelProvider || 'local';
+
+  return {
+    provider,
+    baseUrl: modelConfig.baseUrl || ANALYZE_LLM_BASE_URL,
+    modelName: modelConfig.modelName || ANALYZE_LLM_MODEL,
+    apiKey: modelConfig.apiKey || ANALYZE_LLM_API_KEY,
+    timeout: Number(modelConfig.timeout || ANALYZE_LLM_TIMEOUT_MS),
+  };
+};
+
+const cleanAnalyzeLLMOutput = (text = '') => {
+  return String(text || '')
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .trim();
+};
+
 const buildAnalyzePrompt = ({ sanitizedText = '', safeMeta = {}, baseResult = {} }) => {
-  return `你是销售支持 Agent 的客户分析增强模块。
+  return `你是通用 Agent 平台的任务判断增强模块。
 
 你会收到：
-1. 一段已经脱敏的客户文本
-2. 一组规则层已生成的基础分析结果
+1. 一段已经脱敏的任务文本
+2. 一组规则层已生成的基础判断结果
 3. 一些安全可用的上下文信息
 
 你的任务：
@@ -94,23 +119,30 @@ const normalizeEnhancedResult = (parsed = {}, baseResult = {}) => {
   return next;
 };
 
-const callAnalyzeLLM = async (prompt) => {
-  if (!ANALYZE_LLM_BASE_URL || !ANALYZE_LLM_MODEL) {
+const callAnalyzeLLM = async (prompt, options = {}) => {
+  const config = resolveAnalyzeModelConfig(options);
+
+  if (!config.baseUrl || !config.modelName) {
     throw new Error('Analyze LLM 未配置');
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), ANALYZE_LLM_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), config.timeout);
 
   try {
-    const response = await fetch(`${ANALYZE_LLM_BASE_URL.replace(/\/$/, '')}/chat/completions`, {
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+
+    if (config.apiKey) {
+      headers.Authorization = `Bearer ${config.apiKey}`;
+    }
+
+    const response = await fetch(`${config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${ANALYZE_LLM_API_KEY}`,
-      },
+      headers,
       body: JSON.stringify({
-        model: ANALYZE_LLM_MODEL,
+        model: config.modelName,
         temperature: 0.2,
         messages: [
           {
@@ -131,25 +163,46 @@ const callAnalyzeLLM = async (prompt) => {
     }
 
     const data = await response.json();
-    return data?.choices?.[0]?.message?.content || '';
+    const rawText = data?.choices?.[0]?.message?.content || '';
+    return cleanAnalyzeLLMOutput(rawText);
   } finally {
     clearTimeout(timeout);
   }
 };
 
-export const enhanceAnalyzeWithLLM = async ({ sanitizedText = '', safeMeta = {}, baseResult = {} }) => {
+export const enhanceAnalyzeWithLLM = async ({
+  sanitizedText = '',
+  safeMeta = {},
+  baseResult = {},
+  modelConfig = {},
+  executionStrategy = '',
+  outboundAllowed = false,
+}) => {
   const prompt = buildAnalyzePrompt({ sanitizedText, safeMeta, baseResult });
+  const resolvedConfig = resolveAnalyzeModelConfig({
+    modelConfig,
+    executionStrategy,
+    outboundAllowed,
+  });
+  const source = resolvedConfig.provider === 'local' ? 'local-llm' : 'api-llm';
+  const successReason = resolvedConfig.provider === 'local'
+    ? 'analyze-local-call-success'
+    : 'analyze-api-call-success';
 
   try {
-    const rawText = await callAnalyzeLLM(prompt);
+    const rawText = await callAnalyzeLLM(prompt, {
+      modelConfig,
+      executionStrategy,
+      outboundAllowed,
+    });
     const parsed = extractJsonBlock(rawText);
     const enhancedResult = normalizeEnhancedResult(parsed, baseResult);
 
     return {
       enhancedResult,
       rawText,
-      source: 'local-llm',
-      reason: 'analyze-local-call-success',
+      source,
+      reason: successReason,
     };
   } catch (error) {
     return {

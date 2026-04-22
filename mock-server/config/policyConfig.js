@@ -20,9 +20,9 @@ export const policyConfig = {
       localDataRequired: true,
       internetSupplementAllowed: true,
       localModelPreferred: false,
-      apiModelAllowed: false,
+      apiModelAllowed: true,
       sensitiveDataAllowedToLeaveLocal: false,
-      notes: '资料检索以本地知识线为主，互联网补充线后续可选接入。',
+      notes: '资料检索允许在脱敏关键词与白名单证据摘要前提下调用模型总结，并可按策略补充公开资料。',
     },
 
     generateScript: {

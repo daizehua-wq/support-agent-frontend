@@ -1,0 +1,124 @@
+{
+  "specVersion": "plugin-spec/v1",
+  "pluginId": "industry.analyze.legal-compliance",
+  "displayName": "Analyze Legal Compliance",
+  "description": "行业插件：分析完成后追加法律场景风险标签节点。",
+  "kind": "analyze",
+  "route": "analyze-customer",
+  "enabled": true,
+  "defaultPlugin": false,
+  "order": 30,
+  "workflow": {
+    "specVersion": "workflow-node-spec/v1",
+    "entryNodeId": "analyze-main",
+    "nodes": [
+      {
+        "specVersion": "workflow-node-spec/v1",
+        "id": "analyze-main",
+        "type": "analyze.customer.v1",
+        "module": "analyze",
+        "operation": "analyzeCustomer",
+        "inputMode": "request",
+        "timeoutMs": 45000,
+        "retryPolicy": {
+          "maxRetries": 1,
+          "backoffMs": 200
+        },
+        "continueOnError": false,
+        "emitEvents": [
+          "workflow.node.start",
+          "workflow.node.retry",
+          "workflow.node.complete",
+          "workflow.node.error"
+        ]
+      },
+      {
+        "specVersion": "workflow-node-spec/v1",
+        "id": "analyze-industry-risk",
+        "type": "custom.analyze.industry-risk.v1",
+        "module": "analyze",
+        "operation": "industryRiskTagger",
+        "inputMode": "previous-node",
+        "dependsOn": [
+          "analyze-main"
+        ],
+        "condition": {
+          "path": "request.industryType",
+          "exists": true
+        },
+        "timeoutMs": 8000,
+        "retryPolicy": {
+          "maxRetries": 1,
+          "backoffMs": 100
+        },
+        "continueOnError": true,
+        "emitEvents": [
+          "workflow.node.start",
+          "workflow.node.retry",
+          "workflow.node.complete",
+          "workflow.node.error"
+        ],
+        "handler": {
+          "modulePath": "plugins/nodes/industryWorkflowNodes.js",
+          "exportName": "runAnalyzeIndustryRiskTagger"
+        },
+        "inputOverrides": {
+          "policyTag": "legal-safe"
+        }
+      }
+    ]
+  },
+  "connectors": [
+    {
+      "specVersion": "connector-spec/v1",
+      "id": "assistant-context",
+      "connectorType": "assistant-context",
+      "adapterType": "assistant-context",
+      "required": false,
+      "settingsPath": "settings.assistant.executionContext",
+      "whitelistKeys": [],
+      "limitsKeys": [],
+      "capabilities": [
+        "assistant-scope"
+      ]
+    }
+  ],
+  "eventSchema": {
+    "specVersion": "event-schema/v1",
+    "eventTypes": [
+      "plugin.execution.start",
+      "workflow.node.start",
+      "workflow.node.retry",
+      "workflow.node.complete",
+      "workflow.node.error",
+      "plugin.execution.complete",
+      "plugin.execution.error"
+    ],
+    "requiredFields": [
+      "eventId",
+      "eventType",
+      "occurredAt",
+      "pluginId",
+      "route",
+      "nodeId"
+    ]
+  },
+  "traceSchema": {
+    "specVersion": "trace-schema/v1",
+    "requiredSections": [
+      "plugin",
+      "workflow",
+      "events",
+      "timing",
+      "result"
+    ],
+    "compatibility": [
+      "executionContext",
+      "modelRuntimeSummary"
+    ]
+  },
+  "outputBinding": {
+    "nodeId": "analyze-industry-risk",
+    "path": "$"
+  }
+}

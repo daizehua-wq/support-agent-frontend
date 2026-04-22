@@ -1,0 +1,3401 @@
+[
+  {
+    "id": "30a31414-36d6-4f2a-9c74-705f2e6ded60",
+    "entityType": "assistant",
+    "action": "activate",
+    "actor": "assistant-center",
+    "targetId": "pcb-sales-support",
+    "targetName": "PCB 销售支持模板",
+    "createdAt": "2026-04-18T10:12:36.129Z",
+    "summary": "激活Assistant「PCB 销售支持模板」，替换 pcb-sales-support",
+    "changeCount": 0,
+    "changedFields": [],
+    "metadata": {
+      "previousActiveAssistantId": "pcb-sales-support",
+      "nextActiveAssistantId": "pcb-sales-support",
+      "activeAnalyzePromptId": "pcb_analyze_prompt_v1",
+      "route": "assistant-center"
+    },
+    "beforeSnapshot": {
+      "assistantId": "pcb-sales-support",
+      "assistantName": "PCB 销售支持模板",
+      "description": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+      "industryType": "pcb",
+      "enabled": true,
+      "publishState": "published",
+      "version": 5,
+      "defaultTaskContext": "客户需求澄清与方案推进",
+      "defaultSubjectHint": "工艺方案 / 产品资料 / 测试推进",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "销售 / 技术支持 / 客户沟通对象",
+        "taskPhase": "需求沟通",
+        "taskSubject": "湿制程材料方案",
+        "focusPoints": "稳定性、成本、测试安排、导入风险",
+        "deliverable": "判断摘要、资料包、参考写作草稿",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要面向谁",
+          "required": true,
+          "defaultValue": "销售 / 技术支持 / 客户沟通对象",
+          "example": "客户采购 / 工艺工程师 / 内部老板"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前处于哪一类推进阶段",
+          "required": true,
+          "defaultValue": "需求沟通",
+          "example": "初步接触 / 需求沟通 / 样品推进"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的产品或方案主题",
+          "required": true,
+          "defaultValue": "湿制程材料方案",
+          "example": "双氧水体系蚀刻液 / 清洗液方案"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要特别回应的关注点",
+          "required": true,
+          "defaultValue": "稳定性、成本、测试安排、导入风险",
+          "example": "稳定性 / 线宽均匀性 / 导入节奏"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台产出什么",
+          "required": true,
+          "defaultValue": "判断摘要、资料包、参考写作草稿",
+          "example": "追问问题清单 / 沟通邮件草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "pcb_analyze_prompt_v1",
+        "search": "pcb_search_prompt_v1",
+        "script": "pcb_script_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [
+          "pcb"
+        ],
+        "productScope": [
+          "pcb"
+        ],
+        "docScope": [
+          "pcb"
+        ]
+      }
+    },
+    "afterSnapshot": {
+      "assistantId": "pcb-sales-support",
+      "assistantName": "PCB 销售支持模板",
+      "description": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+      "industryType": "pcb",
+      "enabled": true,
+      "publishState": "published",
+      "version": 5,
+      "defaultTaskContext": "客户需求澄清与方案推进",
+      "defaultSubjectHint": "工艺方案 / 产品资料 / 测试推进",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "销售 / 技术支持 / 客户沟通对象",
+        "taskPhase": "需求沟通",
+        "taskSubject": "湿制程材料方案",
+        "focusPoints": "稳定性、成本、测试安排、导入风险",
+        "deliverable": "判断摘要、资料包、参考写作草稿",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要面向谁",
+          "required": true,
+          "defaultValue": "销售 / 技术支持 / 客户沟通对象",
+          "example": "客户采购 / 工艺工程师 / 内部老板"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前处于哪一类推进阶段",
+          "required": true,
+          "defaultValue": "需求沟通",
+          "example": "初步接触 / 需求沟通 / 样品推进"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的产品或方案主题",
+          "required": true,
+          "defaultValue": "湿制程材料方案",
+          "example": "双氧水体系蚀刻液 / 清洗液方案"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要特别回应的关注点",
+          "required": true,
+          "defaultValue": "稳定性、成本、测试安排、导入风险",
+          "example": "稳定性 / 线宽均匀性 / 导入节奏"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台产出什么",
+          "required": true,
+          "defaultValue": "判断摘要、资料包、参考写作草稿",
+          "example": "追问问题清单 / 沟通邮件草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "pcb_analyze_prompt_v1",
+        "search": "pcb_search_prompt_v1",
+        "script": "pcb_script_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [
+          "pcb"
+        ],
+        "productScope": [
+          "pcb"
+        ],
+        "docScope": [
+          "pcb"
+        ]
+      }
+    }
+  },
+  {
+    "id": "5cfa8db4-5d45-45d4-85e5-c12cfb933144",
+    "entityType": "assistant",
+    "action": "activate",
+    "actor": "assistant-center",
+    "targetId": "pcb-sales-support",
+    "targetName": "PCB 销售支持模板",
+    "createdAt": "2026-04-18T10:12:30.397Z",
+    "summary": "激活Assistant「PCB 销售支持模板」，替换 pcb-sales-support",
+    "changeCount": 0,
+    "changedFields": [],
+    "metadata": {
+      "previousActiveAssistantId": "pcb-sales-support",
+      "nextActiveAssistantId": "pcb-sales-support",
+      "activeAnalyzePromptId": "pcb_analyze_prompt_v1",
+      "route": "assistant-center"
+    },
+    "beforeSnapshot": {
+      "assistantId": "pcb-sales-support",
+      "assistantName": "PCB 销售支持模板",
+      "description": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+      "industryType": "pcb",
+      "enabled": true,
+      "publishState": "published",
+      "version": 5,
+      "defaultTaskContext": "客户需求澄清与方案推进",
+      "defaultSubjectHint": "工艺方案 / 产品资料 / 测试推进",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "销售 / 技术支持 / 客户沟通对象",
+        "taskPhase": "需求沟通",
+        "taskSubject": "湿制程材料方案",
+        "focusPoints": "稳定性、成本、测试安排、导入风险",
+        "deliverable": "判断摘要、资料包、参考写作草稿",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要面向谁",
+          "required": true,
+          "defaultValue": "销售 / 技术支持 / 客户沟通对象",
+          "example": "客户采购 / 工艺工程师 / 内部老板"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前处于哪一类推进阶段",
+          "required": true,
+          "defaultValue": "需求沟通",
+          "example": "初步接触 / 需求沟通 / 样品推进"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的产品或方案主题",
+          "required": true,
+          "defaultValue": "湿制程材料方案",
+          "example": "双氧水体系蚀刻液 / 清洗液方案"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要特别回应的关注点",
+          "required": true,
+          "defaultValue": "稳定性、成本、测试安排、导入风险",
+          "example": "稳定性 / 线宽均匀性 / 导入节奏"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台产出什么",
+          "required": true,
+          "defaultValue": "判断摘要、资料包、参考写作草稿",
+          "example": "追问问题清单 / 沟通邮件草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "pcb_analyze_prompt_v1",
+        "search": "pcb_search_prompt_v1",
+        "script": "pcb_script_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [
+          "pcb"
+        ],
+        "productScope": [
+          "pcb"
+        ],
+        "docScope": [
+          "pcb"
+        ]
+      }
+    },
+    "afterSnapshot": {
+      "assistantId": "pcb-sales-support",
+      "assistantName": "PCB 销售支持模板",
+      "description": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+      "industryType": "pcb",
+      "enabled": true,
+      "publishState": "published",
+      "version": 5,
+      "defaultTaskContext": "客户需求澄清与方案推进",
+      "defaultSubjectHint": "工艺方案 / 产品资料 / 测试推进",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "销售 / 技术支持 / 客户沟通对象",
+        "taskPhase": "需求沟通",
+        "taskSubject": "湿制程材料方案",
+        "focusPoints": "稳定性、成本、测试安排、导入风险",
+        "deliverable": "判断摘要、资料包、参考写作草稿",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要面向谁",
+          "required": true,
+          "defaultValue": "销售 / 技术支持 / 客户沟通对象",
+          "example": "客户采购 / 工艺工程师 / 内部老板"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前处于哪一类推进阶段",
+          "required": true,
+          "defaultValue": "需求沟通",
+          "example": "初步接触 / 需求沟通 / 样品推进"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的产品或方案主题",
+          "required": true,
+          "defaultValue": "湿制程材料方案",
+          "example": "双氧水体系蚀刻液 / 清洗液方案"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要特别回应的关注点",
+          "required": true,
+          "defaultValue": "稳定性、成本、测试安排、导入风险",
+          "example": "稳定性 / 线宽均匀性 / 导入节奏"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台产出什么",
+          "required": true,
+          "defaultValue": "判断摘要、资料包、参考写作草稿",
+          "example": "追问问题清单 / 沟通邮件草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "pcb_analyze_prompt_v1",
+        "search": "pcb_search_prompt_v1",
+        "script": "pcb_script_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [
+          "pcb"
+        ],
+        "productScope": [
+          "pcb"
+        ],
+        "docScope": [
+          "pcb"
+        ]
+      }
+    }
+  },
+  {
+    "id": "eca0b13e-1330-416d-9d9e-9ec6e516edbf",
+    "entityType": "assistant",
+    "action": "update",
+    "actor": "assistant-center",
+    "targetId": "pcb-sales-support",
+    "targetName": "PCB 销售支持模板",
+    "createdAt": "2026-04-18T10:09:49.810Z",
+    "summary": "更新Assistant「PCB 销售支持模板」",
+    "changeCount": 1,
+    "changedFields": [
+      {
+        "field": "version",
+        "before": "4",
+        "after": "5"
+      }
+    ],
+    "metadata": {
+      "route": "assistant-center"
+    },
+    "beforeSnapshot": {
+      "assistantId": "pcb-sales-support",
+      "assistantName": "PCB 销售支持模板",
+      "description": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+      "industryType": "pcb",
+      "enabled": true,
+      "publishState": "published",
+      "version": 4,
+      "defaultTaskContext": "客户需求澄清与方案推进",
+      "defaultSubjectHint": "工艺方案 / 产品资料 / 测试推进",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "销售 / 技术支持 / 客户沟通对象",
+        "taskPhase": "需求沟通",
+        "taskSubject": "湿制程材料方案",
+        "focusPoints": "稳定性、成本、测试安排、导入风险",
+        "deliverable": "判断摘要、资料包、参考写作草稿",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要面向谁",
+          "required": true,
+          "defaultValue": "销售 / 技术支持 / 客户沟通对象",
+          "example": "客户采购 / 工艺工程师 / 内部老板"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前处于哪一类推进阶段",
+          "required": true,
+          "defaultValue": "需求沟通",
+          "example": "初步接触 / 需求沟通 / 样品推进"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的产品或方案主题",
+          "required": true,
+          "defaultValue": "湿制程材料方案",
+          "example": "双氧水体系蚀刻液 / 清洗液方案"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要特别回应的关注点",
+          "required": true,
+          "defaultValue": "稳定性、成本、测试安排、导入风险",
+          "example": "稳定性 / 线宽均匀性 / 导入节奏"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台产出什么",
+          "required": true,
+          "defaultValue": "判断摘要、资料包、参考写作草稿",
+          "example": "追问问题清单 / 沟通邮件草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "pcb_analyze_prompt_v1",
+        "search": "pcb_search_prompt_v1",
+        "script": "pcb_script_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [
+          "pcb"
+        ],
+        "productScope": [
+          "pcb"
+        ],
+        "docScope": [
+          "pcb"
+        ]
+      }
+    },
+    "afterSnapshot": {
+      "assistantId": "pcb-sales-support",
+      "assistantName": "PCB 销售支持模板",
+      "description": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+      "industryType": "pcb",
+      "enabled": true,
+      "publishState": "published",
+      "version": 5,
+      "defaultTaskContext": "客户需求澄清与方案推进",
+      "defaultSubjectHint": "工艺方案 / 产品资料 / 测试推进",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "销售 / 技术支持 / 客户沟通对象",
+        "taskPhase": "需求沟通",
+        "taskSubject": "湿制程材料方案",
+        "focusPoints": "稳定性、成本、测试安排、导入风险",
+        "deliverable": "判断摘要、资料包、参考写作草稿",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要面向谁",
+          "required": true,
+          "defaultValue": "销售 / 技术支持 / 客户沟通对象",
+          "example": "客户采购 / 工艺工程师 / 内部老板"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前处于哪一类推进阶段",
+          "required": true,
+          "defaultValue": "需求沟通",
+          "example": "初步接触 / 需求沟通 / 样品推进"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的产品或方案主题",
+          "required": true,
+          "defaultValue": "湿制程材料方案",
+          "example": "双氧水体系蚀刻液 / 清洗液方案"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要特别回应的关注点",
+          "required": true,
+          "defaultValue": "稳定性、成本、测试安排、导入风险",
+          "example": "稳定性 / 线宽均匀性 / 导入节奏"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台产出什么",
+          "required": true,
+          "defaultValue": "判断摘要、资料包、参考写作草稿",
+          "example": "追问问题清单 / 沟通邮件草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "pcb_analyze_prompt_v1",
+        "search": "pcb_search_prompt_v1",
+        "script": "pcb_script_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [
+          "pcb"
+        ],
+        "productScope": [
+          "pcb"
+        ],
+        "docScope": [
+          "pcb"
+        ]
+      }
+    }
+  },
+  {
+    "id": "607b1940-e0b8-4fbb-b7a5-99416741e602",
+    "entityType": "assistant",
+    "action": "activate",
+    "actor": "assistant-center",
+    "targetId": "pcb-sales-support",
+    "targetName": "PCB 销售支持模板",
+    "createdAt": "2026-04-18T10:09:31.706Z",
+    "summary": "激活Assistant「PCB 销售支持模板」，替换 pcb-sales-support",
+    "changeCount": 0,
+    "changedFields": [],
+    "metadata": {
+      "previousActiveAssistantId": "pcb-sales-support",
+      "nextActiveAssistantId": "pcb-sales-support",
+      "activeAnalyzePromptId": "pcb_analyze_prompt_v1",
+      "route": "assistant-center"
+    },
+    "beforeSnapshot": {
+      "assistantId": "pcb-sales-support",
+      "assistantName": "PCB 销售支持模板",
+      "description": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+      "industryType": "pcb",
+      "enabled": true,
+      "publishState": "published",
+      "version": 4,
+      "defaultTaskContext": "客户需求澄清与方案推进",
+      "defaultSubjectHint": "工艺方案 / 产品资料 / 测试推进",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "销售 / 技术支持 / 客户沟通对象",
+        "taskPhase": "需求沟通",
+        "taskSubject": "湿制程材料方案",
+        "focusPoints": "稳定性、成本、测试安排、导入风险",
+        "deliverable": "判断摘要、资料包、参考写作草稿",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要面向谁",
+          "required": true,
+          "defaultValue": "销售 / 技术支持 / 客户沟通对象",
+          "example": "客户采购 / 工艺工程师 / 内部老板"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前处于哪一类推进阶段",
+          "required": true,
+          "defaultValue": "需求沟通",
+          "example": "初步接触 / 需求沟通 / 样品推进"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的产品或方案主题",
+          "required": true,
+          "defaultValue": "湿制程材料方案",
+          "example": "双氧水体系蚀刻液 / 清洗液方案"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要特别回应的关注点",
+          "required": true,
+          "defaultValue": "稳定性、成本、测试安排、导入风险",
+          "example": "稳定性 / 线宽均匀性 / 导入节奏"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台产出什么",
+          "required": true,
+          "defaultValue": "判断摘要、资料包、参考写作草稿",
+          "example": "追问问题清单 / 沟通邮件草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "pcb_analyze_prompt_v1",
+        "search": "pcb_search_prompt_v1",
+        "script": "pcb_script_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [
+          "pcb"
+        ],
+        "productScope": [
+          "pcb"
+        ],
+        "docScope": [
+          "pcb"
+        ]
+      }
+    },
+    "afterSnapshot": {
+      "assistantId": "pcb-sales-support",
+      "assistantName": "PCB 销售支持模板",
+      "description": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+      "industryType": "pcb",
+      "enabled": true,
+      "publishState": "published",
+      "version": 4,
+      "defaultTaskContext": "客户需求澄清与方案推进",
+      "defaultSubjectHint": "工艺方案 / 产品资料 / 测试推进",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "销售 / 技术支持 / 客户沟通对象",
+        "taskPhase": "需求沟通",
+        "taskSubject": "湿制程材料方案",
+        "focusPoints": "稳定性、成本、测试安排、导入风险",
+        "deliverable": "判断摘要、资料包、参考写作草稿",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要面向谁",
+          "required": true,
+          "defaultValue": "销售 / 技术支持 / 客户沟通对象",
+          "example": "客户采购 / 工艺工程师 / 内部老板"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前处于哪一类推进阶段",
+          "required": true,
+          "defaultValue": "需求沟通",
+          "example": "初步接触 / 需求沟通 / 样品推进"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的产品或方案主题",
+          "required": true,
+          "defaultValue": "湿制程材料方案",
+          "example": "双氧水体系蚀刻液 / 清洗液方案"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要特别回应的关注点",
+          "required": true,
+          "defaultValue": "稳定性、成本、测试安排、导入风险",
+          "example": "稳定性 / 线宽均匀性 / 导入节奏"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台产出什么",
+          "required": true,
+          "defaultValue": "判断摘要、资料包、参考写作草稿",
+          "example": "追问问题清单 / 沟通邮件草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "pcb_analyze_prompt_v1",
+        "search": "pcb_search_prompt_v1",
+        "script": "pcb_script_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [
+          "pcb"
+        ],
+        "productScope": [
+          "pcb"
+        ],
+        "docScope": [
+          "pcb"
+        ]
+      }
+    }
+  },
+  {
+    "id": "bbd6f466-9904-4abb-accd-7ec9f6accb33",
+    "entityType": "assistant",
+    "action": "publish",
+    "actor": "assistant-center",
+    "targetId": "pcb-sales-support",
+    "targetName": "PCB 销售支持模板",
+    "createdAt": "2026-04-18T10:09:30.510Z",
+    "summary": "发布Assistant「PCB 销售支持模板」",
+    "changeCount": 1,
+    "changedFields": [
+      {
+        "field": "version",
+        "before": "3",
+        "after": "4"
+      }
+    ],
+    "metadata": {
+      "route": "assistant-center"
+    },
+    "beforeSnapshot": {
+      "assistantId": "pcb-sales-support",
+      "assistantName": "PCB 销售支持模板",
+      "description": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+      "industryType": "pcb",
+      "enabled": true,
+      "publishState": "published",
+      "version": 3,
+      "defaultTaskContext": "客户需求澄清与方案推进",
+      "defaultSubjectHint": "工艺方案 / 产品资料 / 测试推进",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "销售 / 技术支持 / 客户沟通对象",
+        "taskPhase": "需求沟通",
+        "taskSubject": "湿制程材料方案",
+        "focusPoints": "稳定性、成本、测试安排、导入风险",
+        "deliverable": "判断摘要、资料包、参考写作草稿",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要面向谁",
+          "required": true,
+          "defaultValue": "销售 / 技术支持 / 客户沟通对象",
+          "example": "客户采购 / 工艺工程师 / 内部老板"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前处于哪一类推进阶段",
+          "required": true,
+          "defaultValue": "需求沟通",
+          "example": "初步接触 / 需求沟通 / 样品推进"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的产品或方案主题",
+          "required": true,
+          "defaultValue": "湿制程材料方案",
+          "example": "双氧水体系蚀刻液 / 清洗液方案"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要特别回应的关注点",
+          "required": true,
+          "defaultValue": "稳定性、成本、测试安排、导入风险",
+          "example": "稳定性 / 线宽均匀性 / 导入节奏"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台产出什么",
+          "required": true,
+          "defaultValue": "判断摘要、资料包、参考写作草稿",
+          "example": "追问问题清单 / 沟通邮件草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "pcb_analyze_prompt_v1",
+        "search": "pcb_search_prompt_v1",
+        "script": "pcb_script_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [
+          "pcb"
+        ],
+        "productScope": [
+          "pcb"
+        ],
+        "docScope": [
+          "pcb"
+        ]
+      }
+    },
+    "afterSnapshot": {
+      "assistantId": "pcb-sales-support",
+      "assistantName": "PCB 销售支持模板",
+      "description": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+      "industryType": "pcb",
+      "enabled": true,
+      "publishState": "published",
+      "version": 4,
+      "defaultTaskContext": "客户需求澄清与方案推进",
+      "defaultSubjectHint": "工艺方案 / 产品资料 / 测试推进",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "销售 / 技术支持 / 客户沟通对象",
+        "taskPhase": "需求沟通",
+        "taskSubject": "湿制程材料方案",
+        "focusPoints": "稳定性、成本、测试安排、导入风险",
+        "deliverable": "判断摘要、资料包、参考写作草稿",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要面向谁",
+          "required": true,
+          "defaultValue": "销售 / 技术支持 / 客户沟通对象",
+          "example": "客户采购 / 工艺工程师 / 内部老板"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前处于哪一类推进阶段",
+          "required": true,
+          "defaultValue": "需求沟通",
+          "example": "初步接触 / 需求沟通 / 样品推进"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的产品或方案主题",
+          "required": true,
+          "defaultValue": "湿制程材料方案",
+          "example": "双氧水体系蚀刻液 / 清洗液方案"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要特别回应的关注点",
+          "required": true,
+          "defaultValue": "稳定性、成本、测试安排、导入风险",
+          "example": "稳定性 / 线宽均匀性 / 导入节奏"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台产出什么",
+          "required": true,
+          "defaultValue": "判断摘要、资料包、参考写作草稿",
+          "example": "追问问题清单 / 沟通邮件草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "pcb_analyze_prompt_v1",
+        "search": "pcb_search_prompt_v1",
+        "script": "pcb_script_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [
+          "pcb"
+        ],
+        "productScope": [
+          "pcb"
+        ],
+        "docScope": [
+          "pcb"
+        ]
+      }
+    }
+  },
+  {
+    "id": "78078421-1b1a-46f9-8d64-e581b8e20e63",
+    "entityType": "assistant",
+    "action": "activate",
+    "actor": "assistant-center",
+    "targetId": "pcb-sales-support",
+    "targetName": "PCB 销售支持模板",
+    "createdAt": "2026-04-18T10:09:05.528Z",
+    "summary": "激活Assistant「PCB 销售支持模板」，替换 pcb-sales-support",
+    "changeCount": 0,
+    "changedFields": [],
+    "metadata": {
+      "previousActiveAssistantId": "pcb-sales-support",
+      "nextActiveAssistantId": "pcb-sales-support",
+      "activeAnalyzePromptId": "pcb_analyze_prompt_v1",
+      "route": "assistant-center"
+    },
+    "beforeSnapshot": {
+      "assistantId": "pcb-sales-support",
+      "assistantName": "PCB 销售支持模板",
+      "description": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+      "industryType": "pcb",
+      "enabled": true,
+      "publishState": "published",
+      "version": 3,
+      "defaultTaskContext": "客户需求澄清与方案推进",
+      "defaultSubjectHint": "工艺方案 / 产品资料 / 测试推进",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "销售 / 技术支持 / 客户沟通对象",
+        "taskPhase": "需求沟通",
+        "taskSubject": "湿制程材料方案",
+        "focusPoints": "稳定性、成本、测试安排、导入风险",
+        "deliverable": "判断摘要、资料包、参考写作草稿",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要面向谁",
+          "required": true,
+          "defaultValue": "销售 / 技术支持 / 客户沟通对象",
+          "example": "客户采购 / 工艺工程师 / 内部老板"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前处于哪一类推进阶段",
+          "required": true,
+          "defaultValue": "需求沟通",
+          "example": "初步接触 / 需求沟通 / 样品推进"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的产品或方案主题",
+          "required": true,
+          "defaultValue": "湿制程材料方案",
+          "example": "双氧水体系蚀刻液 / 清洗液方案"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要特别回应的关注点",
+          "required": true,
+          "defaultValue": "稳定性、成本、测试安排、导入风险",
+          "example": "稳定性 / 线宽均匀性 / 导入节奏"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台产出什么",
+          "required": true,
+          "defaultValue": "判断摘要、资料包、参考写作草稿",
+          "example": "追问问题清单 / 沟通邮件草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "pcb_analyze_prompt_v1",
+        "search": "pcb_search_prompt_v1",
+        "script": "pcb_script_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [
+          "pcb"
+        ],
+        "productScope": [
+          "pcb"
+        ],
+        "docScope": [
+          "pcb"
+        ]
+      }
+    },
+    "afterSnapshot": {
+      "assistantId": "pcb-sales-support",
+      "assistantName": "PCB 销售支持模板",
+      "description": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+      "industryType": "pcb",
+      "enabled": true,
+      "publishState": "published",
+      "version": 3,
+      "defaultTaskContext": "客户需求澄清与方案推进",
+      "defaultSubjectHint": "工艺方案 / 产品资料 / 测试推进",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "销售 / 技术支持 / 客户沟通对象",
+        "taskPhase": "需求沟通",
+        "taskSubject": "湿制程材料方案",
+        "focusPoints": "稳定性、成本、测试安排、导入风险",
+        "deliverable": "判断摘要、资料包、参考写作草稿",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要面向谁",
+          "required": true,
+          "defaultValue": "销售 / 技术支持 / 客户沟通对象",
+          "example": "客户采购 / 工艺工程师 / 内部老板"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前处于哪一类推进阶段",
+          "required": true,
+          "defaultValue": "需求沟通",
+          "example": "初步接触 / 需求沟通 / 样品推进"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的产品或方案主题",
+          "required": true,
+          "defaultValue": "湿制程材料方案",
+          "example": "双氧水体系蚀刻液 / 清洗液方案"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要特别回应的关注点",
+          "required": true,
+          "defaultValue": "稳定性、成本、测试安排、导入风险",
+          "example": "稳定性 / 线宽均匀性 / 导入节奏"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台产出什么",
+          "required": true,
+          "defaultValue": "判断摘要、资料包、参考写作草稿",
+          "example": "追问问题清单 / 沟通邮件草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "pcb_analyze_prompt_v1",
+        "search": "pcb_search_prompt_v1",
+        "script": "pcb_script_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [
+          "pcb"
+        ],
+        "productScope": [
+          "pcb"
+        ],
+        "docScope": [
+          "pcb"
+        ]
+      }
+    }
+  },
+  {
+    "id": "c8c61617-308b-4d3c-a915-c49319ffbfaa",
+    "entityType": "assistant",
+    "action": "activate",
+    "actor": "assistant-center",
+    "targetId": "pcb-sales-support",
+    "targetName": "PCB 销售支持模板",
+    "createdAt": "2026-04-18T10:08:19.891Z",
+    "summary": "激活Assistant「PCB 销售支持模板」，替换 legal-workbench-template",
+    "changeCount": 12,
+    "changedFields": [
+      {
+        "field": "assistantId",
+        "before": "legal-workbench-template",
+        "after": "pcb-sales-support"
+      },
+      {
+        "field": "assistantName",
+        "before": "法务工作模板",
+        "after": "PCB 销售支持模板"
+      },
+      {
+        "field": "description",
+        "before": "内置模板：面向合同评审、合规判断、函件说明等法务工作。",
+        "after": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。"
+      },
+      {
+        "field": "industryType",
+        "before": "legal",
+        "after": "pcb"
+      },
+      {
+        "field": "version",
+        "before": "2",
+        "after": "3"
+      },
+      {
+        "field": "defaultTaskContext",
+        "before": "合同与合规评审",
+        "after": "客户需求澄清与方案推进"
+      },
+      {
+        "field": "defaultSubjectHint",
+        "before": "条款风险 / 合规要求 / 发函说明",
+        "after": "工艺方案 / 产品资料 / 测试推进"
+      },
+      {
+        "field": "defaultVariables.audience",
+        "before": "法务经理 / 业务负责人",
+        "after": "销售 / 技术支持 / 客户沟通对象"
+      },
+      {
+        "field": "defaultVariables.taskPhase",
+        "before": "评审中",
+        "after": "需求沟通"
+      },
+      {
+        "field": "defaultVariables.taskSubject",
+        "before": "合同条款 / 合规事项",
+        "after": "湿制程材料方案"
+      },
+      {
+        "field": "defaultVariables.focusPoints",
+        "before": "责任边界、付款条件、违约责任、争议解决",
+        "after": "稳定性、成本、测试安排、导入风险"
+      },
+      {
+        "field": "defaultVariables.deliverable",
+        "before": "风险摘要、修改建议、决策意见",
+        "after": "判断摘要、资料包、参考写作草稿"
+      }
+    ],
+    "metadata": {
+      "previousActiveAssistantId": "legal-workbench-template",
+      "nextActiveAssistantId": "pcb-sales-support",
+      "activeAnalyzePromptId": "pcb_analyze_prompt_v1",
+      "route": "assistant-center"
+    },
+    "beforeSnapshot": {
+      "assistantId": "legal-workbench-template",
+      "assistantName": "法务工作模板",
+      "description": "内置模板：面向合同评审、合规判断、函件说明等法务工作。",
+      "industryType": "legal",
+      "enabled": true,
+      "publishState": "published",
+      "version": 2,
+      "defaultTaskContext": "合同与合规评审",
+      "defaultSubjectHint": "条款风险 / 合规要求 / 发函说明",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "法务经理 / 业务负责人",
+        "taskPhase": "评审中",
+        "taskSubject": "合同条款 / 合规事项",
+        "focusPoints": "责任边界、付款条件、违约责任、争议解决",
+        "deliverable": "风险摘要、修改建议、决策意见",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要提供给谁",
+          "required": true,
+          "defaultValue": "法务经理 / 业务负责人",
+          "example": "法务总监 / 业务 VP / 采购负责人"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前法务事项所处阶段",
+          "required": true,
+          "defaultValue": "评审中",
+          "example": "立项前 / 审核中 / 签署前 / 争议处理中"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的法务主题",
+          "required": true,
+          "defaultValue": "合同条款 / 合规事项",
+          "example": "违约责任 / 数据合规 / 律师函回复"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要优先判断的法律与业务风险",
+          "required": true,
+          "defaultValue": "责任边界、付款条件、违约责任、争议解决",
+          "example": "赔偿上限 / 解约条件 / 保密责任"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台形成的法务产出",
+          "required": true,
+          "defaultValue": "风险摘要、修改建议、决策意见",
+          "example": "红线意见 / 一页风险汇报 / 回函草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "legal_judge_prompt_v1",
+        "search": "legal_retrieve_prompt_v1",
+        "script": "legal_compose_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "api-enhanced",
+        "searchStrategy": "external-enabled",
+        "scriptStrategy": "api-model"
+      },
+      "dataScopes": {
+        "rulesScope": [],
+        "productScope": [],
+        "docScope": []
+      }
+    },
+    "afterSnapshot": {
+      "assistantId": "pcb-sales-support",
+      "assistantName": "PCB 销售支持模板",
+      "description": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+      "industryType": "pcb",
+      "enabled": true,
+      "publishState": "published",
+      "version": 3,
+      "defaultTaskContext": "客户需求澄清与方案推进",
+      "defaultSubjectHint": "工艺方案 / 产品资料 / 测试推进",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "销售 / 技术支持 / 客户沟通对象",
+        "taskPhase": "需求沟通",
+        "taskSubject": "湿制程材料方案",
+        "focusPoints": "稳定性、成本、测试安排、导入风险",
+        "deliverable": "判断摘要、资料包、参考写作草稿",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要面向谁",
+          "required": true,
+          "defaultValue": "销售 / 技术支持 / 客户沟通对象",
+          "example": "客户采购 / 工艺工程师 / 内部老板"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前处于哪一类推进阶段",
+          "required": true,
+          "defaultValue": "需求沟通",
+          "example": "初步接触 / 需求沟通 / 样品推进"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的产品或方案主题",
+          "required": true,
+          "defaultValue": "湿制程材料方案",
+          "example": "双氧水体系蚀刻液 / 清洗液方案"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要特别回应的关注点",
+          "required": true,
+          "defaultValue": "稳定性、成本、测试安排、导入风险",
+          "example": "稳定性 / 线宽均匀性 / 导入节奏"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台产出什么",
+          "required": true,
+          "defaultValue": "判断摘要、资料包、参考写作草稿",
+          "example": "追问问题清单 / 沟通邮件草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "pcb_analyze_prompt_v1",
+        "search": "pcb_search_prompt_v1",
+        "script": "pcb_script_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [
+          "pcb"
+        ],
+        "productScope": [
+          "pcb"
+        ],
+        "docScope": [
+          "pcb"
+        ]
+      }
+    }
+  },
+  {
+    "id": "1c2dd2f9-fd06-434b-944c-cf7049e2ce2d",
+    "entityType": "assistant",
+    "action": "publish",
+    "actor": "assistant-center",
+    "targetId": "pcb-sales-support",
+    "targetName": "PCB 销售支持模板",
+    "createdAt": "2026-04-18T10:08:16.409Z",
+    "summary": "发布Assistant「PCB 销售支持模板」",
+    "changeCount": 1,
+    "changedFields": [
+      {
+        "field": "version",
+        "before": "2",
+        "after": "3"
+      }
+    ],
+    "metadata": {
+      "route": "assistant-center"
+    },
+    "beforeSnapshot": {
+      "assistantId": "pcb-sales-support",
+      "assistantName": "PCB 销售支持模板",
+      "description": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+      "industryType": "pcb",
+      "enabled": true,
+      "publishState": "published",
+      "version": 2,
+      "defaultTaskContext": "客户需求澄清与方案推进",
+      "defaultSubjectHint": "工艺方案 / 产品资料 / 测试推进",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "销售 / 技术支持 / 客户沟通对象",
+        "taskPhase": "需求沟通",
+        "taskSubject": "湿制程材料方案",
+        "focusPoints": "稳定性、成本、测试安排、导入风险",
+        "deliverable": "判断摘要、资料包、参考写作草稿",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要面向谁",
+          "required": true,
+          "defaultValue": "销售 / 技术支持 / 客户沟通对象",
+          "example": "客户采购 / 工艺工程师 / 内部老板"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前处于哪一类推进阶段",
+          "required": true,
+          "defaultValue": "需求沟通",
+          "example": "初步接触 / 需求沟通 / 样品推进"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的产品或方案主题",
+          "required": true,
+          "defaultValue": "湿制程材料方案",
+          "example": "双氧水体系蚀刻液 / 清洗液方案"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要特别回应的关注点",
+          "required": true,
+          "defaultValue": "稳定性、成本、测试安排、导入风险",
+          "example": "稳定性 / 线宽均匀性 / 导入节奏"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台产出什么",
+          "required": true,
+          "defaultValue": "判断摘要、资料包、参考写作草稿",
+          "example": "追问问题清单 / 沟通邮件草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "pcb_analyze_prompt_v1",
+        "search": "pcb_search_prompt_v1",
+        "script": "pcb_script_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [
+          "pcb"
+        ],
+        "productScope": [
+          "pcb"
+        ],
+        "docScope": [
+          "pcb"
+        ]
+      }
+    },
+    "afterSnapshot": {
+      "assistantId": "pcb-sales-support",
+      "assistantName": "PCB 销售支持模板",
+      "description": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+      "industryType": "pcb",
+      "enabled": true,
+      "publishState": "published",
+      "version": 3,
+      "defaultTaskContext": "客户需求澄清与方案推进",
+      "defaultSubjectHint": "工艺方案 / 产品资料 / 测试推进",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "销售 / 技术支持 / 客户沟通对象",
+        "taskPhase": "需求沟通",
+        "taskSubject": "湿制程材料方案",
+        "focusPoints": "稳定性、成本、测试安排、导入风险",
+        "deliverable": "判断摘要、资料包、参考写作草稿",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要面向谁",
+          "required": true,
+          "defaultValue": "销售 / 技术支持 / 客户沟通对象",
+          "example": "客户采购 / 工艺工程师 / 内部老板"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前处于哪一类推进阶段",
+          "required": true,
+          "defaultValue": "需求沟通",
+          "example": "初步接触 / 需求沟通 / 样品推进"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的产品或方案主题",
+          "required": true,
+          "defaultValue": "湿制程材料方案",
+          "example": "双氧水体系蚀刻液 / 清洗液方案"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要特别回应的关注点",
+          "required": true,
+          "defaultValue": "稳定性、成本、测试安排、导入风险",
+          "example": "稳定性 / 线宽均匀性 / 导入节奏"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台产出什么",
+          "required": true,
+          "defaultValue": "判断摘要、资料包、参考写作草稿",
+          "example": "追问问题清单 / 沟通邮件草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "pcb_analyze_prompt_v1",
+        "search": "pcb_search_prompt_v1",
+        "script": "pcb_script_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [
+          "pcb"
+        ],
+        "productScope": [
+          "pcb"
+        ],
+        "docScope": [
+          "pcb"
+        ]
+      }
+    }
+  },
+  {
+    "id": "29c7ee94-6f66-4313-af6b-e8a88171da19",
+    "entityType": "assistant",
+    "action": "update",
+    "actor": "assistant-center",
+    "targetId": "pcb-sales-support",
+    "targetName": "PCB 销售支持模板",
+    "createdAt": "2026-04-18T10:07:23.962Z",
+    "summary": "更新Assistant「PCB 销售支持模板」",
+    "changeCount": 3,
+    "changedFields": [
+      {
+        "field": "version",
+        "before": "1",
+        "after": "2"
+      },
+      {
+        "field": "defaultCustomerType",
+        "before": "PCB客户",
+        "after": ""
+      },
+      {
+        "field": "defaultProductDirection",
+        "before": "双氧水体系蚀刻液",
+        "after": ""
+      }
+    ],
+    "metadata": {
+      "route": "assistant-center"
+    },
+    "beforeSnapshot": {
+      "assistantId": "pcb-sales-support",
+      "assistantName": "PCB 销售支持模板",
+      "description": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+      "industryType": "pcb",
+      "enabled": true,
+      "publishState": "published",
+      "version": 1,
+      "defaultTaskContext": "客户需求澄清与方案推进",
+      "defaultSubjectHint": "工艺方案 / 产品资料 / 测试推进",
+      "defaultCustomerType": "PCB客户",
+      "defaultProductDirection": "双氧水体系蚀刻液",
+      "defaultVariables": {
+        "audience": "销售 / 技术支持 / 客户沟通对象",
+        "taskPhase": "需求沟通",
+        "taskSubject": "湿制程材料方案",
+        "focusPoints": "稳定性、成本、测试安排、导入风险",
+        "deliverable": "判断摘要、资料包、参考写作草稿",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要面向谁",
+          "required": true,
+          "defaultValue": "销售 / 技术支持 / 客户沟通对象",
+          "example": "客户采购 / 工艺工程师 / 内部老板"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前处于哪一类推进阶段",
+          "required": true,
+          "defaultValue": "需求沟通",
+          "example": "初步接触 / 需求沟通 / 样品推进"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的产品或方案主题",
+          "required": true,
+          "defaultValue": "湿制程材料方案",
+          "example": "双氧水体系蚀刻液 / 清洗液方案"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要特别回应的关注点",
+          "required": true,
+          "defaultValue": "稳定性、成本、测试安排、导入风险",
+          "example": "稳定性 / 线宽均匀性 / 导入节奏"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台产出什么",
+          "required": true,
+          "defaultValue": "判断摘要、资料包、参考写作草稿",
+          "example": "追问问题清单 / 沟通邮件草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "pcb_analyze_prompt_v1",
+        "search": "pcb_search_prompt_v1",
+        "script": "pcb_script_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [
+          "pcb"
+        ],
+        "productScope": [
+          "pcb"
+        ],
+        "docScope": [
+          "pcb"
+        ]
+      }
+    },
+    "afterSnapshot": {
+      "assistantId": "pcb-sales-support",
+      "assistantName": "PCB 销售支持模板",
+      "description": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+      "industryType": "pcb",
+      "enabled": true,
+      "publishState": "published",
+      "version": 2,
+      "defaultTaskContext": "客户需求澄清与方案推进",
+      "defaultSubjectHint": "工艺方案 / 产品资料 / 测试推进",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "销售 / 技术支持 / 客户沟通对象",
+        "taskPhase": "需求沟通",
+        "taskSubject": "湿制程材料方案",
+        "focusPoints": "稳定性、成本、测试安排、导入风险",
+        "deliverable": "判断摘要、资料包、参考写作草稿",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要面向谁",
+          "required": true,
+          "defaultValue": "销售 / 技术支持 / 客户沟通对象",
+          "example": "客户采购 / 工艺工程师 / 内部老板"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前处于哪一类推进阶段",
+          "required": true,
+          "defaultValue": "需求沟通",
+          "example": "初步接触 / 需求沟通 / 样品推进"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的产品或方案主题",
+          "required": true,
+          "defaultValue": "湿制程材料方案",
+          "example": "双氧水体系蚀刻液 / 清洗液方案"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要特别回应的关注点",
+          "required": true,
+          "defaultValue": "稳定性、成本、测试安排、导入风险",
+          "example": "稳定性 / 线宽均匀性 / 导入节奏"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台产出什么",
+          "required": true,
+          "defaultValue": "判断摘要、资料包、参考写作草稿",
+          "example": "追问问题清单 / 沟通邮件草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "pcb_analyze_prompt_v1",
+        "search": "pcb_search_prompt_v1",
+        "script": "pcb_script_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [
+          "pcb"
+        ],
+        "productScope": [
+          "pcb"
+        ],
+        "docScope": [
+          "pcb"
+        ]
+      }
+    }
+  },
+  {
+    "id": "bc5c3176-d89b-40fd-9ee2-a7df41c1c067",
+    "entityType": "assistant",
+    "action": "activate",
+    "actor": "settings-platform-owner",
+    "targetId": "legal-workbench-template",
+    "targetName": "法务工作模板",
+    "createdAt": "2026-04-16T06:22:53.995Z",
+    "summary": "激活Assistant「法务工作模板」，替换 pcb-sales-support",
+    "changeCount": 12,
+    "changedFields": [
+      {
+        "field": "assistantId",
+        "before": "pcb-sales-support",
+        "after": "legal-workbench-template"
+      },
+      {
+        "field": "assistantName",
+        "before": "PCB 销售支持模板",
+        "after": "法务工作模板"
+      },
+      {
+        "field": "description",
+        "before": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+        "after": "内置模板：面向合同评审、合规判断、函件说明等法务工作。"
+      },
+      {
+        "field": "industryType",
+        "before": "pcb",
+        "after": "legal"
+      },
+      {
+        "field": "version",
+        "before": "1",
+        "after": "2"
+      },
+      {
+        "field": "defaultTaskContext",
+        "before": "客户需求澄清与方案推进",
+        "after": "合同与合规评审"
+      },
+      {
+        "field": "defaultSubjectHint",
+        "before": "工艺方案 / 产品资料 / 测试推进",
+        "after": "条款风险 / 合规要求 / 发函说明"
+      },
+      {
+        "field": "defaultCustomerType",
+        "before": "PCB客户",
+        "after": ""
+      },
+      {
+        "field": "defaultProductDirection",
+        "before": "双氧水体系蚀刻液",
+        "after": ""
+      },
+      {
+        "field": "defaultVariables.audience",
+        "before": "销售 / 技术支持 / 客户沟通对象",
+        "after": "法务经理 / 业务负责人"
+      },
+      {
+        "field": "defaultVariables.taskPhase",
+        "before": "需求沟通",
+        "after": "评审中"
+      },
+      {
+        "field": "defaultVariables.taskSubject",
+        "before": "湿制程材料方案",
+        "after": "合同条款 / 合规事项"
+      }
+    ],
+    "metadata": {
+      "previousActiveAssistantId": "pcb-sales-support",
+      "nextActiveAssistantId": "legal-workbench-template",
+      "activeAnalyzePromptId": "legal_judge_prompt_v1",
+      "route": "settings",
+      "tenantId": "default",
+      "traceId": "f3cdb279-49de-4629-8378-59865ef371d8"
+    },
+    "beforeSnapshot": {
+      "assistantId": "pcb-sales-support",
+      "assistantName": "PCB 销售支持模板",
+      "description": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+      "industryType": "pcb",
+      "enabled": true,
+      "publishState": "published",
+      "version": 1,
+      "defaultTaskContext": "客户需求澄清与方案推进",
+      "defaultSubjectHint": "工艺方案 / 产品资料 / 测试推进",
+      "defaultCustomerType": "PCB客户",
+      "defaultProductDirection": "双氧水体系蚀刻液",
+      "defaultVariables": {
+        "audience": "销售 / 技术支持 / 客户沟通对象",
+        "taskPhase": "需求沟通",
+        "taskSubject": "湿制程材料方案",
+        "focusPoints": "稳定性、成本、测试安排、导入风险",
+        "deliverable": "判断摘要、资料包、参考写作草稿",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要面向谁",
+          "required": true,
+          "defaultValue": "销售 / 技术支持 / 客户沟通对象",
+          "example": "客户采购 / 工艺工程师 / 内部老板"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前处于哪一类推进阶段",
+          "required": true,
+          "defaultValue": "需求沟通",
+          "example": "初步接触 / 需求沟通 / 样品推进"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的产品或方案主题",
+          "required": true,
+          "defaultValue": "湿制程材料方案",
+          "example": "双氧水体系蚀刻液 / 清洗液方案"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要特别回应的关注点",
+          "required": true,
+          "defaultValue": "稳定性、成本、测试安排、导入风险",
+          "example": "稳定性 / 线宽均匀性 / 导入节奏"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台产出什么",
+          "required": true,
+          "defaultValue": "判断摘要、资料包、参考写作草稿",
+          "example": "追问问题清单 / 沟通邮件草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "pcb_analyze_prompt_v1",
+        "search": "pcb_search_prompt_v1",
+        "script": "pcb_script_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [
+          "pcb"
+        ],
+        "productScope": [
+          "pcb"
+        ],
+        "docScope": [
+          "pcb"
+        ]
+      }
+    },
+    "afterSnapshot": {
+      "assistantId": "legal-workbench-template",
+      "assistantName": "法务工作模板",
+      "description": "内置模板：面向合同评审、合规判断、函件说明等法务工作。",
+      "industryType": "legal",
+      "enabled": true,
+      "publishState": "published",
+      "version": 2,
+      "defaultTaskContext": "合同与合规评审",
+      "defaultSubjectHint": "条款风险 / 合规要求 / 发函说明",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "法务经理 / 业务负责人",
+        "taskPhase": "评审中",
+        "taskSubject": "合同条款 / 合规事项",
+        "focusPoints": "责任边界、付款条件、违约责任、争议解决",
+        "deliverable": "风险摘要、修改建议、决策意见",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要提供给谁",
+          "required": true,
+          "defaultValue": "法务经理 / 业务负责人",
+          "example": "法务总监 / 业务 VP / 采购负责人"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前法务事项所处阶段",
+          "required": true,
+          "defaultValue": "评审中",
+          "example": "立项前 / 审核中 / 签署前 / 争议处理中"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的法务主题",
+          "required": true,
+          "defaultValue": "合同条款 / 合规事项",
+          "example": "违约责任 / 数据合规 / 律师函回复"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要优先判断的法律与业务风险",
+          "required": true,
+          "defaultValue": "责任边界、付款条件、违约责任、争议解决",
+          "example": "赔偿上限 / 解约条件 / 保密责任"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台形成的法务产出",
+          "required": true,
+          "defaultValue": "风险摘要、修改建议、决策意见",
+          "example": "红线意见 / 一页风险汇报 / 回函草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "legal_judge_prompt_v1",
+        "search": "legal_retrieve_prompt_v1",
+        "script": "legal_compose_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "api-enhanced",
+        "searchStrategy": "external-enabled",
+        "scriptStrategy": "api-model"
+      },
+      "dataScopes": {
+        "rulesScope": [],
+        "productScope": [],
+        "docScope": []
+      }
+    }
+  },
+  {
+    "id": "1b9f4c8b-e428-4f7c-b829-47384608af19",
+    "entityType": "assistant",
+    "action": "activate",
+    "actor": "assistant-center",
+    "targetId": "legal-workbench-template",
+    "targetName": "法务工作模板",
+    "createdAt": "2026-04-16T05:21:51.635Z",
+    "summary": "激活Assistant「法务工作模板」，替换 legal-workbench-template",
+    "changeCount": 0,
+    "changedFields": [],
+    "metadata": {
+      "previousActiveAssistantId": "legal-workbench-template",
+      "nextActiveAssistantId": "legal-workbench-template",
+      "activeAnalyzePromptId": "legal_judge_prompt_v1",
+      "route": "assistant-center"
+    },
+    "beforeSnapshot": {
+      "assistantId": "legal-workbench-template",
+      "assistantName": "法务工作模板",
+      "description": "内置模板：面向合同评审、合规判断、函件说明等法务工作。",
+      "industryType": "legal",
+      "enabled": true,
+      "publishState": "published",
+      "version": 2,
+      "defaultTaskContext": "合同与合规评审",
+      "defaultSubjectHint": "条款风险 / 合规要求 / 发函说明",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "法务经理 / 业务负责人",
+        "taskPhase": "评审中",
+        "taskSubject": "合同条款 / 合规事项",
+        "focusPoints": "责任边界、付款条件、违约责任、争议解决",
+        "deliverable": "风险摘要、修改建议、决策意见",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要提供给谁",
+          "required": true,
+          "defaultValue": "法务经理 / 业务负责人",
+          "example": "法务总监 / 业务 VP / 采购负责人"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前法务事项所处阶段",
+          "required": true,
+          "defaultValue": "评审中",
+          "example": "立项前 / 审核中 / 签署前 / 争议处理中"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的法务主题",
+          "required": true,
+          "defaultValue": "合同条款 / 合规事项",
+          "example": "违约责任 / 数据合规 / 律师函回复"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要优先判断的法律与业务风险",
+          "required": true,
+          "defaultValue": "责任边界、付款条件、违约责任、争议解决",
+          "example": "赔偿上限 / 解约条件 / 保密责任"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台形成的法务产出",
+          "required": true,
+          "defaultValue": "风险摘要、修改建议、决策意见",
+          "example": "红线意见 / 一页风险汇报 / 回函草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "legal_judge_prompt_v1",
+        "search": "legal_retrieve_prompt_v1",
+        "script": "legal_compose_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "api-enhanced",
+        "searchStrategy": "external-enabled",
+        "scriptStrategy": "api-model"
+      },
+      "dataScopes": {
+        "rulesScope": [],
+        "productScope": [],
+        "docScope": []
+      }
+    },
+    "afterSnapshot": {
+      "assistantId": "legal-workbench-template",
+      "assistantName": "法务工作模板",
+      "description": "内置模板：面向合同评审、合规判断、函件说明等法务工作。",
+      "industryType": "legal",
+      "enabled": true,
+      "publishState": "published",
+      "version": 2,
+      "defaultTaskContext": "合同与合规评审",
+      "defaultSubjectHint": "条款风险 / 合规要求 / 发函说明",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "法务经理 / 业务负责人",
+        "taskPhase": "评审中",
+        "taskSubject": "合同条款 / 合规事项",
+        "focusPoints": "责任边界、付款条件、违约责任、争议解决",
+        "deliverable": "风险摘要、修改建议、决策意见",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要提供给谁",
+          "required": true,
+          "defaultValue": "法务经理 / 业务负责人",
+          "example": "法务总监 / 业务 VP / 采购负责人"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前法务事项所处阶段",
+          "required": true,
+          "defaultValue": "评审中",
+          "example": "立项前 / 审核中 / 签署前 / 争议处理中"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的法务主题",
+          "required": true,
+          "defaultValue": "合同条款 / 合规事项",
+          "example": "违约责任 / 数据合规 / 律师函回复"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要优先判断的法律与业务风险",
+          "required": true,
+          "defaultValue": "责任边界、付款条件、违约责任、争议解决",
+          "example": "赔偿上限 / 解约条件 / 保密责任"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台形成的法务产出",
+          "required": true,
+          "defaultValue": "风险摘要、修改建议、决策意见",
+          "example": "红线意见 / 一页风险汇报 / 回函草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "legal_judge_prompt_v1",
+        "search": "legal_retrieve_prompt_v1",
+        "script": "legal_compose_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "api-enhanced",
+        "searchStrategy": "external-enabled",
+        "scriptStrategy": "api-model"
+      },
+      "dataScopes": {
+        "rulesScope": [],
+        "productScope": [],
+        "docScope": []
+      }
+    }
+  },
+  {
+    "id": "0b7e2015-2de3-4ded-8f42-21f18789fbfb",
+    "entityType": "assistant",
+    "action": "update",
+    "actor": "assistant-center",
+    "targetId": "legal-workbench-template",
+    "targetName": "法务工作模板",
+    "createdAt": "2026-04-16T05:21:49.140Z",
+    "summary": "更新Assistant「法务工作模板」",
+    "changeCount": 4,
+    "changedFields": [
+      {
+        "field": "version",
+        "before": "1",
+        "after": "2"
+      },
+      {
+        "field": "defaultStrategies.analyzeStrategy",
+        "before": "rules-only",
+        "after": "api-enhanced"
+      },
+      {
+        "field": "defaultStrategies.searchStrategy",
+        "before": "local-only",
+        "after": "external-enabled"
+      },
+      {
+        "field": "defaultStrategies.scriptStrategy",
+        "before": "local-model",
+        "after": "api-model"
+      }
+    ],
+    "metadata": {
+      "route": "assistant-center"
+    },
+    "beforeSnapshot": {
+      "assistantId": "legal-workbench-template",
+      "assistantName": "法务工作模板",
+      "description": "内置模板：面向合同评审、合规判断、函件说明等法务工作。",
+      "industryType": "legal",
+      "enabled": true,
+      "publishState": "published",
+      "version": 1,
+      "defaultTaskContext": "合同与合规评审",
+      "defaultSubjectHint": "条款风险 / 合规要求 / 发函说明",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "法务经理 / 业务负责人",
+        "taskPhase": "评审中",
+        "taskSubject": "合同条款 / 合规事项",
+        "focusPoints": "责任边界、付款条件、违约责任、争议解决",
+        "deliverable": "风险摘要、修改建议、决策意见",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要提供给谁",
+          "required": true,
+          "defaultValue": "法务经理 / 业务负责人",
+          "example": "法务总监 / 业务 VP / 采购负责人"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前法务事项所处阶段",
+          "required": true,
+          "defaultValue": "评审中",
+          "example": "立项前 / 审核中 / 签署前 / 争议处理中"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的法务主题",
+          "required": true,
+          "defaultValue": "合同条款 / 合规事项",
+          "example": "违约责任 / 数据合规 / 律师函回复"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要优先判断的法律与业务风险",
+          "required": true,
+          "defaultValue": "责任边界、付款条件、违约责任、争议解决",
+          "example": "赔偿上限 / 解约条件 / 保密责任"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台形成的法务产出",
+          "required": true,
+          "defaultValue": "风险摘要、修改建议、决策意见",
+          "example": "红线意见 / 一页风险汇报 / 回函草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "legal_judge_prompt_v1",
+        "search": "legal_retrieve_prompt_v1",
+        "script": "legal_compose_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [],
+        "productScope": [],
+        "docScope": []
+      }
+    },
+    "afterSnapshot": {
+      "assistantId": "legal-workbench-template",
+      "assistantName": "法务工作模板",
+      "description": "内置模板：面向合同评审、合规判断、函件说明等法务工作。",
+      "industryType": "legal",
+      "enabled": true,
+      "publishState": "published",
+      "version": 2,
+      "defaultTaskContext": "合同与合规评审",
+      "defaultSubjectHint": "条款风险 / 合规要求 / 发函说明",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "法务经理 / 业务负责人",
+        "taskPhase": "评审中",
+        "taskSubject": "合同条款 / 合规事项",
+        "focusPoints": "责任边界、付款条件、违约责任、争议解决",
+        "deliverable": "风险摘要、修改建议、决策意见",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要提供给谁",
+          "required": true,
+          "defaultValue": "法务经理 / 业务负责人",
+          "example": "法务总监 / 业务 VP / 采购负责人"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前法务事项所处阶段",
+          "required": true,
+          "defaultValue": "评审中",
+          "example": "立项前 / 审核中 / 签署前 / 争议处理中"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的法务主题",
+          "required": true,
+          "defaultValue": "合同条款 / 合规事项",
+          "example": "违约责任 / 数据合规 / 律师函回复"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要优先判断的法律与业务风险",
+          "required": true,
+          "defaultValue": "责任边界、付款条件、违约责任、争议解决",
+          "example": "赔偿上限 / 解约条件 / 保密责任"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台形成的法务产出",
+          "required": true,
+          "defaultValue": "风险摘要、修改建议、决策意见",
+          "example": "红线意见 / 一页风险汇报 / 回函草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "legal_judge_prompt_v1",
+        "search": "legal_retrieve_prompt_v1",
+        "script": "legal_compose_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "api-enhanced",
+        "searchStrategy": "external-enabled",
+        "scriptStrategy": "api-model"
+      },
+      "dataScopes": {
+        "rulesScope": [],
+        "productScope": [],
+        "docScope": []
+      }
+    }
+  },
+  {
+    "id": "f40f58a0-3d8d-47ed-b935-9585148acbfa",
+    "entityType": "assistant",
+    "action": "activate",
+    "actor": "assistant-center",
+    "targetId": "legal-workbench-template",
+    "targetName": "法务工作模板",
+    "createdAt": "2026-04-16T05:21:18.842Z",
+    "summary": "激活Assistant「法务工作模板」，替换 pcb-sales-support",
+    "changeCount": 12,
+    "changedFields": [
+      {
+        "field": "assistantId",
+        "before": "pcb-sales-support",
+        "after": "legal-workbench-template"
+      },
+      {
+        "field": "assistantName",
+        "before": "PCB 销售支持模板",
+        "after": "法务工作模板"
+      },
+      {
+        "field": "description",
+        "before": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+        "after": "内置模板：面向合同评审、合规判断、函件说明等法务工作。"
+      },
+      {
+        "field": "industryType",
+        "before": "pcb",
+        "after": "legal"
+      },
+      {
+        "field": "defaultTaskContext",
+        "before": "客户需求澄清与方案推进",
+        "after": "合同与合规评审"
+      },
+      {
+        "field": "defaultSubjectHint",
+        "before": "工艺方案 / 产品资料 / 测试推进",
+        "after": "条款风险 / 合规要求 / 发函说明"
+      },
+      {
+        "field": "defaultCustomerType",
+        "before": "PCB客户",
+        "after": ""
+      },
+      {
+        "field": "defaultProductDirection",
+        "before": "双氧水体系蚀刻液",
+        "after": ""
+      },
+      {
+        "field": "defaultVariables.audience",
+        "before": "销售 / 技术支持 / 客户沟通对象",
+        "after": "法务经理 / 业务负责人"
+      },
+      {
+        "field": "defaultVariables.taskPhase",
+        "before": "需求沟通",
+        "after": "评审中"
+      },
+      {
+        "field": "defaultVariables.taskSubject",
+        "before": "湿制程材料方案",
+        "after": "合同条款 / 合规事项"
+      },
+      {
+        "field": "defaultVariables.focusPoints",
+        "before": "稳定性、成本、测试安排、导入风险",
+        "after": "责任边界、付款条件、违约责任、争议解决"
+      }
+    ],
+    "metadata": {
+      "previousActiveAssistantId": "pcb-sales-support",
+      "nextActiveAssistantId": "legal-workbench-template",
+      "activeAnalyzePromptId": "legal_judge_prompt_v1",
+      "route": "assistant-center"
+    },
+    "beforeSnapshot": {
+      "assistantId": "pcb-sales-support",
+      "assistantName": "PCB 销售支持模板",
+      "description": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+      "industryType": "pcb",
+      "enabled": true,
+      "publishState": "published",
+      "version": 1,
+      "defaultTaskContext": "客户需求澄清与方案推进",
+      "defaultSubjectHint": "工艺方案 / 产品资料 / 测试推进",
+      "defaultCustomerType": "PCB客户",
+      "defaultProductDirection": "双氧水体系蚀刻液",
+      "defaultVariables": {
+        "audience": "销售 / 技术支持 / 客户沟通对象",
+        "taskPhase": "需求沟通",
+        "taskSubject": "湿制程材料方案",
+        "focusPoints": "稳定性、成本、测试安排、导入风险",
+        "deliverable": "判断摘要、资料包、参考写作草稿",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要面向谁",
+          "required": true,
+          "defaultValue": "销售 / 技术支持 / 客户沟通对象",
+          "example": "客户采购 / 工艺工程师 / 内部老板"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前处于哪一类推进阶段",
+          "required": true,
+          "defaultValue": "需求沟通",
+          "example": "初步接触 / 需求沟通 / 样品推进"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的产品或方案主题",
+          "required": true,
+          "defaultValue": "湿制程材料方案",
+          "example": "双氧水体系蚀刻液 / 清洗液方案"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要特别回应的关注点",
+          "required": true,
+          "defaultValue": "稳定性、成本、测试安排、导入风险",
+          "example": "稳定性 / 线宽均匀性 / 导入节奏"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台产出什么",
+          "required": true,
+          "defaultValue": "判断摘要、资料包、参考写作草稿",
+          "example": "追问问题清单 / 沟通邮件草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "pcb_analyze_prompt_v1",
+        "search": "pcb_search_prompt_v1",
+        "script": "pcb_script_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [
+          "pcb"
+        ],
+        "productScope": [
+          "pcb"
+        ],
+        "docScope": [
+          "pcb"
+        ]
+      }
+    },
+    "afterSnapshot": {
+      "assistantId": "legal-workbench-template",
+      "assistantName": "法务工作模板",
+      "description": "内置模板：面向合同评审、合规判断、函件说明等法务工作。",
+      "industryType": "legal",
+      "enabled": true,
+      "publishState": "published",
+      "version": 1,
+      "defaultTaskContext": "合同与合规评审",
+      "defaultSubjectHint": "条款风险 / 合规要求 / 发函说明",
+      "defaultCustomerType": "",
+      "defaultProductDirection": "",
+      "defaultVariables": {
+        "audience": "法务经理 / 业务负责人",
+        "taskPhase": "评审中",
+        "taskSubject": "合同条款 / 合规事项",
+        "focusPoints": "责任边界、付款条件、违约责任、争议解决",
+        "deliverable": "风险摘要、修改建议、决策意见",
+        "toneStyle": "formal"
+      },
+      "variableSchema": [
+        {
+          "key": "audience",
+          "label": "适用对象",
+          "description": "本次输出主要提供给谁",
+          "required": true,
+          "defaultValue": "法务经理 / 业务负责人",
+          "example": "法务总监 / 业务 VP / 采购负责人"
+        },
+        {
+          "key": "taskPhase",
+          "label": "任务阶段",
+          "description": "当前法务事项所处阶段",
+          "required": true,
+          "defaultValue": "评审中",
+          "example": "立项前 / 审核中 / 签署前 / 争议处理中"
+        },
+        {
+          "key": "taskSubject",
+          "label": "任务主题",
+          "description": "当前聚焦的法务主题",
+          "required": true,
+          "defaultValue": "合同条款 / 合规事项",
+          "example": "违约责任 / 数据合规 / 律师函回复"
+        },
+        {
+          "key": "focusPoints",
+          "label": "重点关注",
+          "description": "需要优先判断的法律与业务风险",
+          "required": true,
+          "defaultValue": "责任边界、付款条件、违约责任、争议解决",
+          "example": "赔偿上限 / 解约条件 / 保密责任"
+        },
+        {
+          "key": "deliverable",
+          "label": "目标产物",
+          "description": "希望平台形成的法务产出",
+          "required": true,
+          "defaultValue": "风险摘要、修改建议、决策意见",
+          "example": "红线意见 / 一页风险汇报 / 回函草稿"
+        }
+      ],
+      "defaultModuleBindings": {
+        "analyze": "legal_judge_prompt_v1",
+        "search": "legal_retrieve_prompt_v1",
+        "script": "legal_compose_prompt_v1"
+      },
+      "defaultStrategies": {
+        "analyzeStrategy": "rules-only",
+        "searchStrategy": "local-only",
+        "scriptStrategy": "local-model"
+      },
+      "dataScopes": {
+        "rulesScope": [],
+        "productScope": [],
+        "docScope": []
+      }
+    }
+  },
+  {
+    "id": "203ee547-99f7-4570-a559-2603ceb853a1",
+    "entityType": "prompt",
+    "action": "delete",
+    "actor": "assistant-center",
+    "targetId": "prompt-2",
+    "targetName": "法务大能手",
+    "createdAt": "2026-04-16T05:19:47.066Z",
+    "summary": "删除Prompt「法务大能手」",
+    "changeCount": 12,
+    "changedFields": [
+      {
+        "field": "promptId",
+        "before": "prompt-2",
+        "after": ""
+      },
+      {
+        "field": "name",
+        "before": "法务大能手",
+        "after": ""
+      },
+      {
+        "field": "module",
+        "before": "search",
+        "after": ""
+      },
+      {
+        "field": "description",
+        "before": "大恩能手",
+        "after": ""
+      },
+      {
+        "field": "version",
+        "before": "v1",
+        "after": ""
+      },
+      {
+        "field": "recordVersion",
+        "before": "1",
+        "after": ""
+      },
+      {
+        "field": "publishState",
+        "before": "draft",
+        "after": ""
+      },
+      {
+        "field": "enabled",
+        "before": "true",
+        "after": ""
+      },
+      {
+        "field": "industryType",
+        "before": "other",
+        "after": ""
+      },
+      {
+        "field": "assistantId",
+        "before": "",
+        "after": ""
+      },
+      {
+        "field": "tags",
+        "before": "",
+        "after": ""
+      },
+      {
+        "field": "contentPreview",
+        "before": "111",
+        "after": ""
+      }
+    ],
+    "metadata": {
+      "route": "assistant-center"
+    },
+    "beforeSnapshot": {
+      "promptId": "prompt-2",
+      "name": "法务大能手",
+      "module": "search",
+      "description": "大恩能手",
+      "version": "v1",
+      "recordVersion": 1,
+      "publishState": "draft",
+      "enabled": true,
+      "industryType": "other",
+      "assistantId": "",
+      "tags": [],
+      "contentPreview": "111",
+      "contentLength": 3
+    },
+    "afterSnapshot": null
+  },
+  {
+    "id": "1625a5d3-12ea-4f06-aa24-6a9f73008183",
+    "entityType": "prompt",
+    "action": "delete",
+    "actor": "assistant-center",
+    "targetId": "prompt-3",
+    "targetName": "法务中能手",
+    "createdAt": "2026-04-16T05:19:43.933Z",
+    "summary": "删除Prompt「法务中能手」",
+    "changeCount": 12,
+    "changedFields": [
+      {
+        "field": "promptId",
+        "before": "prompt-3",
+        "after": ""
+      },
+      {
+        "field": "name",
+        "before": "法务中能手",
+        "after": ""
+      },
+      {
+        "field": "module",
+        "before": "script",
+        "after": ""
+      },
+      {
+        "field": "description",
+        "before": "1",
+        "after": ""
+      },
+      {
+        "field": "version",
+        "before": "v1",
+        "after": ""
+      },
+      {
+        "field": "recordVersion",
+        "before": "1",
+        "after": ""
+      },
+      {
+        "field": "publishState",
+        "before": "draft",
+        "after": ""
+      },
+      {
+        "field": "enabled",
+        "before": "true",
+        "after": ""
+      },
+      {
+        "field": "industryType",
+        "before": "other",
+        "after": ""
+      },
+      {
+        "field": "assistantId",
+        "before": "",
+        "after": ""
+      },
+      {
+        "field": "tags",
+        "before": "",
+        "after": ""
+      },
+      {
+        "field": "contentPreview",
+        "before": "中能手",
+        "after": ""
+      }
+    ],
+    "metadata": {
+      "route": "assistant-center"
+    },
+    "beforeSnapshot": {
+      "promptId": "prompt-3",
+      "name": "法务中能手",
+      "module": "script",
+      "description": "1",
+      "version": "v1",
+      "recordVersion": 1,
+      "publishState": "draft",
+      "enabled": true,
+      "industryType": "other",
+      "assistantId": "",
+      "tags": [],
+      "contentPreview": "中能手",
+      "contentLength": 3
+    },
+    "afterSnapshot": null
+  },
+  {
+    "id": "12c08cf1-45b0-47a0-9b83-ff0464e87b5d",
+    "entityType": "prompt",
+    "action": "delete",
+    "actor": "assistant-center",
+    "targetId": "prompt",
+    "targetName": "法务小能手",
+    "createdAt": "2026-04-16T05:19:39.904Z",
+    "summary": "删除Prompt「法务小能手」",
+    "changeCount": 12,
+    "changedFields": [
+      {
+        "field": "promptId",
+        "before": "prompt",
+        "after": ""
+      },
+      {
+        "field": "name",
+        "before": "法务小能手",
+        "after": ""
+      },
+      {
+        "field": "module",
+        "before": "analyze",
+        "after": ""
+      },
+      {
+        "field": "description",
+        "before": "法务小能手",
+        "after": ""
+      },
+      {
+        "field": "version",
+        "before": "v1",
+        "after": ""
+      },
+      {
+        "field": "recordVersion",
+        "before": "1",
+        "after": ""
+      },
+      {
+        "field": "publishState",
+        "before": "draft",
+        "after": ""
+      },
+      {
+        "field": "enabled",
+        "before": "true",
+        "after": ""
+      },
+      {
+        "field": "industryType",
+        "before": "other",
+        "after": ""
+      },
+      {
+        "field": "assistantId",
+        "before": "",
+        "after": ""
+      },
+      {
+        "field": "tags",
+        "before": "",
+        "after": ""
+      },
+      {
+        "field": "contentPreview",
+        "before": "分析合同",
+        "after": ""
+      }
+    ],
+    "metadata": {
+      "route": "assistant-center"
+    },
+    "beforeSnapshot": {
+      "promptId": "prompt",
+      "name": "法务小能手",
+      "module": "analyze",
+      "description": "法务小能手",
+      "version": "v1",
+      "recordVersion": 1,
+      "publishState": "draft",
+      "enabled": true,
+      "industryType": "other",
+      "assistantId": "",
+      "tags": [],
+      "contentPreview": "分析合同",
+      "contentLength": 4
+    },
+    "afterSnapshot": null
+  },
+  {
+    "id": "da80bb1b-a2fb-406d-a991-e0417eb4a739",
+    "entityType": "plugin_manifest",
+    "action": "delete",
+    "actor": "codex-test",
+    "targetId": "custom.analyze.tmp-governance",
+    "targetName": "Analyze Tmp Governance",
+    "createdAt": "2026-04-15T23:08:21.991Z",
+    "summary": "删除PluginManifest「Analyze Tmp Governance」",
+    "changeCount": 12,
+    "changedFields": [
+      {
+        "field": "pluginId",
+        "before": "custom.analyze.tmp-governance",
+        "after": ""
+      },
+      {
+        "field": "displayName",
+        "before": "Analyze Tmp Governance",
+        "after": ""
+      },
+      {
+        "field": "kind",
+        "before": "analyze",
+        "after": ""
+      },
+      {
+        "field": "route",
+        "before": "analyze-customer",
+        "after": ""
+      },
+      {
+        "field": "enabled",
+        "before": "true",
+        "after": ""
+      },
+      {
+        "field": "defaultPlugin",
+        "before": "false",
+        "after": ""
+      },
+      {
+        "field": "order",
+        "before": "999",
+        "after": ""
+      },
+      {
+        "field": "release.stage",
+        "before": "stable",
+        "after": ""
+      },
+      {
+        "field": "release.trafficPercent",
+        "before": "0",
+        "after": ""
+      },
+      {
+        "field": "release.rollbackOnError",
+        "before": "false",
+        "after": ""
+      },
+      {
+        "field": "release.bucketBy",
+        "before": "sessionId",
+        "after": ""
+      },
+      {
+        "field": "release.stablePluginId",
+        "before": "",
+        "after": ""
+      }
+    ],
+    "metadata": {
+      "route": "settings.workflow-manifests.delete",
+      "manifestPath": "/Users/tietiedemac/sales-support-agent-frontend/mock-server/plugins/manifests/custom-analyze-tmp-governance.json",
+      "changeTicket": "CHG-1002",
+      "role": "platform-owner",
+      "approvals": [
+        {
+          "approvedBy": "qa-owner",
+          "approvedAt": "2026-04-15T23:08:21.991Z",
+          "note": ""
+        }
+      ],
+      "historyBackup": {
+        "contractVersion": "workflow-manifest-history/v1",
+        "pluginId": "custom.analyze.tmp-governance",
+        "backupFile": "2026-04-15T23-08-21-991Z__delete-before.json",
+        "backupPath": "/Users/tietiedemac/sales-support-agent-frontend/mock-server/plugins/manifests/_history/custom.analyze.tmp-governance/2026-04-15T23-08-21-991Z__delete-before.json",
+        "sourceManifestPath": "/Users/tietiedemac/sales-support-agent-frontend/mock-server/plugins/manifests/custom-analyze-tmp-governance.json",
+        "action": "delete-before",
+        "backedUpAt": "2026-04-15T23:08:21.991Z"
+      }
+    },
+    "beforeSnapshot": {
+      "pluginId": "custom.analyze.tmp-governance",
+      "displayName": "Analyze Tmp Governance",
+      "kind": "analyze",
+      "route": "analyze-customer",
+      "enabled": true,
+      "defaultPlugin": false,
+      "order": 999,
+      "release": {
+        "stage": "stable",
+        "trafficPercent": 0,
+        "rollbackOnError": false,
+        "bucketBy": "sessionId",
+        "stablePluginId": ""
+      },
+      "workflow": {
+        "entryNodeId": "analyze-main",
+        "nodeCount": 1,
+        "nodeTypes": [
+          "analyze.customer.v1"
+        ],
+        "nodeIds": [
+          "analyze-main"
+        ]
+      },
+      "connectors": [],
+      "outputBinding": {
+        "nodeId": "analyze-main",
+        "path": "$"
+      }
+    },
+    "afterSnapshot": null
+  },
+  {
+    "id": "9e26beee-d280-42e8-b892-d9246c68278a",
+    "entityType": "plugin_manifest",
+    "action": "create",
+    "actor": "codex-test",
+    "targetId": "custom.analyze.tmp-governance",
+    "targetName": "Analyze Tmp Governance",
+    "createdAt": "2026-04-15T23:08:21.988Z",
+    "summary": "创建PluginManifest「Analyze Tmp Governance」",
+    "changeCount": 12,
+    "changedFields": [
+      {
+        "field": "pluginId",
+        "before": "",
+        "after": "custom.analyze.tmp-governance"
+      },
+      {
+        "field": "displayName",
+        "before": "",
+        "after": "Analyze Tmp Governance"
+      },
+      {
+        "field": "kind",
+        "before": "",
+        "after": "analyze"
+      },
+      {
+        "field": "route",
+        "before": "",
+        "after": "analyze-customer"
+      },
+      {
+        "field": "enabled",
+        "before": "",
+        "after": "true"
+      },
+      {
+        "field": "defaultPlugin",
+        "before": "",
+        "after": "false"
+      },
+      {
+        "field": "order",
+        "before": "",
+        "after": "999"
+      },
+      {
+        "field": "release.stage",
+        "before": "",
+        "after": "stable"
+      },
+      {
+        "field": "release.trafficPercent",
+        "before": "",
+        "after": "100"
+      },
+      {
+        "field": "release.rollbackOnError",
+        "before": "",
+        "after": "false"
+      },
+      {
+        "field": "release.bucketBy",
+        "before": "",
+        "after": "sessionId"
+      },
+      {
+        "field": "release.stablePluginId",
+        "before": "",
+        "after": ""
+      }
+    ],
+    "metadata": {
+      "route": "settings.workflow-manifests.upsert",
+      "manifestPath": "/Users/tietiedemac/sales-support-agent-frontend/mock-server/plugins/manifests/custom-analyze-tmp-governance.json",
+      "changeTicket": "CHG-1001",
+      "role": "platform-owner",
+      "approvals": [
+        {
+          "approvedBy": "qa-owner",
+          "approvedAt": "2026-04-15T23:08:21.980Z",
+          "note": ""
+        }
+      ],
+      "historyBackup": null
+    },
+    "beforeSnapshot": null,
+    "afterSnapshot": {
+      "pluginId": "custom.analyze.tmp-governance",
+      "displayName": "Analyze Tmp Governance",
+      "kind": "analyze",
+      "route": "analyze-customer",
+      "enabled": true,
+      "defaultPlugin": false,
+      "order": 999,
+      "release": {
+        "stage": "stable",
+        "trafficPercent": 100,
+        "rollbackOnError": false,
+        "bucketBy": "sessionId",
+        "stablePluginId": ""
+      },
+      "workflow": {
+        "entryNodeId": "analyze-main",
+        "nodeCount": 1,
+        "nodeTypes": [
+          "analyze.customer.v1"
+        ],
+        "nodeIds": [
+          "analyze-main"
+        ]
+      },
+      "connectors": [],
+      "outputBinding": {
+        "nodeId": "analyze-main",
+        "path": "$"
+      }
+    }
+  },
+  {
+    "id": "f1fe439c-e03b-4b66-aa3c-dfe148144a44",
+    "entityType": "prompt",
+    "action": "create",
+    "actor": "assistant-center",
+    "targetId": "prompt-3",
+    "targetName": "法务中能手",
+    "createdAt": "2026-04-15T11:19:09.759Z",
+    "summary": "创建Prompt「法务中能手」",
+    "changeCount": 12,
+    "changedFields": [
+      {
+        "field": "promptId",
+        "before": "",
+        "after": "prompt-3"
+      },
+      {
+        "field": "name",
+        "before": "",
+        "after": "法务中能手"
+      },
+      {
+        "field": "module",
+        "before": "",
+        "after": "script"
+      },
+      {
+        "field": "description",
+        "before": "",
+        "after": "1"
+      },
+      {
+        "field": "version",
+        "before": "",
+        "after": "v1"
+      },
+      {
+        "field": "recordVersion",
+        "before": "",
+        "after": "1"
+      },
+      {
+        "field": "publishState",
+        "before": "",
+        "after": "draft"
+      },
+      {
+        "field": "enabled",
+        "before": "",
+        "after": "true"
+      },
+      {
+        "field": "industryType",
+        "before": "",
+        "after": "other"
+      },
+      {
+        "field": "assistantId",
+        "before": "",
+        "after": ""
+      },
+      {
+        "field": "tags",
+        "before": "",
+        "after": ""
+      },
+      {
+        "field": "contentPreview",
+        "before": "",
+        "after": "中能手"
+      }
+    ],
+    "metadata": {
+      "route": "assistant-center"
+    },
+    "beforeSnapshot": null,
+    "afterSnapshot": {
+      "promptId": "prompt-3",
+      "name": "法务中能手",
+      "module": "script",
+      "description": "1",
+      "version": "v1",
+      "recordVersion": 1,
+      "publishState": "draft",
+      "enabled": true,
+      "industryType": "other",
+      "assistantId": "",
+      "tags": [],
+      "contentPreview": "中能手",
+      "contentLength": 3
+    }
+  },
+  {
+    "id": "8a9906c3-3df0-4986-8825-0786a27ae536",
+    "entityType": "prompt",
+    "action": "create",
+    "actor": "assistant-center",
+    "targetId": "prompt-2",
+    "targetName": "法务大能手",
+    "createdAt": "2026-04-15T11:18:46.183Z",
+    "summary": "创建Prompt「法务大能手」",
+    "changeCount": 12,
+    "changedFields": [
+      {
+        "field": "promptId",
+        "before": "",
+        "after": "prompt-2"
+      },
+      {
+        "field": "name",
+        "before": "",
+        "after": "法务大能手"
+      },
+      {
+        "field": "module",
+        "before": "",
+        "after": "search"
+      },
+      {
+        "field": "description",
+        "before": "",
+        "after": "大恩能手"
+      },
+      {
+        "field": "version",
+        "before": "",
+        "after": "v1"
+      },
+      {
+        "field": "recordVersion",
+        "before": "",
+        "after": "1"
+      },
+      {
+        "field": "publishState",
+        "before": "",
+        "after": "draft"
+      },
+      {
+        "field": "enabled",
+        "before": "",
+        "after": "true"
+      },
+      {
+        "field": "industryType",
+        "before": "",
+        "after": "other"
+      },
+      {
+        "field": "assistantId",
+        "before": "",
+        "after": ""
+      },
+      {
+        "field": "tags",
+        "before": "",
+        "after": ""
+      },
+      {
+        "field": "contentPreview",
+        "before": "",
+        "after": "111"
+      }
+    ],
+    "metadata": {
+      "route": "assistant-center"
+    },
+    "beforeSnapshot": null,
+    "afterSnapshot": {
+      "promptId": "prompt-2",
+      "name": "法务大能手",
+      "module": "search",
+      "description": "大恩能手",
+      "version": "v1",
+      "recordVersion": 1,
+      "publishState": "draft",
+      "enabled": true,
+      "industryType": "other",
+      "assistantId": "",
+      "tags": [],
+      "contentPreview": "111",
+      "contentLength": 3
+    }
+  },
+  {
+    "id": "afc7976f-a512-48e6-81eb-5773924571f9",
+    "entityType": "prompt",
+    "action": "create",
+    "actor": "assistant-center",
+    "targetId": "prompt",
+    "targetName": "法务小能手",
+    "createdAt": "2026-04-15T11:18:01.054Z",
+    "summary": "创建Prompt「法务小能手」",
+    "changeCount": 12,
+    "changedFields": [
+      {
+        "field": "promptId",
+        "before": "",
+        "after": "prompt"
+      },
+      {
+        "field": "name",
+        "before": "",
+        "after": "法务小能手"
+      },
+      {
+        "field": "module",
+        "before": "",
+        "after": "analyze"
+      },
+      {
+        "field": "description",
+        "before": "",
+        "after": "法务小能手"
+      },
+      {
+        "field": "version",
+        "before": "",
+        "after": "v1"
+      },
+      {
+        "field": "recordVersion",
+        "before": "",
+        "after": "1"
+      },
+      {
+        "field": "publishState",
+        "before": "",
+        "after": "draft"
+      },
+      {
+        "field": "enabled",
+        "before": "",
+        "after": "true"
+      },
+      {
+        "field": "industryType",
+        "before": "",
+        "after": "other"
+      },
+      {
+        "field": "assistantId",
+        "before": "",
+        "after": ""
+      },
+      {
+        "field": "tags",
+        "before": "",
+        "after": ""
+      },
+      {
+        "field": "contentPreview",
+        "before": "",
+        "after": "分析合同"
+      }
+    ],
+    "metadata": {
+      "route": "assistant-center"
+    },
+    "beforeSnapshot": null,
+    "afterSnapshot": {
+      "promptId": "prompt",
+      "name": "法务小能手",
+      "module": "analyze",
+      "description": "法务小能手",
+      "version": "v1",
+      "recordVersion": 1,
+      "publishState": "draft",
+      "enabled": true,
+      "industryType": "other",
+      "assistantId": "",
+      "tags": [],
+      "contentPreview": "分析合同",
+      "contentLength": 4
+    }
+  }
+]

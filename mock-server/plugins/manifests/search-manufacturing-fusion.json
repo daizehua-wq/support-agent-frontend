@@ -1,0 +1,178 @@
+{
+  "specVersion": "plugin-spec/v1",
+  "pluginId": "industry.search.manufacturing-fusion",
+  "displayName": "Search Manufacturing Fusion",
+  "description": "行业插件：检索后追加证据优先级融合节点，提升制造业证据排序稳定性。",
+  "kind": "search",
+  "route": "search-documents",
+  "enabled": true,
+  "defaultPlugin": false,
+  "order": 30,
+  "workflow": {
+    "specVersion": "workflow-node-spec/v1",
+    "entryNodeId": "search-main",
+    "nodes": [
+      {
+        "specVersion": "workflow-node-spec/v1",
+        "id": "search-main",
+        "type": "search.documents.v1",
+        "module": "search",
+        "operation": "searchDocuments",
+        "inputMode": "request",
+        "timeoutMs": 45000,
+        "retryPolicy": {
+          "maxRetries": 1,
+          "backoffMs": 200
+        },
+        "connectorRefs": [
+          "knowledge",
+          "filesystem",
+          "database"
+        ],
+        "continueOnError": false,
+        "emitEvents": [
+          "workflow.node.start",
+          "workflow.node.retry",
+          "workflow.node.complete",
+          "workflow.node.error"
+        ]
+      },
+      {
+        "specVersion": "workflow-node-spec/v1",
+        "id": "search-prioritize",
+        "type": "custom.search.evidence-prioritizer.v1",
+        "module": "search",
+        "operation": "prioritizeEvidence",
+        "inputMode": "previous-node",
+        "dependsOn": [
+          "search-main"
+        ],
+        "timeoutMs": 8000,
+        "retryPolicy": {
+          "maxRetries": 1,
+          "backoffMs": 100
+        },
+        "continueOnError": true,
+        "emitEvents": [
+          "workflow.node.start",
+          "workflow.node.retry",
+          "workflow.node.complete",
+          "workflow.node.error"
+        ],
+        "handler": {
+          "modulePath": "plugins/nodes/industryWorkflowNodes.js",
+          "exportName": "runSearchEvidencePrioritizer"
+        },
+        "inputOverrides": {
+          "preferredDocTypes": [
+            "spec",
+            "规格书",
+            "faq",
+            "case"
+          ]
+        }
+      }
+    ]
+  },
+  "connectors": [
+    {
+      "specVersion": "connector-spec/v1",
+      "id": "knowledge",
+      "connectorType": "knowledge",
+      "adapterType": "knowledge",
+      "required": false,
+      "settingsPath": "settings.search.connectors.knowledge[]",
+      "whitelistKeys": [
+        "docTypes",
+        "outboundDocTypes",
+        "summaryAllowed"
+      ],
+      "limitsKeys": [],
+      "capabilities": [
+        "local-document"
+      ]
+    },
+    {
+      "specVersion": "connector-spec/v1",
+      "id": "filesystem",
+      "connectorType": "file-system",
+      "adapterType": "file-system",
+      "required": false,
+      "settingsPath": "settings.search.connectors.fileSystems[]",
+      "whitelistKeys": [
+        "extensions",
+        "pathPrefixes",
+        "outboundPathPrefixes",
+        "summaryAllowed"
+      ],
+      "limitsKeys": [
+        "maxScanCount",
+        "maxMatchCount"
+      ],
+      "capabilities": [
+        "local-file"
+      ]
+    },
+    {
+      "specVersion": "connector-spec/v1",
+      "id": "database",
+      "connectorType": "database",
+      "adapterType": "database",
+      "required": false,
+      "settingsPath": "settings.search.connectors.databases[]",
+      "whitelistKeys": [
+        "tables",
+        "outboundTables",
+        "schemas",
+        "outboundSchemas",
+        "summaryAllowed"
+      ],
+      "limitsKeys": [
+        "maxTableCount",
+        "maxRowCountPerTable",
+        "maxMatchCount"
+      ],
+      "capabilities": [
+        "enterprise-database"
+      ]
+    }
+  ],
+  "eventSchema": {
+    "specVersion": "event-schema/v1",
+    "eventTypes": [
+      "plugin.execution.start",
+      "workflow.node.start",
+      "workflow.node.retry",
+      "workflow.node.complete",
+      "workflow.node.error",
+      "plugin.execution.complete",
+      "plugin.execution.error"
+    ],
+    "requiredFields": [
+      "eventId",
+      "eventType",
+      "occurredAt",
+      "pluginId",
+      "route",
+      "nodeId"
+    ]
+  },
+  "traceSchema": {
+    "specVersion": "trace-schema/v1",
+    "requiredSections": [
+      "plugin",
+      "workflow",
+      "events",
+      "timing",
+      "result"
+    ],
+    "compatibility": [
+      "searchTraceSummary",
+      "executionContext"
+    ]
+  },
+  "outputBinding": {
+    "nodeId": "search-prioritize",
+    "path": "$"
+  }
+}

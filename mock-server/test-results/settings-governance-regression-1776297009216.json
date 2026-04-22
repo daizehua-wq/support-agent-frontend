@@ -1,0 +1,30 @@
+{
+  "contractVersion": "settings-governance-regression/v1",
+  "status": "failed",
+  "startedAt": "2026-04-15T23:50:09.182Z",
+  "completedAt": "2026-04-15T23:50:09.216Z",
+  "baseUrl": "http://127.0.0.1:3001",
+  "tenantId": "tenant-governance-regression",
+  "checkpoints": {},
+  "error": {
+    "message": "POST /api/settings failed: settings governance permission denied",
+    "details": {
+      "success": false,
+      "message": "settings governance permission denied",
+      "error": "role \"config-editor\" does not have permission \"settings:update\"",
+      "data": {
+        "permission": "settings:update",
+        "tenantId": "tenant-governance-regression",
+        "traceId": "98226731-b68c-42c7-8ddb-ce256989c45a",
+        "actor": {
+          "id": "settings-governance-editor-A",
+          "role": "config-editor"
+        },
+        "expectedRoles": [],
+        "rolePermissions": {},
+        "knownTenants": [],
+        "code": "permission-denied"
+      }
+    }
+  }
+}

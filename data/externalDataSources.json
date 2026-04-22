@@ -1,0 +1,29 @@
+[
+  {
+    "id": "vendor-public-search-demo",
+    "name": "商业检索 API 接入位",
+    "providerName": "Vendor Search Demo",
+    "sourceType": "search-api",
+    "authType": "api-key",
+    "enabled": false,
+    "baseUrl": "https://vendor.example.com",
+    "apiPath": "/v1/search",
+    "apiKey": "",
+    "username": "",
+    "password": "",
+    "capabilities": [
+      "search",
+      "fetch-detail"
+    ],
+    "allowedDomains": [
+      "vendor.example.com"
+    ],
+    "publicDataOnly": true,
+    "localDataOutboundPolicy": "blocked",
+    "notes": "预留给商业公开数据检索 API；后续仅允许发送脱敏后的公开查询词。",
+    "version": 1,
+    "lastCheckedAt": "2026-04-16T00:00:00.000Z",
+    "healthStatus": "warning",
+    "healthMessage": "已预留接入位，待填写真实供应商参数。"
+  }
+]

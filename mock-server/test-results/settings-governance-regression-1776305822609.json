@@ -1,0 +1,19 @@
+{
+  "contractVersion": "settings-governance-regression/v1",
+  "status": "passed",
+  "startedAt": "2026-04-16T02:17:02.385Z",
+  "completedAt": "2026-04-16T02:17:02.609Z",
+  "baseUrl": "http://127.0.0.1:3001",
+  "tenantId": "tenant-governance-regression",
+  "checkpoints": {
+    "tenantId": "tenant-governance-regression",
+    "versionA": "tenant-governance-regression-v0004",
+    "versionB": "tenant-governance-regression-v0005",
+    "restoredFromVersion": "tenant-governance-regression-v0004",
+    "rollbackDurationMs": 3,
+    "rollbackSlaMs": 300000,
+    "historyVersionCount": 6,
+    "historyAuditCount": 10
+  },
+  "error": null
+}

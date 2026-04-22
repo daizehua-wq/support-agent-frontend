@@ -1,0 +1,71 @@
+{
+  "specVersion": "plugin-spec/v1",
+  "pluginId": "custom.analyze.tmp-governance",
+  "displayName": "Analyze Tmp Governance",
+  "description": "tmp",
+  "kind": "analyze",
+  "route": "analyze-customer",
+  "enabled": true,
+  "defaultPlugin": false,
+  "order": 999,
+  "workflow": {
+    "specVersion": "workflow-node-spec/v1",
+    "entryNodeId": "analyze-main",
+    "nodes": [
+      {
+        "specVersion": "workflow-node-spec/v1",
+        "id": "analyze-main",
+        "type": "analyze.customer.v1",
+        "module": "analyze",
+        "operation": "analyzeCustomer",
+        "inputMode": "request",
+        "timeoutMs": 30000,
+        "retryPolicy": {
+          "maxRetries": 0,
+          "backoffMs": 0
+        },
+        "continueOnError": false,
+        "emitEvents": [
+          "workflow.node.start",
+          "workflow.node.complete",
+          "workflow.node.error"
+        ]
+      }
+    ]
+  },
+  "connectors": [],
+  "eventSchema": {
+    "specVersion": "event-schema/v1",
+    "eventTypes": [
+      "plugin.execution.start",
+      "workflow.node.start",
+      "workflow.node.complete",
+      "workflow.node.error",
+      "plugin.execution.complete",
+      "plugin.execution.error"
+    ],
+    "requiredFields": [
+      "eventId",
+      "eventType",
+      "occurredAt",
+      "pluginId",
+      "route",
+      "nodeId"
+    ]
+  },
+  "traceSchema": {
+    "specVersion": "trace-schema/v1",
+    "requiredSections": [
+      "plugin",
+      "workflow",
+      "events",
+      "timing",
+      "result"
+    ],
+    "compatibility": []
+  },
+  "outputBinding": {
+    "nodeId": "analyze-main",
+    "path": "$"
+  }
+}

@@ -10,13 +10,14 @@ export const isLocalLLMConfigured = () => {
 export const buildLocalLLMPrompt = ({
   scene = 'first_reply',
   toneStyle = 'formal',
-  productDirection = '',
-  customerText = '',
+  goal = '',
+  taskSubject = '',
+  taskInput = '',
   referenceSummary = '',
   cautionNotes = [],
   selectedTemplate = '',
 }) => {
-  return `你是一个销售支持助手，需要基于已有模板生成一版更自然、更像真人表达的话术。\n\n【场景】\n${scene}\n\n【语气风格】\n${toneStyle}\n\n【产品方向】\n${productDirection || '未提供'}\n\n【客户原话】\n${customerText || '未提供'}\n\n【资料摘要】\n${referenceSummary || '未提供'}\n\n【基础模板】\n${selectedTemplate || '未提供'}\n\n【必须遵守的风险边界】\n${cautionNotes.length ? cautionNotes.map((item) => `- ${item}`).join('\n') : '- 当前阶段不建议直接承诺具体性能提升结果。'}\n\n请输出一版更自然、更商务、但不越界的话术。\n要求：\n1. 不要脱离基础模板的核心意思。\n2. 不要虚构产品能力。\n3. 不要承诺未经验证的结果。\n4. 输出只返回最终话术正文，不要加解释。`;
+  return `你是一个通用岗位写作助手，需要基于已有模板生成一版更自然、更贴近真实工作语境的参考文稿。\n\n【场景】\n${scene}\n\n【输出目标】\n${goal || '未提供'}\n\n【表达风格】\n${toneStyle}\n\n【任务主题】\n${taskSubject || '未提供'}\n\n【任务输入】\n${taskInput || '未提供'}\n\n【背景资料摘要】\n${referenceSummary || '未提供'}\n\n【基础模板】\n${selectedTemplate || '未提供'}\n\n【必须遵守的风险边界】\n${cautionNotes.length ? cautionNotes.map((item) => `- ${item}`).join('\n') : '- 当前阶段不建议直接承诺未经验证的结果。'}\n\n请输出一版更自然、更专业、但不越界的参考文稿。\n要求：\n1. 不要脱离基础模板的核心意思。\n2. 不要虚构事实或能力。\n3. 不要承诺未经验证的结果。\n4. 输出只返回最终正文，不要加解释。`;
 };
 
 const sanitizeLocalLLMOutput = (text) => {
@@ -48,7 +49,7 @@ const callLocalLLM = async (prompt) => {
         messages: [
           {
             role: 'system',
-            content: '你是一个严谨的本地销售支持助手，必须遵守模板和风险边界。',
+            content: '你是一个严谨的本地岗位助手，必须遵守模板和风险边界。',
           },
           {
             role: 'user',

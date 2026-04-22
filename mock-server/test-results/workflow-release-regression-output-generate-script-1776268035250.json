@@ -1,0 +1,17 @@
+{
+  "runIndex": 1,
+  "status": "failed",
+  "startedAt": "2026-04-15T15:47:15.226Z",
+  "completedAt": "2026-04-15T15:47:15.250Z",
+  "baseUrl": "http://127.0.0.1:3001",
+  "route": {
+    "kind": "output",
+    "route": "generate-script"
+  },
+  "error": {
+    "message": "GET /api/settings/workflow-release-options failed: HTTP 404",
+    "details": null,
+    "status": 404,
+    "payload": {}
+  }
+}

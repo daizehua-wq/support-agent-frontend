@@ -1,0 +1,13 @@
+{
+  "contractVersion": "settings-governance-regression/v1",
+  "status": "failed",
+  "startedAt": "2026-04-16T06:43:16.059Z",
+  "completedAt": "2026-04-16T06:43:16.076Z",
+  "baseUrl": "http://127.0.0.1:3001",
+  "tenantId": "tenant-governance-regression",
+  "checkpoints": {},
+  "error": {
+    "message": "POST /api/settings failed: fetch failed. 请先启动 mock server（npm run dev:mock）。",
+    "details": null
+  }
+}

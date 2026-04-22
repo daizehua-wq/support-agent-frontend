@@ -4,6 +4,7 @@
     "productName": "双氧水体系蚀刻液",
     "category": "h2o2",
     "industryTypes": ["pcb"],
+    "scope": ["pcb"],
     "keywords": ["双氧水", "蚀刻液", "稳定性", "线宽", "成本"],
     "summary": "适用于 PCB 蚀刻场景，重点关注稳定性、线宽均匀性和整体成本控制。",
     "applicableScenes": ["PCB 蚀刻场景"],
@@ -28,6 +29,7 @@
     "productName": "电子级清洗液",
     "category": "cleaning",
     "industryTypes": ["pcb", "semiconductor", "display"],
+    "scope": ["pcb", "semiconductor", "display"],
     "keywords": ["清洗", "清洗液", "残留", "兼容性"],
     "summary": "适用于湿制程清洗场景，重点关注残留控制、兼容性和清洗后表面状态。",
     "applicableScenes": ["湿制程清洗场景", "清洗液导入前期沟通"],
@@ -52,6 +54,7 @@
     "productName": "样品测试支持资料包",
     "category": "sample_test",
     "industryTypes": ["pcb", "semiconductor", "display"],
+    "scope": ["pcb", "semiconductor", "display"],
     "keywords": ["样品", "测试", "寄样", "评价指标"],
     "summary": "用于样品测试推进阶段，帮助销售确认样品规格、寄样时间和测试评价标准。",
     "applicableScenes": ["样品测试推进场景", "客户测试验证场景"],
@@ -67,6 +70,82 @@
         "docName": "寄样沟通要点清单",
         "docType": "内部资料",
         "summaryText": "用于内部销售沟通，帮助确认寄样前后的关键节点。",
+        "externalAvailable": false
+      }
+    ]
+  },
+    {
+    "id": "product-004",
+    "productName": "半导体湿制程化学品方案",
+    "category": "semiconductor_process_chemicals",
+    "industryTypes": ["semiconductor"],
+    "scope": ["semiconductor"],
+    "keywords": [
+      "蚀刻液",
+      "蚀刻",
+      "湿制程",
+      "湿电子化学品",
+      "电子级化学品",
+      "工艺液",
+      "化学液",
+      "兼容性",
+      "残留",
+      "纯度",
+      "导入验证"
+    ],
+    "summary": "面向半导体湿制程场景，重点关注纯度、兼容性、残留控制和导入验证要求。",
+    "applicableScenes": [
+      "半导体湿制程场景",
+      "工艺导入前期沟通",
+      "样品验证推进场景"
+    ],
+    "externalAvailable": false,
+    "relatedDocuments": [
+      {
+        "docName": "半导体湿制程化学品基础资料",
+        "docType": "基础资料",
+        "summaryText": "介绍半导体湿制程化学品的基础分类、关注指标和导入沟通重点。",
+        "externalAvailable": false
+      },
+      {
+        "docName": "半导体兼容性说明资料",
+        "docType": "兼容性资料",
+        "summaryText": "说明不同材料体系下的兼容性关注点和验证建议。",
+        "externalAvailable": false
+      },
+      {
+        "docName": "半导体样品测试与导入说明",
+        "docType": "测试资料",
+        "summaryText": "用于样品测试、验证指标确认和导入推进沟通。",
+        "externalAvailable": false
+      }
+    ]
+  },
+  {
+    "id": "product-005",
+    "productName": "半导体蚀刻相关工艺资料包",
+    "category": "semiconductor_etch_support",
+    "industryTypes": ["semiconductor"],
+    "scope": ["semiconductor"],
+    "keywords": [
+      "蚀刻液",
+      "蚀刻",
+      "刻蚀",
+      "工艺液",
+      "湿法蚀刻",
+      "导入验证"
+    ],
+    "summary": "面向半导体蚀刻相关工艺沟通，重点关注工艺适配、材料兼容性和验证路径。",
+    "applicableScenes": [
+      "半导体蚀刻工艺沟通",
+      "样品导入前期评估"
+    ],
+    "externalAvailable": false,
+    "relatedDocuments": [
+      {
+        "docName": "半导体蚀刻工艺沟通资料",
+        "docType": "工艺资料",
+        "summaryText": "介绍半导体蚀刻相关工艺沟通重点和基础验证维度。",
         "externalAvailable": false
       }
     ]

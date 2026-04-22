@@ -1,13 +1,23 @@
-
-
 const API_LLM_BASE_URL = process.env.API_LLM_BASE_URL || '';
 const API_LLM_MODEL = process.env.API_LLM_MODEL || '';
 const API_LLM_API_KEY = process.env.API_LLM_API_KEY || '';
 const API_LLM_TIMEOUT_MS = Number(process.env.API_LLM_TIMEOUT_MS || 30000);
 const ALLOW_API_SENSITIVE_DATA = process.env.ALLOW_API_SENSITIVE_DATA === 'true';
 
-export const isApiLLMConfigured = () => {
-  return Boolean(API_LLM_BASE_URL && API_LLM_MODEL && API_LLM_API_KEY);
+const resolveApiModelConfig = (payload = {}) => {
+  const modelConfig = payload.modelConfig || payload.model || {};
+
+  return {
+    baseUrl: modelConfig.baseUrl || API_LLM_BASE_URL,
+    modelName: modelConfig.modelName || API_LLM_MODEL,
+    apiKey: modelConfig.apiKey || API_LLM_API_KEY,
+    timeout: Number(modelConfig.timeout || API_LLM_TIMEOUT_MS),
+  };
+};
+
+export const isApiLLMConfigured = (payload = {}) => {
+  const config = resolveApiModelConfig(payload);
+  return Boolean(config.baseUrl && config.modelName);
 };
 
 export const validateApiPayloadSafety = (payload) => {
@@ -15,11 +25,21 @@ export const validateApiPayloadSafety = (payload) => {
     return { safe: true, reason: 'explicitly-allowed' };
   }
 
-  const hasCustomerText = Boolean(payload.customerText?.trim());
-  const hasReferenceSummary = Boolean(payload.referenceSummary?.trim());
-  const hasProductDirection = Boolean(payload.productDirection?.trim());
+  const scriptExecutionStrategy = payload.scriptExecutionStrategy || '';
+  const outboundAllowed = payload.outboundAllowed === true;
 
-  if (hasCustomerText || hasReferenceSummary || hasProductDirection) {
+  // 允许“脱敏后出网”
+  if (scriptExecutionStrategy === 'masked-api') {
+    return outboundAllowed
+      ? { safe: true, reason: 'masked-api-allowed' }
+      : { safe: false, reason: 'masked-api-blocked-by-outbound-check' };
+  }
+
+  const hasTaskInput = Boolean((payload.taskInput || payload.customerText || '').trim());
+  const hasReferenceSummary = Boolean(payload.referenceSummary?.trim());
+  const hasTaskSubject = Boolean((payload.taskSubject || payload.productDirection || '').trim());
+
+  if (hasTaskInput || hasReferenceSummary || hasTaskSubject) {
     return {
       safe: false,
       reason: 'sensitive-local-data-blocked-by-policy',
@@ -32,34 +52,47 @@ export const validateApiPayloadSafety = (payload) => {
 export const buildApiLLMPrompt = ({
   scene = 'first_reply',
   toneStyle = 'formal',
-  productDirection = '',
-  customerText = '',
+  goal = '',
+  taskSubject = '',
+  taskInput = '',
   referenceSummary = '',
   cautionNotes = [],
   selectedTemplate = '',
 }) => {
-  return `你是一个销售支持助手，需要基于已有模板生成一版更自然、更商务的话术。\n\n【场景】\n${scene}\n\n【语气风格】\n${toneStyle}\n\n【产品方向】\n${productDirection || '未提供'}\n\n【客户原话】\n${customerText || '未提供'}\n\n【资料摘要】\n${referenceSummary || '未提供'}\n\n【基础模板】\n${selectedTemplate || '未提供'}\n\n【必须遵守的风险边界】\n${cautionNotes.length ? cautionNotes.map((item) => `- ${item}`).join('\n') : '- 当前阶段不建议直接承诺具体性能提升结果。'}\n\n请输出一版更自然、更商务、但不越界的话术。\n要求：\n1. 不要脱离基础模板的核心意思。\n2. 不要虚构产品能力。\n3. 不要承诺未经验证的结果。\n4. 输出只返回最终话术正文，不要加解释。`;
+  return `你是一个通用岗位写作助手，需要基于已有模板生成一版更自然、更专业的参考文稿。\n\n【场景】\n${scene}\n\n【输出目标】\n${goal || '未提供'}\n\n【表达风格】\n${toneStyle}\n\n【任务主题】\n${taskSubject || '未提供'}\n\n【任务输入】\n${taskInput || '未提供'}\n\n【背景资料摘要】\n${referenceSummary || '未提供'}\n\n【基础模板】\n${selectedTemplate || '未提供'}\n\n【必须遵守的风险边界】\n${cautionNotes.length ? cautionNotes.map((item) => `- ${item}`).join('\n') : '- 当前阶段不建议直接承诺未经验证的结果。'}\n\n请输出一版更自然、更专业、但不越界的参考文稿。\n要求：\n1. 不要脱离基础模板的核心意思。\n2. 不要虚构事实或能力。\n3. 不要承诺未经验证的结果。\n4. 输出只返回最终正文，不要加解释。`;
 };
 
-const callApiLLM = async (prompt) => {
+const cleanApiLLMOutput = (text = '') => {
+  return text
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .trim();
+};
+
+const callApiLLM = async (prompt, payload = {}) => {
+  const config = resolveApiModelConfig(payload);
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), API_LLM_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), config.timeout);
 
   try {
-    const response = await fetch(`${API_LLM_BASE_URL.replace(/\/$/, '')}/chat/completions`, {
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+
+    if (config.apiKey) {
+      headers.Authorization = `Bearer ${config.apiKey}`;
+    }
+
+    const response = await fetch(`${config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${API_LLM_API_KEY}`,
-      },
+      headers,
       signal: controller.signal,
       body: JSON.stringify({
-        model: API_LLM_MODEL,
+        model: config.modelName,
         temperature: 0.4,
         messages: [
           {
             role: 'system',
-            content: '你是一个严谨的销售支持助手，必须遵守模板和风险边界。',
+            content: '你是一个严谨的岗位助手，必须遵守模板和风险边界。',
           },
           {
             role: 'user',
@@ -75,7 +108,8 @@ const callApiLLM = async (prompt) => {
     }
 
     const data = await response.json();
-    return data?.choices?.[0]?.message?.content?.trim() || '';
+    const rawText = data?.choices?.[0]?.message?.content?.trim() || '';
+    return cleanApiLLMOutput(rawText);
   } finally {
     clearTimeout(timer);
   }
@@ -93,7 +127,7 @@ export const generateScriptWithAPILLM = async (payload) => {
     };
   }
 
-  if (!isApiLLMConfigured()) {
+  if (!isApiLLMConfigured(payload)) {
     return {
       prompt: '',
       rewrittenScript: payload.selectedTemplate || '',
@@ -105,7 +139,7 @@ export const generateScriptWithAPILLM = async (payload) => {
   const prompt = buildApiLLMPrompt(payload);
 
   try {
-    const rewrittenScript = await callApiLLM(prompt);
+    const rewrittenScript = await callApiLLM(prompt, payload);
 
     return {
       prompt,

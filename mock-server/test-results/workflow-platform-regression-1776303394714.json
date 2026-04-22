@@ -1,0 +1,12 @@
+{
+  "contractVersion": "workflow-platform-regression/v1",
+  "status": "failed",
+  "startedAt": "2026-04-16T01:36:34.695Z",
+  "completedAt": "2026-04-16T01:36:34.714Z",
+  "baseUrl": "http://127.0.0.1:3001",
+  "checkpoints": {},
+  "error": {
+    "message": "POST /api/agent/analyze-customer failed: fetch failed. 请先启动 mock server（npm run dev:mock）。",
+    "details": null
+  }
+}

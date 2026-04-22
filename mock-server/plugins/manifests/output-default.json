@@ -1,0 +1,93 @@
+{
+  "specVersion": "plugin-spec/v1",
+  "pluginId": "builtin.output.default",
+  "displayName": "Output Default",
+  "description": "默认输出插件，执行标准话术生成节点。",
+  "kind": "output",
+  "route": "generate-script",
+  "enabled": true,
+  "defaultPlugin": true,
+  "order": 10,
+  "workflow": {
+    "specVersion": "workflow-node-spec/v1",
+    "entryNodeId": "output-main",
+    "nodes": [
+      {
+        "specVersion": "workflow-node-spec/v1",
+        "id": "output-main",
+        "type": "output.script.v1",
+        "module": "output",
+        "operation": "generateScript",
+        "inputMode": "request",
+        "timeoutMs": 45000,
+        "retryPolicy": {
+          "maxRetries": 1,
+          "backoffMs": 200
+        },
+        "connectorRefs": [
+          "evidence"
+        ],
+        "continueOnError": false,
+        "emitEvents": [
+          "workflow.node.start",
+          "workflow.node.retry",
+          "workflow.node.complete",
+          "workflow.node.error"
+        ]
+      }
+    ]
+  },
+  "connectors": [
+    {
+      "specVersion": "connector-spec/v1",
+      "id": "evidence",
+      "connectorType": "session-evidence",
+      "adapterType": "session-evidence",
+      "required": false,
+      "settingsPath": "trace.sessionEvidences",
+      "whitelistKeys": [],
+      "limitsKeys": [],
+      "capabilities": [
+        "reference-summary"
+      ]
+    }
+  ],
+  "eventSchema": {
+    "specVersion": "event-schema/v1",
+    "eventTypes": [
+      "plugin.execution.start",
+      "workflow.node.start",
+      "workflow.node.retry",
+      "workflow.node.complete",
+      "workflow.node.error",
+      "plugin.execution.complete",
+      "plugin.execution.error"
+    ],
+    "requiredFields": [
+      "eventId",
+      "eventType",
+      "occurredAt",
+      "pluginId",
+      "route",
+      "nodeId"
+    ]
+  },
+  "traceSchema": {
+    "specVersion": "trace-schema/v1",
+    "requiredSections": [
+      "plugin",
+      "workflow",
+      "events",
+      "timing",
+      "result"
+    ],
+    "compatibility": [
+      "executionContext",
+      "traceSummary"
+    ]
+  },
+  "outputBinding": {
+    "nodeId": "output-main",
+    "path": "$"
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "specVersion": "plugin-spec/v1",
+  "pluginId": "template.search.parallel-evidence.v1",
+  "displayName": "Template Parallel Evidence",
+  "description": "模板：主检索节点 + 并行增强节点（可扩展 connectorRef）",
+  "kind": "search",
+  "route": "search-documents",
+  "enabled": true,
+  "defaultPlugin": false,
+  "order": 60,
+  "workflow": {
+    "specVersion": "workflow-node-spec/v1",
+    "entryNodeId": "search-main",
+    "nodes": [
+      {
+        "specVersion": "workflow-node-spec/v1",
+        "id": "search-main",
+        "type": "search.documents.v1",
+        "module": "search",
+        "operation": "searchDocuments",
+        "inputMode": "request",
+        "timeoutMs": 45000,
+        "continueOnError": false
+      },
+      {
+        "specVersion": "workflow-node-spec/v1",
+        "id": "search-prioritize",
+        "type": "custom.search.evidence-prioritizer.v1",
+        "module": "search",
+        "operation": "prioritizeEvidence",
+        "inputMode": "previous-node",
+        "dependsOn": [
+          "search-main"
+        ],
+        "timeoutMs": 8000,
+        "continueOnError": true,
+        "handler": {
+          "modulePath": "plugins/nodes/industryWorkflowNodes.js",
+          "exportName": "runSearchEvidencePrioritizer"
+        }
+      }
+    ]
+  },
+  "connectors": [],
+  "eventSchema": {
+    "specVersion": "event-schema/v1",
+    "eventTypes": [
+      "plugin.execution.start",
+      "workflow.node.start",
+      "workflow.node.complete",
+      "plugin.execution.complete",
+      "plugin.execution.error"
+    ],
+    "requiredFields": [
+      "eventId",
+      "eventType",
+      "occurredAt",
+      "pluginId",
+      "route",
+      "nodeId"
+    ]
+  },
+  "traceSchema": {
+    "specVersion": "trace-schema/v1",
+    "requiredSections": [
+      "plugin",
+      "workflow",
+      "events",
+      "timing",
+      "result"
+    ],
+    "compatibility": [
+      "searchTraceSummary"
+    ]
+  },
+  "outputBinding": {
+    "nodeId": "search-prioritize",
+    "path": "$"
+  }
+}

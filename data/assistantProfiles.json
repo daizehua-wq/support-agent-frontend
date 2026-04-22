@@ -1,0 +1,630 @@
+[
+  {
+    "id": "pcb-sales-support",
+    "assistantId": "pcb-sales-support",
+    "name": "PCB 销售支持模板",
+    "assistantName": "PCB 销售支持模板",
+    "description": "内置模板：面向 PCB 场景的判断、资料检索和参考写作。",
+    "industryType": "pcb",
+    "templateOrigin": "builtin",
+    "templateCategory": "role-template",
+    "templateRole": "sales-support",
+    "enabled": true,
+    "publishState": "published",
+    "version": 5,
+    "updatedAt": "2026-04-18T10:09:49.809Z",
+    "modifiedAt": "2026-04-18T10:09:49.809Z",
+    "publishedAt": "2026-04-18T10:09:30.509Z",
+    "defaultTaskContext": "客户需求澄清与方案推进",
+    "defaultSubjectHint": "工艺方案 / 产品资料 / 测试推进",
+    "defaultVariables": {
+      "audience": "销售 / 技术支持 / 客户沟通对象",
+      "taskPhase": "需求沟通",
+      "taskSubject": "湿制程材料方案",
+      "focusPoints": "稳定性、成本、测试安排、导入风险",
+      "deliverable": "判断摘要、资料包、参考写作草稿",
+      "toneStyle": "formal"
+    },
+    "variableSchema": [
+      {
+        "key": "audience",
+        "label": "适用对象",
+        "description": "本次输出主要面向谁",
+        "required": true,
+        "defaultValue": "销售 / 技术支持 / 客户沟通对象",
+        "example": "客户采购 / 工艺工程师 / 内部老板"
+      },
+      {
+        "key": "taskPhase",
+        "label": "任务阶段",
+        "description": "当前处于哪一类推进阶段",
+        "required": true,
+        "defaultValue": "需求沟通",
+        "example": "初步接触 / 需求沟通 / 样品推进"
+      },
+      {
+        "key": "taskSubject",
+        "label": "任务主题",
+        "description": "当前聚焦的产品或方案主题",
+        "required": true,
+        "defaultValue": "湿制程材料方案",
+        "example": "双氧水体系蚀刻液 / 清洗液方案"
+      },
+      {
+        "key": "focusPoints",
+        "label": "重点关注",
+        "description": "需要特别回应的关注点",
+        "required": true,
+        "defaultValue": "稳定性、成本、测试安排、导入风险",
+        "example": "稳定性 / 线宽均匀性 / 导入节奏"
+      },
+      {
+        "key": "deliverable",
+        "label": "目标产物",
+        "description": "希望平台产出什么",
+        "required": true,
+        "defaultValue": "判断摘要、资料包、参考写作草稿",
+        "example": "追问问题清单 / 沟通邮件草稿"
+      }
+    ],
+    "defaultCustomerType": "",
+    "defaultProductDirection": "",
+    "defaultModuleBindings": {
+      "analyze": "pcb_analyze_prompt_v1",
+      "search": "pcb_search_prompt_v1",
+      "script": "pcb_script_prompt_v1"
+    },
+    "defaultStrategies": {
+      "analyzeStrategy": "rules-only",
+      "searchStrategy": "local-only",
+      "scriptStrategy": "local-model"
+    },
+    "dataScopes": {
+      "rulesScope": [
+        "pcb"
+      ],
+      "productScope": [
+        "pcb"
+      ],
+      "docScope": [
+        "pcb"
+      ]
+    },
+    "tags": [],
+    "scenes": []
+  },
+  {
+    "id": "legal-workbench-template",
+    "assistantId": "legal-workbench-template",
+    "name": "法务工作模板",
+    "assistantName": "法务工作模板",
+    "description": "内置模板：面向合同评审、合规判断、函件说明等法务工作。",
+    "industryType": "legal",
+    "templateOrigin": "builtin",
+    "templateCategory": "role-template",
+    "templateRole": "legal",
+    "enabled": true,
+    "publishState": "published",
+    "version": 2,
+    "updatedAt": "2026-04-16T05:21:49.139Z",
+    "modifiedAt": "2026-04-16T05:21:49.139Z",
+    "publishedAt": "2026-04-16T05:21:49.139Z",
+    "defaultTaskContext": "合同与合规评审",
+    "defaultSubjectHint": "条款风险 / 合规要求 / 发函说明",
+    "defaultVariables": {
+      "audience": "法务经理 / 业务负责人",
+      "taskPhase": "评审中",
+      "taskSubject": "合同条款 / 合规事项",
+      "focusPoints": "责任边界、付款条件、违约责任、争议解决",
+      "deliverable": "风险摘要、修改建议、决策意见",
+      "toneStyle": "formal"
+    },
+    "variableSchema": [
+      {
+        "key": "audience",
+        "label": "适用对象",
+        "description": "本次输出主要提供给谁",
+        "required": true,
+        "defaultValue": "法务经理 / 业务负责人",
+        "example": "法务总监 / 业务 VP / 采购负责人"
+      },
+      {
+        "key": "taskPhase",
+        "label": "任务阶段",
+        "description": "当前法务事项所处阶段",
+        "required": true,
+        "defaultValue": "评审中",
+        "example": "立项前 / 审核中 / 签署前 / 争议处理中"
+      },
+      {
+        "key": "taskSubject",
+        "label": "任务主题",
+        "description": "当前聚焦的法务主题",
+        "required": true,
+        "defaultValue": "合同条款 / 合规事项",
+        "example": "违约责任 / 数据合规 / 律师函回复"
+      },
+      {
+        "key": "focusPoints",
+        "label": "重点关注",
+        "description": "需要优先判断的法律与业务风险",
+        "required": true,
+        "defaultValue": "责任边界、付款条件、违约责任、争议解决",
+        "example": "赔偿上限 / 解约条件 / 保密责任"
+      },
+      {
+        "key": "deliverable",
+        "label": "目标产物",
+        "description": "希望平台形成的法务产出",
+        "required": true,
+        "defaultValue": "风险摘要、修改建议、决策意见",
+        "example": "红线意见 / 一页风险汇报 / 回函草稿"
+      }
+    ],
+    "defaultCustomerType": "",
+    "defaultProductDirection": "",
+    "defaultModuleBindings": {
+      "analyze": "legal_judge_prompt_v1",
+      "search": "legal_retrieve_prompt_v1",
+      "script": "legal_compose_prompt_v1"
+    },
+    "defaultStrategies": {
+      "analyzeStrategy": "api-enhanced",
+      "searchStrategy": "external-enabled",
+      "scriptStrategy": "api-model"
+    },
+    "dataScopes": {
+      "rulesScope": [],
+      "productScope": [],
+      "docScope": []
+    },
+    "tags": [],
+    "scenes": []
+  },
+  {
+    "id": "semiconductor-sales-support",
+    "assistantId": "semiconductor-sales-support",
+    "name": "半导体销售支持模板",
+    "assistantName": "半导体销售支持模板",
+    "description": "内置模板：面向半导体湿电子化学品场景的判断、资料检索和参考写作。",
+    "industryType": "semiconductor",
+    "templateOrigin": "builtin",
+    "templateCategory": "role-template",
+    "templateRole": "sales-support",
+    "enabled": true,
+    "publishState": "published",
+    "version": 1,
+    "updatedAt": null,
+    "modifiedAt": null,
+    "publishedAt": null,
+    "defaultTaskContext": "工艺沟通与导入评估",
+    "defaultSubjectHint": "工艺适配 / 纯度要求 / 验证节奏",
+    "defaultVariables": {
+      "audience": "销售 / FAE / 客户工程团队",
+      "taskPhase": "需求沟通",
+      "taskSubject": "湿电子化学品方案",
+      "focusPoints": "洁净度、兼容性、验证条件、导入边界",
+      "deliverable": "判断摘要、依据材料、参考写作草稿",
+      "toneStyle": "formal"
+    },
+    "variableSchema": [
+      {
+        "key": "audience",
+        "label": "适用对象",
+        "description": "本次输出主要面向谁",
+        "required": true,
+        "defaultValue": "销售 / FAE / 客户工程团队",
+        "example": "工艺工程师 / 采购 / 技术负责人"
+      },
+      {
+        "key": "taskPhase",
+        "label": "任务阶段",
+        "description": "当前推进所处阶段",
+        "required": true,
+        "defaultValue": "需求沟通",
+        "example": "需求沟通 / 验证推进 / 导入评审"
+      },
+      {
+        "key": "taskSubject",
+        "label": "任务主题",
+        "description": "当前聚焦的工艺或材料主题",
+        "required": true,
+        "defaultValue": "湿电子化学品方案",
+        "example": "电子级过氧化氢 / 清洗液适配"
+      },
+      {
+        "key": "focusPoints",
+        "label": "重点关注",
+        "description": "需要特别回应的技术或业务点",
+        "required": true,
+        "defaultValue": "洁净度、兼容性、验证条件、导入边界",
+        "example": "颗粒控制 / 金属离子 / 导入风险"
+      },
+      {
+        "key": "deliverable",
+        "label": "目标产物",
+        "description": "希望平台产出什么",
+        "required": true,
+        "defaultValue": "判断摘要、依据材料、参考写作草稿",
+        "example": "资料清单 / 技术说明 / 跟进邮件"
+      }
+    ],
+    "defaultCustomerType": "半导体客户",
+    "defaultProductDirection": "电子级过氧化氢",
+    "defaultModuleBindings": {
+      "analyze": "semiconductor_analyze_prompt_v1",
+      "search": "semiconductor_search_prompt_v1",
+      "script": "semiconductor_script_prompt_v1"
+    },
+    "defaultStrategies": {
+      "analyzeStrategy": "rules-only",
+      "searchStrategy": "local-only",
+      "scriptStrategy": "local-model"
+    },
+    "dataScopes": {
+      "rulesScope": [
+        "semiconductor"
+      ],
+      "productScope": [
+        "semiconductor"
+      ],
+      "docScope": [
+        "semiconductor"
+      ]
+    },
+    "tags": [],
+    "scenes": []
+  },
+  {
+    "id": "finance-workbench-template",
+    "assistantId": "finance-workbench-template",
+    "name": "财务工作模板",
+    "assistantName": "财务工作模板",
+    "description": "内置模板：面向预算分析、回款判断、付款审核与经营说明。",
+    "industryType": "finance",
+    "templateOrigin": "builtin",
+    "templateCategory": "role-template",
+    "templateRole": "finance",
+    "enabled": true,
+    "publishState": "published",
+    "version": 1,
+    "updatedAt": null,
+    "modifiedAt": null,
+    "publishedAt": null,
+    "defaultTaskContext": "预算与经营分析",
+    "defaultSubjectHint": "预算差异 / 回款预测 / 付款申请",
+    "defaultVariables": {
+      "audience": "财务负责人 / 业务负责人",
+      "taskPhase": "复核中",
+      "taskSubject": "预算差异 / 回款预测 / 付款审核",
+      "focusPoints": "金额口径、现金流影响、异常波动、合规性",
+      "deliverable": "结论摘要、风险提示、行动建议",
+      "toneStyle": "formal"
+    },
+    "variableSchema": [
+      {
+        "key": "audience",
+        "label": "适用对象",
+        "description": "本次财务结论的主要读者",
+        "required": true,
+        "defaultValue": "财务负责人 / 业务负责人",
+        "example": "CFO / 财务经理 / 业务 VP"
+      },
+      {
+        "key": "taskPhase",
+        "label": "任务阶段",
+        "description": "当前财务事项所处阶段",
+        "required": true,
+        "defaultValue": "复核中",
+        "example": "预算评审 / 结算复核 / 月结前"
+      },
+      {
+        "key": "taskSubject",
+        "label": "任务主题",
+        "description": "当前聚焦的财务主题",
+        "required": true,
+        "defaultValue": "预算差异 / 回款预测 / 付款审核",
+        "example": "费用超支 / 回款预测 / 付款申请"
+      },
+      {
+        "key": "focusPoints",
+        "label": "重点关注",
+        "description": "需要优先分析的财务风险",
+        "required": true,
+        "defaultValue": "金额口径、现金流影响、异常波动、合规性",
+        "example": "现金流压力 / 开票口径 / 异常差异"
+      },
+      {
+        "key": "deliverable",
+        "label": "目标产物",
+        "description": "希望平台形成的财务产出",
+        "required": true,
+        "defaultValue": "结论摘要、风险提示、行动建议",
+        "example": "经营说明 / 审批建议 / 风险备忘"
+      }
+    ],
+    "defaultCustomerType": "",
+    "defaultProductDirection": "",
+    "defaultModuleBindings": {
+      "analyze": "finance_judge_prompt_v1",
+      "search": "finance_retrieve_prompt_v1",
+      "script": "finance_compose_prompt_v1"
+    },
+    "defaultStrategies": {
+      "analyzeStrategy": "rules-only",
+      "searchStrategy": "local-only",
+      "scriptStrategy": "local-model"
+    },
+    "dataScopes": {
+      "rulesScope": [],
+      "productScope": [],
+      "docScope": []
+    },
+    "tags": [],
+    "scenes": []
+  },
+  {
+    "id": "hr-workbench-template",
+    "assistantId": "hr-workbench-template",
+    "name": "人事工作模板",
+    "assistantName": "人事工作模板",
+    "description": "内置模板：面向招聘评估、绩效沟通、员工关系和制度通知。",
+    "industryType": "hr",
+    "templateOrigin": "builtin",
+    "templateCategory": "role-template",
+    "templateRole": "hr",
+    "enabled": true,
+    "publishState": "published",
+    "version": 1,
+    "updatedAt": null,
+    "modifiedAt": null,
+    "publishedAt": null,
+    "defaultTaskContext": "人事流程与员工沟通",
+    "defaultSubjectHint": "招聘评估 / 绩效沟通 / 员工关系",
+    "defaultVariables": {
+      "audience": "HRBP / 用人经理",
+      "taskPhase": "处理中",
+      "taskSubject": "招聘 / 绩效 / 员工关系",
+      "focusPoints": "合规、公平性、组织影响、沟通方式",
+      "deliverable": "判断结论、流程清单、沟通草稿",
+      "toneStyle": "formal"
+    },
+    "variableSchema": [
+      {
+        "key": "audience",
+        "label": "适用对象",
+        "description": "本次输出主要面向谁",
+        "required": true,
+        "defaultValue": "HRBP / 用人经理",
+        "example": "HRD / 用人经理 / 直属主管"
+      },
+      {
+        "key": "taskPhase",
+        "label": "任务阶段",
+        "description": "当前人事事项所处阶段",
+        "required": true,
+        "defaultValue": "处理中",
+        "example": "招聘中 / 面试后 / 绩效沟通中 / 员工关系处理中"
+      },
+      {
+        "key": "taskSubject",
+        "label": "任务主题",
+        "description": "当前聚焦的人事主题",
+        "required": true,
+        "defaultValue": "招聘 / 绩效 / 员工关系",
+        "example": "面试评估 / 调薪沟通 / 制度通知"
+      },
+      {
+        "key": "focusPoints",
+        "label": "重点关注",
+        "description": "需要优先考虑的人事风险或沟通点",
+        "required": true,
+        "defaultValue": "合规、公平性、组织影响、沟通方式",
+        "example": "录用风险 / 绩效证据 / 组织情绪"
+      },
+      {
+        "key": "deliverable",
+        "label": "目标产物",
+        "description": "希望平台形成的人事产出",
+        "required": true,
+        "defaultValue": "判断结论、流程清单、沟通草稿",
+        "example": "面试结论 / 沟通提纲 / 制度公告草稿"
+      }
+    ],
+    "defaultCustomerType": "",
+    "defaultProductDirection": "",
+    "defaultModuleBindings": {
+      "analyze": "hr_judge_prompt_v1",
+      "search": "hr_retrieve_prompt_v1",
+      "script": "hr_compose_prompt_v1"
+    },
+    "defaultStrategies": {
+      "analyzeStrategy": "rules-only",
+      "searchStrategy": "local-only",
+      "scriptStrategy": "local-model"
+    },
+    "dataScopes": {
+      "rulesScope": [],
+      "productScope": [],
+      "docScope": []
+    },
+    "tags": [],
+    "scenes": []
+  },
+  {
+    "id": "operations-workbench-template",
+    "assistantId": "operations-workbench-template",
+    "name": "运营工作模板",
+    "assistantName": "运营工作模板",
+    "description": "内置模板：面向活动执行、SOP 梳理、问题复盘和跨部门协同。",
+    "industryType": "operations",
+    "templateOrigin": "builtin",
+    "templateCategory": "role-template",
+    "templateRole": "operations",
+    "enabled": true,
+    "publishState": "published",
+    "version": 1,
+    "updatedAt": null,
+    "modifiedAt": null,
+    "publishedAt": null,
+    "defaultTaskContext": "执行推进与协同复盘",
+    "defaultSubjectHint": "活动方案 / SOP / 复盘议题",
+    "defaultVariables": {
+      "audience": "运营负责人 / 跨部门协作者",
+      "taskPhase": "执行中",
+      "taskSubject": "活动执行 / SOP / 问题复盘",
+      "focusPoints": "时效、资源、风险、依赖关系",
+      "deliverable": "执行计划、资料包、复盘提纲",
+      "toneStyle": "concise"
+    },
+    "variableSchema": [
+      {
+        "key": "audience",
+        "label": "适用对象",
+        "description": "本次输出主要面向谁",
+        "required": true,
+        "defaultValue": "运营负责人 / 跨部门协作者",
+        "example": "运营经理 / 供应链 / 市场 / 客服"
+      },
+      {
+        "key": "taskPhase",
+        "label": "任务阶段",
+        "description": "当前运营事项所处阶段",
+        "required": true,
+        "defaultValue": "执行中",
+        "example": "筹备中 / 执行中 / 复盘中"
+      },
+      {
+        "key": "taskSubject",
+        "label": "任务主题",
+        "description": "当前聚焦的运营主题",
+        "required": true,
+        "defaultValue": "活动执行 / SOP / 问题复盘",
+        "example": "活动复盘 / 值班 SOP / 异常处理"
+      },
+      {
+        "key": "focusPoints",
+        "label": "重点关注",
+        "description": "需要优先管理的执行约束",
+        "required": true,
+        "defaultValue": "时效、资源、风险、依赖关系",
+        "example": "节点延误 / 人力不足 / 协同依赖"
+      },
+      {
+        "key": "deliverable",
+        "label": "目标产物",
+        "description": "希望平台形成的运营产出",
+        "required": true,
+        "defaultValue": "执行计划、资料包、复盘提纲",
+        "example": "执行清单 / 复盘提纲 / 对齐纪要"
+      }
+    ],
+    "defaultCustomerType": "",
+    "defaultProductDirection": "",
+    "defaultModuleBindings": {
+      "analyze": "operations_judge_prompt_v1",
+      "search": "operations_retrieve_prompt_v1",
+      "script": "operations_compose_prompt_v1"
+    },
+    "defaultStrategies": {
+      "analyzeStrategy": "rules-only",
+      "searchStrategy": "local-only",
+      "scriptStrategy": "local-model"
+    },
+    "dataScopes": {
+      "rulesScope": [],
+      "productScope": [],
+      "docScope": []
+    },
+    "tags": [],
+    "scenes": []
+  },
+  {
+    "id": "product-workbench-template",
+    "assistantId": "product-workbench-template",
+    "name": "产品工作模板",
+    "assistantName": "产品工作模板",
+    "description": "内置模板：面向需求判断、方案梳理、PRD 草稿和发布说明。",
+    "industryType": "product",
+    "templateOrigin": "builtin",
+    "templateCategory": "role-template",
+    "templateRole": "product",
+    "enabled": true,
+    "publishState": "published",
+    "version": 1,
+    "updatedAt": null,
+    "modifiedAt": null,
+    "publishedAt": null,
+    "defaultTaskContext": "需求评审与方案输出",
+    "defaultSubjectHint": "需求方案 / PRD / 发布说明",
+    "defaultVariables": {
+      "audience": "产品经理 / 研发 / 业务负责人",
+      "taskPhase": "评审中",
+      "taskSubject": "需求方案 / PRD / 路线图",
+      "focusPoints": "用户价值、优先级、约束、上线风险",
+      "deliverable": "判断摘要、需求说明、对齐文稿",
+      "toneStyle": "formal"
+    },
+    "variableSchema": [
+      {
+        "key": "audience",
+        "label": "适用对象",
+        "description": "本次输出主要面向谁",
+        "required": true,
+        "defaultValue": "产品经理 / 研发 / 业务负责人",
+        "example": "产品委员会 / 研发负责人 / 运营负责人"
+      },
+      {
+        "key": "taskPhase",
+        "label": "任务阶段",
+        "description": "当前产品事项所处阶段",
+        "required": true,
+        "defaultValue": "评审中",
+        "example": "需求评审 / 设计中 / 发布前 / 复盘中"
+      },
+      {
+        "key": "taskSubject",
+        "label": "任务主题",
+        "description": "当前聚焦的产品主题",
+        "required": true,
+        "defaultValue": "需求方案 / PRD / 路线图",
+        "example": "需求评审 / 功能边界 / 发布说明"
+      },
+      {
+        "key": "focusPoints",
+        "label": "重点关注",
+        "description": "需要优先权衡的产品因素",
+        "required": true,
+        "defaultValue": "用户价值、优先级、约束、上线风险",
+        "example": "用户收益 / 技术约束 / 上线风险"
+      },
+      {
+        "key": "deliverable",
+        "label": "目标产物",
+        "description": "希望平台形成的产品产出",
+        "required": true,
+        "defaultValue": "判断摘要、需求说明、对齐文稿",
+        "example": "PRD 提纲 / 需求结论 / 发布说明"
+      }
+    ],
+    "defaultCustomerType": "",
+    "defaultProductDirection": "",
+    "defaultModuleBindings": {
+      "analyze": "product_judge_prompt_v1",
+      "search": "product_retrieve_prompt_v1",
+      "script": "product_compose_prompt_v1"
+    },
+    "defaultStrategies": {
+      "analyzeStrategy": "rules-only",
+      "searchStrategy": "local-only",
+      "scriptStrategy": "local-model"
+    },
+    "dataScopes": {
+      "rulesScope": [],
+      "productScope": [],
+      "docScope": []
+    },
+    "tags": [],
+    "scenes": []
+  }
+]

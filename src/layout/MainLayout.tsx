@@ -2,6 +2,8 @@ import { Layout, Menu } from 'antd';
 import type { MenuProps } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
+import GlobalAgentDebugBar from '../components/common/GlobalAgentDebugBar';
+
 const { Header, Content } = Layout;
 
 function MainLayout() {
@@ -10,9 +12,12 @@ function MainLayout() {
 
   const items: MenuProps['items'] = [
     { key: '/home', label: '首页' },
-    { key: '/analyze', label: '客户分析' },
-    { key: '/search', label: '资料检索' },
-    { key: '/script', label: '话术生成' },
+    { key: '/workbench', label: '任务工作台' },
+    { key: '/judge', label: '判断' },
+    { key: '/retrieve', label: '检索' },
+    { key: '/compose', label: '写作' },
+    { key: '/model-center', label: '模型中心' },
+    { key: '/database-manager', label: '数据库管理' },
   ];
 
   return (
@@ -34,7 +39,7 @@ function MainLayout() {
             color: '#000',
           }}
         >
-          销售支持 Agent
+          通用 Agent 平台
         </div>
 
         <Menu
@@ -55,6 +60,7 @@ function MainLayout() {
             borderRadius: 8,
           }}
         >
+          <GlobalAgentDebugBar />
           <Outlet />
         </div>
       </Content>

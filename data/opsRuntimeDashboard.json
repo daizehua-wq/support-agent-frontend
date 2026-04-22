@@ -1,0 +1,1102 @@
+{
+  "contractVersion": "ops-observability/v1",
+  "updatedAt": "2026-04-18T11:15:10.383Z",
+  "totals": {
+    "requestCount": 74,
+    "successCount": 66,
+    "failureCount": 8,
+    "promptTokens": 11181,
+    "completionTokens": 65658,
+    "totalTokens": 76839,
+    "totalCostUsd": 0.069054
+  },
+  "routeBuckets": {
+    "output:generate-script:builtin.output.default": {
+      "routeKey": "output:generate-script:builtin.output.default",
+      "kind": "output",
+      "route": "generate-script",
+      "pluginId": "builtin.output.default",
+      "requestCount": 18,
+      "successCount": 17,
+      "failureCount": 1,
+      "errorRatePercent": 5.56,
+      "avgLatencyMs": 2230.28,
+      "p95LatencyMs": 20104,
+      "durations": [
+        216,
+        1995,
+        931,
+        2308,
+        807,
+        882,
+        917,
+        1892,
+        1090,
+        973,
+        964,
+        1893,
+        824,
+        891,
+        809,
+        851,
+        20104,
+        1798
+      ],
+      "promptTokens": 3774,
+      "completionTokens": 13044,
+      "totalTokens": 16818,
+      "totalCostUsd": 0.000056,
+      "modelProvider": "litellm-local",
+      "modelName": "gpt-4o-mini",
+      "lastStatus": "success",
+      "consecutiveFailures": 0,
+      "lastUpdatedAt": "2026-04-18T11:08:08.993Z"
+    },
+    "output:generate-script:custom.output.canary-annotator": {
+      "routeKey": "output:generate-script:custom.output.canary-annotator",
+      "kind": "output",
+      "route": "generate-script",
+      "pluginId": "custom.output.canary-annotator",
+      "requestCount": 15,
+      "successCount": 10,
+      "failureCount": 5,
+      "errorRatePercent": 33.33,
+      "avgLatencyMs": 2225.93,
+      "p95LatencyMs": 19203,
+      "durations": [
+        942,
+        1028,
+        852,
+        1210,
+        866,
+        949,
+        1597,
+        867,
+        1210,
+        1031,
+        945,
+        19203,
+        822,
+        848,
+        1019
+      ],
+      "promptTokens": 2312,
+      "completionTokens": 8650,
+      "totalTokens": 10962,
+      "totalCostUsd": 0.000498,
+      "modelProvider": "litellm-local",
+      "modelName": "gpt-4o-mini",
+      "lastStatus": "success",
+      "consecutiveFailures": 0,
+      "lastUpdatedAt": "2026-04-18T02:44:57.055Z"
+    },
+    "analyze:analyze-customer:builtin.analyze.default": {
+      "routeKey": "analyze:analyze-customer:builtin.analyze.default",
+      "kind": "analyze",
+      "route": "analyze-customer",
+      "pluginId": "builtin.analyze.default",
+      "requestCount": 24,
+      "successCount": 23,
+      "failureCount": 1,
+      "errorRatePercent": 4.17,
+      "avgLatencyMs": 14261.04,
+      "p95LatencyMs": 41758,
+      "durations": [
+        1590,
+        1433,
+        217,
+        2052,
+        19168,
+        41758,
+        1910,
+        18692,
+        37137,
+        1641,
+        1693,
+        1836,
+        1755,
+        19241,
+        18949,
+        19014,
+        36664,
+        2080,
+        1591,
+        18926,
+        22775,
+        3006,
+        3326,
+        65811
+      ],
+      "promptTokens": 4384,
+      "completionTokens": 15316,
+      "totalTokens": 19700,
+      "totalCostUsd": 0.025172,
+      "modelProvider": "litellm-cloud",
+      "modelName": "gpt-4o-mini",
+      "lastStatus": "success",
+      "consecutiveFailures": 0,
+      "lastUpdatedAt": "2026-04-18T11:15:10.382Z"
+    },
+    "search:search-documents:builtin.search.default": {
+      "routeKey": "search:search-documents:builtin.search.default",
+      "kind": "search",
+      "route": "search-documents",
+      "pluginId": "builtin.search.default",
+      "requestCount": 17,
+      "successCount": 16,
+      "failureCount": 1,
+      "errorRatePercent": 5.88,
+      "avgLatencyMs": 10909.88,
+      "p95LatencyMs": 90206,
+      "durations": [
+        953,
+        1952,
+        924,
+        18894,
+        1610,
+        1552,
+        1971,
+        820,
+        845,
+        36974,
+        1062,
+        906,
+        825,
+        865,
+        5891,
+        90206,
+        19218
+      ],
+      "promptTokens": 711,
+      "completionTokens": 28648,
+      "totalTokens": 29359,
+      "totalCostUsd": 0.043328,
+      "modelProvider": "litellm-cloud",
+      "modelName": "gpt-4o-mini",
+      "lastStatus": "success",
+      "consecutiveFailures": 0,
+      "lastUpdatedAt": "2026-04-18T11:05:58.453Z"
+    }
+  },
+  "costByDate": {
+    "2026-04-16": 0.012206,
+    "2026-04-18": 0.056848
+  },
+  "health": {
+    "pythonRuntime": {
+      "status": "healthy",
+      "consecutiveFailures": 0,
+      "lastCheckedAt": "2026-04-18T11:14:49.781Z",
+      "lastHealthyAt": "2026-04-18T11:14:49.781Z",
+      "lastErrorAt": "2026-04-18T00:10:54.607Z",
+      "lastErrorMessage": "fetch failed",
+      "lastLatencyMs": 6,
+      "baseUrl": "http://127.0.0.1:8008"
+    }
+  },
+  "alerts": [
+    {
+      "alertId": "b44ce283-675c-456e-a85c-f8eec2b35745",
+      "level": "info",
+      "category": "workflow-fallback",
+      "title": "触发回退：analyze/analyze-customer",
+      "message": "{}",
+      "fingerprint": "workflow-fallback::触发回退：analyze/analyze-customer::analyze:analyze-customer:builtin.analyze.default::builtin.analyze.default",
+      "status": "open",
+      "createdAt": "2026-04-16T03:40:27.828Z",
+      "updatedAt": "2026-04-18T11:15:10.382Z",
+      "lastSeenAt": "2026-04-18T11:15:10.382Z",
+      "count": 24,
+      "acknowledgedBy": "",
+      "acknowledgedAt": "",
+      "metadata": {
+        "resolutionMode": "stable"
+      }
+    },
+    {
+      "alertId": "9c751e49-73bf-4160-9dde-85bb4455def3",
+      "level": "info",
+      "category": "workflow-fallback",
+      "title": "触发回退：output/generate-script",
+      "message": "{}",
+      "fingerprint": "workflow-fallback::触发回退：output/generate-script::output:generate-script:custom.output.canary-annotator::custom.output.canary-annotator",
+      "status": "open",
+      "createdAt": "2026-04-16T03:40:11.504Z",
+      "updatedAt": "2026-04-18T02:44:57.055Z",
+      "lastSeenAt": "2026-04-18T02:44:57.055Z",
+      "count": 13,
+      "acknowledgedBy": "",
+      "acknowledgedAt": "",
+      "metadata": {
+        "resolutionMode": "canary"
+      }
+    },
+    {
+      "alertId": "e6ef4ef0-6ba7-4774-b2ad-fe84b983f6a5",
+      "level": "info",
+      "category": "workflow-fallback",
+      "title": "触发回退：search/search-documents",
+      "message": "{}",
+      "fingerprint": "workflow-fallback::触发回退：search/search-documents::search:search-documents:builtin.search.default::builtin.search.default",
+      "status": "open",
+      "createdAt": "2026-04-16T03:40:28.793Z",
+      "updatedAt": "2026-04-18T11:05:58.453Z",
+      "lastSeenAt": "2026-04-18T11:05:58.453Z",
+      "count": 17,
+      "acknowledgedBy": "",
+      "acknowledgedAt": "",
+      "metadata": {
+        "resolutionMode": "stable"
+      }
+    },
+    {
+      "alertId": "117869c2-b2e6-43bd-884d-79216b1ee281",
+      "level": "info",
+      "category": "workflow-fallback",
+      "title": "触发回退：output/generate-script",
+      "message": "{}",
+      "fingerprint": "workflow-fallback::触发回退：output/generate-script::output:generate-script:builtin.output.default::builtin.output.default",
+      "status": "open",
+      "createdAt": "2026-04-16T03:40:10.646Z",
+      "updatedAt": "2026-04-18T11:08:08.993Z",
+      "lastSeenAt": "2026-04-18T11:08:08.993Z",
+      "count": 15,
+      "acknowledgedBy": "",
+      "acknowledgedAt": "",
+      "metadata": {
+        "resolutionMode": "stable"
+      }
+    },
+    {
+      "alertId": "36328993-75c9-455d-b79c-fa54edd7d714",
+      "level": "info",
+      "category": "python-runtime-recovery",
+      "title": "Python Runtime 已恢复",
+      "message": "健康检查恢复正常，连续失败计数已清零。",
+      "fingerprint": "python-runtime-recovery::Python Runtime 已恢复",
+      "status": "open",
+      "createdAt": "2026-04-16T03:39:46.724Z",
+      "updatedAt": "2026-04-18T00:13:01.191Z",
+      "lastSeenAt": "2026-04-18T00:13:01.191Z",
+      "count": 2,
+      "acknowledgedBy": "",
+      "acknowledgedAt": "",
+      "metadata": {
+        "baseUrl": "http://127.0.0.1:8008"
+      }
+    },
+    {
+      "alertId": "3d5356e5-ea5a-4dfb-882f-3bbeb88312af",
+      "level": "critical",
+      "category": "python-runtime-health",
+      "title": "Python Runtime 健康告警",
+      "message": "fetch failed",
+      "fingerprint": "python-runtime-health::Python Runtime 健康告警",
+      "status": "open",
+      "createdAt": "2026-04-16T13:29:09.801Z",
+      "updatedAt": "2026-04-18T00:10:54.607Z",
+      "lastSeenAt": "2026-04-18T00:10:54.607Z",
+      "count": 2,
+      "acknowledgedBy": "",
+      "acknowledgedAt": "",
+      "metadata": {
+        "statusCode": 0,
+        "latencyMs": 14,
+        "consecutiveFailures": 3,
+        "baseUrl": "http://127.0.0.1:8008"
+      }
+    },
+    {
+      "alertId": "5fd7f2a5-ef0a-4890-b683-49833d1e6d7b",
+      "level": "critical",
+      "category": "python-runtime-health",
+      "title": "Python Runtime 健康告警",
+      "message": "fetch failed",
+      "fingerprint": "python-runtime-health::Python Runtime 健康告警",
+      "status": "acknowledged",
+      "createdAt": "2026-04-16T03:22:24.452Z",
+      "updatedAt": "2026-04-16T03:35:49.588Z",
+      "lastSeenAt": "2026-04-16T03:35:37.930Z",
+      "count": 3,
+      "acknowledgedBy": "settings-page-operator",
+      "acknowledgedAt": "2026-04-16T03:35:49.588Z",
+      "metadata": {
+        "statusCode": 0,
+        "latencyMs": 3,
+        "consecutiveFailures": 2,
+        "baseUrl": "http://127.0.0.1:8008"
+      }
+    },
+    {
+      "alertId": "5ee44634-28c2-412c-9109-52bff34554ba",
+      "level": "info",
+      "category": "python-runtime-recovery",
+      "title": "Python Runtime 已恢复",
+      "message": "健康检查恢复正常，连续失败计数已清零。",
+      "fingerprint": "python-runtime-recovery::Python Runtime 已恢复",
+      "status": "acknowledged",
+      "createdAt": "2026-04-16T03:26:40.837Z",
+      "updatedAt": "2026-04-16T03:35:49.076Z",
+      "lastSeenAt": "2026-04-16T03:26:40.837Z",
+      "count": 1,
+      "acknowledgedBy": "settings-page-operator",
+      "acknowledgedAt": "2026-04-16T03:35:49.076Z",
+      "metadata": {
+        "baseUrl": "http://127.0.0.1:8008"
+      }
+    },
+    {
+      "alertId": "487bcad8-4123-4554-84a5-e04b501eabdd",
+      "level": "info",
+      "category": "workflow-fallback",
+      "title": "触发回退：output/generate-script",
+      "message": "[custom-node] custom.output.annotate.v1 forced failure for rollback verification",
+      "fingerprint": "workflow-fallback::触发回退：output/generate-script::output:generate-script:custom.output.canary-annotator::custom.output.canary-annotator",
+      "status": "acknowledged",
+      "createdAt": "2026-04-16T03:26:43.772Z",
+      "updatedAt": "2026-04-16T03:35:48.571Z",
+      "lastSeenAt": "2026-04-16T03:26:44.806Z",
+      "count": 2,
+      "acknowledgedBy": "settings-page-operator",
+      "acknowledgedAt": "2026-04-16T03:35:48.571Z",
+      "metadata": {
+        "resolutionMode": "canary"
+      }
+    },
+    {
+      "alertId": "ddb8fc45-e7d8-405f-be35-a2bb02c55ccb",
+      "level": "info",
+      "category": "workflow-fallback",
+      "title": "触发回退：output/generate-script",
+      "message": "{}",
+      "fingerprint": "workflow-fallback::触发回退：output/generate-script::output:generate-script:builtin.output.default::builtin.output.default",
+      "status": "acknowledged",
+      "createdAt": "2026-04-16T03:25:17.830Z",
+      "updatedAt": "2026-04-16T03:35:48.102Z",
+      "lastSeenAt": "2026-04-16T03:26:45.738Z",
+      "count": 3,
+      "acknowledgedBy": "settings-page-operator",
+      "acknowledgedAt": "2026-04-16T03:35:48.102Z",
+      "metadata": {
+        "resolutionMode": "rollback"
+      }
+    }
+  ],
+  "processEvents": [
+    {
+      "eventId": "9eb769d7-bb63-46da-8775-4999204e563b",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T03:05:05.758Z"
+    },
+    {
+      "eventId": "50b8137e-b5f4-486a-bad0-44776d468d36",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T03:03:38.213Z"
+    },
+    {
+      "eventId": "ab69d737-eee9-4605-8345-6a6de48ddb06",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T03:02:07.815Z"
+    },
+    {
+      "eventId": "8b7c2d5e-0537-470b-8d95-9f68bc6bce3b",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T03:00:36.876Z"
+    },
+    {
+      "eventId": "6d53b191-6974-4ce6-a3ca-f0095e10e4bf",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T02:25:15.387Z"
+    },
+    {
+      "eventId": "d91375d6-a07f-4bca-bc40-1a9667743408",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T02:24:03.224Z"
+    },
+    {
+      "eventId": "706d7e4b-7f51-4ad3-b00c-e296f5aa8207",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T02:19:57.850Z"
+    },
+    {
+      "eventId": "b89fbadb-b691-4b78-b696-13e02aab31b9",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T02:11:20.595Z"
+    },
+    {
+      "eventId": "e58ac2c9-3434-472e-8548-726a9c35f2e5",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T02:10:05.846Z"
+    },
+    {
+      "eventId": "8cb2511b-eb92-4196-b920-9987eb5d2872",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T02:05:07.721Z"
+    },
+    {
+      "eventId": "8726a38d-b732-46d5-ba48-ea48cad460a7",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T02:01:00.929Z"
+    },
+    {
+      "eventId": "bc8ceaf4-f8df-41ad-804f-70e3eb41ecd4",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T02:00:18.233Z"
+    },
+    {
+      "eventId": "635b5088-76b9-4566-a20c-03d156548fce",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T01:58:52.243Z"
+    },
+    {
+      "eventId": "5f5677c6-ac67-480a-8028-3633007807c3",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T01:57:39.078Z"
+    },
+    {
+      "eventId": "23dfd34d-e123-4672-a728-139c81a53ad3",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T01:57:17.702Z"
+    },
+    {
+      "eventId": "1bcdf289-a0c8-468c-9444-fb1dd8f52bd7",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T01:39:04.314Z"
+    },
+    {
+      "eventId": "fd5ed3b6-5498-4a2f-a4c4-48551c9ef975",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T01:38:53.463Z"
+    },
+    {
+      "eventId": "68fc4c3c-3ef7-41ee-85af-31dd10995fb8",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T00:54:01.205Z"
+    },
+    {
+      "eventId": "38560158-053d-4c49-9e1f-b186bbc61f62",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T00:53:34.801Z"
+    },
+    {
+      "eventId": "aeb0cd82-230a-4f5c-82b6-05c6b5fa8222",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T00:47:49.787Z"
+    },
+    {
+      "eventId": "72c3f82d-59c1-461e-b8bf-14704b00976f",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T00:46:41.178Z"
+    },
+    {
+      "eventId": "a445c1a0-b0cd-4300-a7b6-4eccdc1608b5",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T00:17:07.923Z"
+    },
+    {
+      "eventId": "fc250022-74d6-4996-b6c8-ea542cb80199",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T00:14:16.676Z"
+    },
+    {
+      "eventId": "890ac032-a28f-47a9-9847-f51dc7789bcb",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T00:09:52.519Z"
+    },
+    {
+      "eventId": "e08c5fad-4904-4dff-b663-6da18ecde98f",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T00:08:31.609Z"
+    },
+    {
+      "eventId": "48c545b6-e60e-4f08-ad1f-7fc6be983fd7",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-18T00:06:13.848Z"
+    },
+    {
+      "eventId": "493ce277-4939-4e93-b21d-3d47616bd585",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T08:40:17.360Z"
+    },
+    {
+      "eventId": "ff5f6457-f01a-4bb9-8c57-0b06baa374c0",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T06:19:10.676Z"
+    },
+    {
+      "eventId": "4b6df819-44d4-46b8-a6e0-fe9286f496a8",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T06:18:32.767Z"
+    },
+    {
+      "eventId": "4c637215-054a-4b7e-b67c-1ecb922807ce",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T06:17:55.071Z"
+    },
+    {
+      "eventId": "21efc28c-726e-46e3-ac91-96436ce2456d",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T06:17:25.207Z"
+    },
+    {
+      "eventId": "310ea3dd-fe7f-4505-b927-8292480a97cd",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T05:43:31.828Z"
+    },
+    {
+      "eventId": "a1372931-2239-4c63-b03a-8c3c38daa320",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T05:42:50.609Z"
+    },
+    {
+      "eventId": "1ca178e3-c93f-4c64-b36d-78b12a38d7c6",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T05:14:25.737Z"
+    },
+    {
+      "eventId": "d04720f0-8689-4346-b9cb-6b02bdd2884a",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T05:11:56.419Z"
+    },
+    {
+      "eventId": "769f29ea-3b89-4de3-8031-12405a226e05",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T05:11:32.530Z"
+    },
+    {
+      "eventId": "1acbd8a3-d993-4af1-8eec-2f384cc3e9bc",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T05:10:00.418Z"
+    },
+    {
+      "eventId": "8b56a909-74e7-4154-8399-389e32a3f0c4",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T05:09:50.341Z"
+    },
+    {
+      "eventId": "2c660857-ef56-40d7-964b-6afb07db8443",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T05:09:39.892Z"
+    },
+    {
+      "eventId": "b2655ff2-41df-4fdf-ad15-3d0be2534d58",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T05:09:20.489Z"
+    },
+    {
+      "eventId": "9392984f-4076-4c1a-8712-38bbb9dfc53e",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T05:07:46.994Z"
+    },
+    {
+      "eventId": "3b816065-34ee-4328-9aa9-ca017fa5f69c",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T04:39:21.402Z"
+    },
+    {
+      "eventId": "a9ce048a-455d-4f86-8a46-3e0817fa3a91",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T04:39:06.373Z"
+    },
+    {
+      "eventId": "3dd497b1-4ba2-4564-9e9b-93fa4561f58e",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T04:38:54.916Z"
+    },
+    {
+      "eventId": "4bf32d5f-546c-471a-98f0-a96ab0c29a32",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T04:19:28.590Z"
+    },
+    {
+      "eventId": "6496d786-3c13-4b26-a779-0d97f08a5c6c",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T04:18:59.205Z"
+    },
+    {
+      "eventId": "650531f8-64ca-4a29-a42a-1a0ab24a91c3",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://127.0.0.1:3001",
+      "metadata": {
+        "host": "127.0.0.1",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T03:31:37.025Z"
+    },
+    {
+      "eventId": "f5d0c9d7-24fe-4388-8125-b000c8e03a30",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://127.0.0.1:3301",
+      "metadata": {
+        "host": "127.0.0.1",
+        "port": 3301,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T03:24:16.605Z"
+    },
+    {
+      "eventId": "5367de5c-0090-4f55-8cf2-009c1c6be99b",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://127.0.0.1:3301",
+      "metadata": {
+        "host": "127.0.0.1",
+        "port": 3301,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T03:20:07.305Z"
+    },
+    {
+      "eventId": "7c700824-51e1-494a-9ecb-568765a76d81",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://127.0.0.1:3301",
+      "metadata": {
+        "host": "127.0.0.1",
+        "port": 3301,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T03:17:13.656Z"
+    },
+    {
+      "eventId": "c1cf075d-bcae-418d-8fe4-7c8124c89b1c",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://127.0.0.1:3301",
+      "metadata": {
+        "host": "127.0.0.1",
+        "port": 3301,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T03:12:03.455Z"
+    },
+    {
+      "eventId": "bed582a8-556d-4a17-86a3-0dd2aff5f5b5",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T03:09:00.731Z"
+    },
+    {
+      "eventId": "6d8dccdc-9cb3-438c-aee8-a5824e04f0b9",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T03:06:25.333Z"
+    },
+    {
+      "eventId": "c4e1ac4c-37df-4c44-a4e9-f46d183f8045",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T03:05:38.128Z"
+    },
+    {
+      "eventId": "ad6f0135-ef58-431e-b1ec-12e61c80edf1",
+      "processName": "mock-server",
+      "eventType": "started",
+      "message": "mock server started at http://0.0.0.0:3001",
+      "metadata": {
+        "host": "0.0.0.0",
+        "port": 3001,
+        "modelProvider": "local",
+        "modelMode": "strict-local"
+      },
+      "occurredAt": "2026-04-16T02:56:03.687Z"
+    }
+  ]
+}

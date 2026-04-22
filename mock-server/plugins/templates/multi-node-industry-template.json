@@ -1,0 +1,97 @@
+{
+  "specVersion": "plugin-spec/v1",
+  "pluginId": "template.<kind>.<industry>.v1",
+  "displayName": "Template Multi Node Plugin",
+  "description": "模板：主节点 + 行业增强节点 + 合规输出节点",
+  "kind": "output",
+  "route": "generate-script",
+  "enabled": true,
+  "defaultPlugin": false,
+  "order": 50,
+  "workflow": {
+    "specVersion": "workflow-node-spec/v1",
+    "entryNodeId": "main-node",
+    "nodes": [
+      {
+        "specVersion": "workflow-node-spec/v1",
+        "id": "main-node",
+        "type": "output.script.v1",
+        "module": "output",
+        "operation": "generateScript",
+        "inputMode": "request",
+        "timeoutMs": 45000,
+        "retryPolicy": {
+          "maxRetries": 1,
+          "backoffMs": 200
+        },
+        "continueOnError": false
+      },
+      {
+        "specVersion": "workflow-node-spec/v1",
+        "id": "industry-node",
+        "type": "custom.output.compliance-shield.v1",
+        "module": "output",
+        "operation": "applyComplianceShield",
+        "inputMode": "previous-node",
+        "dependsOn": [
+          "main-node"
+        ],
+        "condition": {
+          "path": "request.industryType",
+          "exists": true
+        },
+        "timeoutMs": 8000,
+        "retryPolicy": {
+          "maxRetries": 1,
+          "backoffMs": 100
+        },
+        "continueOnError": true,
+        "handler": {
+          "modulePath": "plugins/nodes/industryWorkflowNodes.js",
+          "exportName": "runOutputComplianceShield"
+        },
+        "inputOverrides": {
+          "policyTag": "template-policy"
+        }
+      }
+    ]
+  },
+  "connectors": [],
+  "eventSchema": {
+    "specVersion": "event-schema/v1",
+    "eventTypes": [
+      "plugin.execution.start",
+      "workflow.node.start",
+      "workflow.node.retry",
+      "workflow.node.complete",
+      "workflow.node.error",
+      "plugin.execution.complete",
+      "plugin.execution.error"
+    ],
+    "requiredFields": [
+      "eventId",
+      "eventType",
+      "occurredAt",
+      "pluginId",
+      "route",
+      "nodeId"
+    ]
+  },
+  "traceSchema": {
+    "specVersion": "trace-schema/v1",
+    "requiredSections": [
+      "plugin",
+      "workflow",
+      "events",
+      "timing",
+      "result"
+    ],
+    "compatibility": [
+      "executionContext"
+    ]
+  },
+  "outputBinding": {
+    "nodeId": "industry-node",
+    "path": "$"
+  }
+}

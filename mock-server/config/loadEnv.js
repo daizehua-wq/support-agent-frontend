@@ -12,6 +12,7 @@ const configDir = path.join(projectRoot, 'config');
 const envFiles = [
   path.join(configDir, 'database.env'),
   path.join(configDir, 'model.env'),
+  path.join(configDir, 'python-runtime.env'),
 ];
 
 const parseEnvFile = (content) => {
@@ -47,4 +48,6 @@ for (const filePath of envFiles) {
   parseEnvFile(content);
 }
 
-console.log('[config] env loaded from config/database.env and config/model.env');
+console.log(
+  '[config] env loaded from config/database.env, config/model.env and config/python-runtime.env (if exists)',
+);

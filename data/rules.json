@@ -6,6 +6,7 @@
       "sceneType": "h2o2",
       "targetCategory": "h2o2",
       "templateGroup": "technical_reply",
+      "scope": ["pcb"],
       "priority": 11
     },
     {
@@ -14,6 +15,7 @@
       "sceneType": "cleaning",
       "targetCategory": "cleaning",
       "templateGroup": "technical_reply",
+      "scope": ["pcb"],
       "priority": 10
     },
     {
@@ -22,6 +24,7 @@
       "sceneType": "sample_test",
       "targetCategory": "sample_test",
       "templateGroup": "sample_followup",
+      "scope": ["pcb"],
       "priority": 9
     },
     {
@@ -30,6 +33,7 @@
       "sceneType": "cost_sensitive",
       "targetCategory": "h2o2",
       "templateGroup": "technical_reply",
+      "scope": ["pcb"],
       "priority": 8
     }
   ],
@@ -37,39 +41,46 @@
     {
       "name": "cost_risk",
       "keywords": ["成本", "节省"],
-      "riskNote": "涉及成本表达时，建议避免直接承诺节省幅度。"
+      "riskNote": "涉及成本表达时，建议避免直接承诺节省幅度。",
+      "scope": ["pcb"]
     },
     {
       "name": "sample_risk",
       "keywords": ["样品", "测试"],
-      "riskNote": "样品测试阶段需先确认评价标准。"
+      "riskNote": "样品测试阶段需先确认评价标准。",
+      "scope": ["pcb"]
     },
     {
       "name": "performance_risk",
       "keywords": ["性能", "改善", "提升"],
-      "riskNote": "涉及性能改善时，建议避免直接承诺结果。"
+      "riskNote": "涉及性能改善时，建议避免直接承诺结果。",
+      "scope": ["pcb"]
     },
     {
       "name": "cleaning_effect_risk",
       "keywords": ["清洗", "残留", "兼容性"],
-      "riskNote": "清洗效果需结合实际材料和工艺验证，暂不建议直接承诺结果。"
+      "riskNote": "清洗效果需结合实际材料和工艺验证，暂不建议直接承诺结果。",
+      "scope": ["pcb"]
     }
   ],
   "searchRules": [
     {
       "name": "search_cleaning_docs",
       "keywords": ["清洗", "清洗液"],
-      "targetCategory": "cleaning"
+      "targetCategory": "cleaning",
+      "scope": ["pcb"]
     },
     {
       "name": "search_h2o2_docs",
       "keywords": ["双氧水", "蚀刻液"],
-      "targetCategory": "h2o2"
+      "targetCategory": "h2o2",
+      "scope": ["pcb"]
     },
     {
       "name": "search_sample_docs",
       "keywords": ["样品", "测试"],
-      "targetCategory": "sample_test"
+      "targetCategory": "sample_test",
+      "scope": ["pcb"]
     }
   ],
   "scriptRules": [
@@ -78,46 +89,53 @@
       "ruleType": "scene",
       "scene": "first_reply",
       "keywords": ["首次回复", "资料发送"],
-      "description": "首次回复场景"
+      "description": "首次回复场景",
+      "scope": ["pcb"]
     },
     {
       "name": "sample_followup_scene",
       "ruleType": "scene",
       "scene": "sample_followup",
       "keywords": ["样品", "测试推进", "寄样"],
-      "description": "样品推进场景"
+      "description": "样品推进场景",
+      "scope": ["pcb"]
     },
     {
       "name": "technical_reply_scene",
       "ruleType": "scene",
       "scene": "technical_reply",
       "keywords": ["技术问题", "参数", "兼容性"],
-      "description": "技术问题回复场景"
+      "description": "技术问题回复场景",
+      "scope": ["pcb"]
     },
     {
       "name": "reactivate_scene",
       "ruleType": "scene",
       "scene": "reactivate",
       "keywords": ["重新联系", "重新激活", "跟进"],
-      "description": "重新激活客户场景"
+      "description": "重新激活客户场景",
+      "scope": ["pcb"]
     },
     {
       "name": "formal_style",
       "ruleType": "tone",
       "toneStyle": "formal",
-      "description": "优先使用正式表达"
+      "description": "优先使用正式表达",
+      "scope": ["pcb"]
     },
     {
       "name": "concise_style",
       "ruleType": "tone",
       "toneStyle": "concise",
-      "description": "优先使用简洁表达"
+      "description": "优先使用简洁表达",
+      "scope": ["pcb"]
     },
     {
       "name": "spoken_style",
       "ruleType": "tone",
       "toneStyle": "spoken",
-      "description": "优先使用口语化表达"
+      "description": "优先使用口语化表达",
+      "scope": ["pcb"]
     }
   ]
 }

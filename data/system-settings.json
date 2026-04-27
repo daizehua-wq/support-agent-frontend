@@ -5,7 +5,7 @@
     "port": "543",
     "databaseName": "sales_support_agent",
     "username": "postgres",
-    "password": "123"
+    "password": ""
   },
   "model": {
     "activeModelId": "Deepseek",
@@ -18,7 +18,7 @@
         "baseUrl": "https://api.deepseek.com",
         "modelName": "deepseek-chat",
         "timeout": "180000",
-        "apiKey": "sk-fe6f4b3a56444abf800225053898dc22"
+        "apiKey": "secret://model/default"
       },
       {
         "id": "default-local",
@@ -38,7 +38,7 @@
     },
     "modelProvider": "api",
     "baseUrl": "https://api.deepseek.com",
-    "apiKey": "sk-fe6f4b3a56444abf800225053898dc22",
+    "apiKey": "secret://model/default",
     "modelName": "deepseek-chat",
     "timeout": "180000"
   },
@@ -46,5 +46,26 @@
     "analyzeStrategy": "api-enhanced",
     "searchStrategy": "external-enabled",
     "scriptStrategy": "local-model"
+  },
+  "embeddedModel": {
+    "enabled": true,
+    "provider": "node-llama-cpp",
+    "modelName": "qwen3-0.6b-q5_k_m",
+    "modelPath": "models/Qwen3-0.6B-Q5_K_M.gguf",
+    "preloadOnStart": true,
+    "contextSize": 1024,
+    "temperature": 0,
+    "classificationMaxTokens": 24,
+    "jsonMaxTokens": 64,
+    "routeDecisionTimeoutMs": 1200,
+    "fieldExtractionTimeoutMs": 2500,
+    "structuredTransformTimeoutMs": 3000,
+    "defaultTimeoutMs": 3000,
+    "fallback": {
+      "onLoadFailed": "main_workflow",
+      "onTimeout": "main_workflow",
+      "onInvalidJson": "main_workflow",
+      "onLowConfidence": "main_workflow"
+    }
   }
 }

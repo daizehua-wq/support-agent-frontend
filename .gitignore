@@ -10,7 +10,21 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dist-electron
+release
+.vite
+out
+*.tsbuildinfo
 *.local
+
+# Local secrets
+.env
+.env.*
+!.env.example
+config/*.env
+config/*.env.*
+!config/*.env.example
+config/model.env
 
 # Editor directories and files
 .vscode/*
@@ -23,6 +37,33 @@ dist-ssr
 *.sln
 *.sw?
 config/database.env
-config/model.env
+
+# Local secret vault
 data/secretVault.json
+
+# Local runtime state
 runtime/
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+data/*.db-*
+mock-server/data/*.db
+mock-server/data/*.sqlite
+mock-server/data/*.sqlite3
+mock-server/data/*.db-*
+
+# Runtime logs / audit / metrics / evidence
+data/*.jsonl
+data/*Log*.json
+data/*Audit*.json
+data/*Metrics*.json
+test-results/
+mock-server/test-results/
+test-evidence/
+
+# Model files
+models/*
+!models/.gitkeep
+*.gguf
+*.bin
+*.safetensors

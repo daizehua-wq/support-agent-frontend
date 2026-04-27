@@ -1,91 +1,108 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import { Button, Card, Col, Input, List, Row, Space, Tag, message } from 'antd';
-import { useNavigate } from 'react-router-dom';
+import {
+  ArrowUpOutlined,
+  ClockCircleOutlined,
+  FileTextOutlined,
+  FolderOpenOutlined,
+  PlusOutlined,
+  SearchOutlined,
+  UserSwitchOutlined,
+  WarningOutlined,
+} from '@ant-design/icons';
+import { Button, Input, List, Space, Tag, message } from 'antd';
+import { useLocation, useNavigate } from 'react-router-dom';
 
-import PageHeader from '../../components/common/PageHeader';
 import { getSessionList, type SessionOverviewRecord } from '../../api/agent';
-import { getSettings } from '../../api/settings';
-import { formatDateTimeToBeijingTime } from '../../utils/dateTime';
-
-const actionEntries = [
-  {
-    key: 'analyze',
-    title: '判断分析',
-    description: '把自然语言任务拆成目标、风险、约束和下一步建议。',
-    path: '/judge',
-    buttonText: '进入判断分析',
-    tag: '决策支持',
-  },
-  {
-    key: 'search',
-    title: '资料整理',
-    description: '按任务主题检索、汇总并整理出可直接复用的资料包。',
-    path: '/retrieve',
-    buttonText: '进入资料整理',
-    tag: '知识支持',
-  },
-  {
-    key: 'script',
-    title: '参考写作',
-    description: '基于任务目标与已知事实，生成参考邮件、纪要、方案或说明文稿。',
-    path: '/compose',
-    buttonText: '进入参考写作',
-    tag: '文稿辅助',
-  },
-];
-
-const governanceEntries = [
-  {
-    key: 'settings',
-    title: 'Settings',
-    description: '查看系统当前怎么串起来，并进入系统配置页。',
-    path: '/settings',
-    buttonText: '进入 Settings',
-    tag: '系统串联',
-    disabled: false,
-  },
-  {
-    key: 'model-center',
-    title: 'ModelCenter',
-    description: '承接模型资源、默认模型、模块绑定与 fallback。',
-    path: '/model-center',
-    buttonText: '进入 ModelCenter',
-    tag: '模型治理',
-    disabled: false,
-  },
-  {
-    key: 'assistant-center',
-    title: 'AssistantCenter',
-    description: '承接 Assistant / Prompt / Strategy 治理定义与发布版。',
-    path: '/assistant-center',
-    buttonText: '进入 AssistantCenter',
-    tag: '治理定义',
-    disabled: false,
-  },
-  {
-    key: 'database-manager',
-    title: 'DatabaseManager',
-    description: '承接数据库列表、详情、健康状态与轻绑定关系。',
-    path: '/database-manager',
-    buttonText: '进入 DatabaseManager',
-    tag: '数据治理',
-    disabled: false,
-  },
-];
-
-const sceneShortcuts = ['任务判断', '资料整理', '参考文稿起草'];
+import { getSettings, type SettingsResponseData } from '../../api/settings';
+import { formatDateTimeToLocalTime } from '../../utils/dateTime';
+import { buildContinueContext, buildContinueNavigationState } from '../../utils/sessionResume';
 
 type SessionPreview = SessionOverviewRecord;
 
+type HomeAssistantSnapshot = {
+  assistantId: string;
+  assistantName: string;
+  assistantVersion: string;
+};
+
+const promptSuggestions = [
+  {
+    key: 'risk',
+    label: '查企业风险',
+    icon: <SearchOutlined />,
+    prompt: '查一下深圳某某科技有限公司的信用风险',
+  },
+  {
+    key: 'report',
+    label: '生成信用报告',
+    icon: <FileTextOutlined />,
+    prompt: '基于已有资料生成一份标准版信用分析报告',
+  },
+  {
+    key: 'deep',
+    label: '深度分析',
+    icon: <WarningOutlined />,
+    prompt: '帮我分析这家公司的主要风险、证据和下一步建议',
+  },
+  {
+    key: 'material',
+    label: '整理资料',
+    icon: <FolderOpenOutlined />,
+    prompt: '整理这个客户相关的资料和可用证据',
+  },
+];
+
+const resolveHomeAssistantSnapshot = (
+  settings: SettingsResponseData,
+): HomeAssistantSnapshot => {
+  const activeAssistantSummary = settings.governanceSummary?.activeAssistantSummary;
+  const assistantActivationSummary =
+    settings.statusSummary?.assistantActivationSummary as Record<string, unknown> | undefined;
+  const assistantId =
+    activeAssistantSummary?.assistantId ||
+    settings.governanceSummary?.activeAssistantId ||
+    settings.configSummary?.assistant?.activeAssistantId ||
+    settings.assistant?.activeAssistantId ||
+    '';
+  const assistantName =
+    activeAssistantSummary?.assistantName ||
+    settings.governanceSummary?.assistantOptions?.find((item) => item.assistantId === assistantId)
+      ?.assistantName ||
+    assistantId;
+  const assistantVersion =
+    activeAssistantSummary?.currentVersion ||
+    (typeof assistantActivationSummary?.assistantVersion === 'string'
+      ? assistantActivationSummary.assistantVersion
+      : '') ||
+    '';
+
+  return {
+    assistantId,
+    assistantName,
+    assistantVersion,
+  };
+};
+
 function HomePage() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [recentSessions, setRecentSessions] = useState<SessionPreview[]>([]);
   const [recentSessionsLoading, setRecentSessionsLoading] = useState(false);
-  const [currentAssistantId, setCurrentAssistantId] = useState('');
+  const [currentAssistant, setCurrentAssistant] = useState<HomeAssistantSnapshot | null>(null);
   const [currentAssistantLoading, setCurrentAssistantLoading] = useState(false);
   const [quickInput, setQuickInput] = useState('');
+
+  const currentAssistantLabel = currentAssistant?.assistantName || currentAssistant?.assistantId || '默认 Agent';
+  const currentAssistantMeta = currentAssistant?.assistantId
+    ? `${currentAssistant.assistantId}${
+        currentAssistant.assistantVersion ? ` / v${currentAssistant.assistantVersion}` : ''
+      }`
+    : '准备就绪';
+  const systemReady = !currentAssistantLoading && !recentSessionsLoading;
+
+  const recentVisibleSessions = useMemo(() => recentSessions.slice(0, 6), [recentSessions]);
 
   const loadRecentSessions = async () => {
     try {
@@ -105,262 +122,180 @@ function HomePage() {
     try {
       setCurrentAssistantLoading(true);
       const settings = await getSettings();
-      const assistantId = settings.governanceSummary?.activeAssistantId || '';
-      setCurrentAssistantId(assistantId);
+      setCurrentAssistant(resolveHomeAssistantSnapshot(settings));
     } catch (error) {
-      console.error('当前模板加载失败：', error);
-      message.error('当前模板加载失败');
+      console.error('当前 Agent 加载失败：', error);
+      message.error('当前 Agent 加载失败');
     } finally {
       setCurrentAssistantLoading(false);
     }
   };
 
-  const createSessionState = () => ({
-    sessionId: crypto.randomUUID(),
-    fromModule: 'home',
-  });
-
-  const handleStartFromHome = (path: string, extraState?: Record<string, unknown>) => {
-    navigate(path, {
-      state: {
-        ...createSessionState(),
-        ...(extraState || {}),
-      },
-    });
-  };
-
-  const handleContinueSession = (path: string, sessionId: string) => {
-    navigate(path, {
-      state: {
-        sessionId,
+  const buildHomeCarryState = (carryPayload?: Record<string, unknown>) =>
+    buildContinueNavigationState({
+      continueContext: buildContinueContext({
         fromModule: 'home',
+      }),
+      carryPayload,
+    });
+
+  const startTask = (input = quickInput) => {
+    const normalizedInput = input.trim();
+
+    if (!normalizedInput) {
+      message.info('先输入一个公司名、问题或任务');
+      return;
+    }
+
+    navigate('/workbench', {
+      state: {
+        fromModule: 'home',
+        initialTaskInput: normalizedInput,
+        taskInput: normalizedInput,
+        ...buildHomeCarryState({
+          taskInput: normalizedInput,
+        }),
       },
     });
   };
 
-  const getRecommendedContinuePath = (session: SessionPreview) => {
-    if (session.sourceModule === 'script') {
-      return '/compose';
-    }
-
-    if (session.sourceModule === 'search') {
-      return '/retrieve';
-    }
-
-    if (session.sourceModule === 'analyze') {
-      return '/judge';
-    }
-
-    return '/judge';
+  const handleContinueSession = (sessionId: string) => {
+    navigate(`/sessions/${sessionId}`, {
+      state: buildContinueNavigationState({
+        continueContext: buildContinueContext({
+          sessionId,
+          fromModule: 'home',
+        }),
+      }),
+    });
   };
-
-  const systemStatusText =
-    currentAssistantLoading || recentSessionsLoading ? '加载中' : '系统正常';
-  const latestSession = recentSessions[0];
 
   useEffect(() => {
+    if (location.pathname !== '/home') {
+      return;
+    }
+
     loadRecentSessions();
     loadCurrentAssistant();
-  }, []);
+  }, [location.pathname]);
 
   return (
-    <div>
-      <PageHeader
-        title="通用 Agent 平台"
-        description="基于 Template / Prompt / Workflow 的统一工作台，可识别任务、整理资料、辅助判断并生成参考文稿。"
-      />
-
-      <div style={{ marginBottom: 16 }}>
-        <Space wrap>
-          <Tag color="blue">平台入口页</Tag>
-          <Tag color={currentAssistantLoading || recentSessionsLoading ? 'gold' : 'green'}>
-            {systemStatusText}
-          </Tag>
-        </Space>
-      </div>
-
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} md={6}>
-          <Card style={{ borderRadius: 12 }}>
-            <div style={{ fontSize: 12, color: '#64748B', marginBottom: 8 }}>当前激活模板</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#1E293B' }}>
-              {currentAssistantId || '未激活'}
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} md={6}>
-          <Card style={{ borderRadius: 12 }}>
-            <div style={{ fontSize: 12, color: '#64748B', marginBottom: 8 }}>最近会话数</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#1E293B' }}>
-              {recentSessions.length}
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} md={6}>
-          <Card style={{ borderRadius: 12 }}>
-            <div style={{ fontSize: 12, color: '#64748B', marginBottom: 8 }}>最近活跃模块</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#1E293B' }}>
-              {latestSession?.sourceModule || '未返回'}
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} md={6}>
-          <Card style={{ borderRadius: 12 }}>
-            <div style={{ fontSize: 12, color: '#64748B', marginBottom: 8 }}>系统状态</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#1E293B' }}>
-              {systemStatusText}
-            </div>
-          </Card>
-        </Col>
-      </Row>
-
-      <Card style={{ marginBottom: 24, borderRadius: 12 }}>
-        <Space direction="vertical" size={16} style={{ width: '100%' }}>
-          <div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#1F3A5F', marginBottom: 8 }}>
-              最小输入窗口
-            </div>
-            <div style={{ fontSize: 14, color: '#64748B', lineHeight: 1.8 }}>
-              先输入任务，再让平台识别它更适合走判断、资料整理还是参考写作链路。
-            </div>
+    <div className="ap-workspace">
+      <aside className="ap-workspace__rail">
+        <div className="ap-agent-card">
+          <div className="ap-agent-card__icon">
+            <UserSwitchOutlined />
           </div>
+          <div className="ap-agent-card__body">
+            <div className="ap-agent-card__eyebrow">当前 Agent</div>
+            <div className="ap-agent-card__name">{currentAssistantLabel}</div>
+            <div className="ap-agent-card__meta">{currentAssistantMeta}</div>
+          </div>
+          <Button shape="circle" icon={<PlusOutlined />} onClick={() => navigate('/agent')} />
+        </div>
 
-          <Input.TextArea
-            value={quickInput}
-            onChange={(e) => setQuickInput(e.target.value)}
-            rows={4}
-            placeholder="请输入当前任务、背景问题或希望平台帮你完成的工作"
+        <div className="ap-rail-section">
+          <div className="ap-rail-section__title">
+            <ClockCircleOutlined />
+            最近会话
+          </div>
+          <List
+            loading={recentSessionsLoading}
+            dataSource={recentVisibleSessions}
+            locale={{ emptyText: '暂无会话' }}
+            renderItem={(item) => (
+              <List.Item className="ap-session-item" onClick={() => handleContinueSession(item.id)}>
+                <div>
+                  <div className="ap-session-item__title">{item.title || '未命名会话'}</div>
+                  <div className="ap-session-item__meta">
+                    {formatDateTimeToLocalTime(item.updatedAt) || item.sourceModule || '刚刚'}
+                  </div>
+                </div>
+              </List.Item>
+            )}
           />
+        </div>
+      </aside>
 
-          <Space wrap>
-            {sceneShortcuts.map((item) => (
-              <Tag key={item} color="blue">
-                {item}
-              </Tag>
-            ))}
+      <main className="ap-workspace__main">
+        <div className="ap-workspace__topbar">
+          <div className="ap-brand">
+            <span className="ap-brand__mark" />
+            AP 2.0
+          </div>
+          <Space size={8}>
+            <Tag color={systemReady ? 'green' : 'gold'}>{systemReady ? '在线' : '同步中'}</Tag>
+            <Button type="text" onClick={() => navigate('/manage')}>
+              管理
+            </Button>
           </Space>
+        </div>
 
-          <Space wrap>
+        <section className="ap-hero">
+          <div className="ap-hero__headline">今天让 Agent 完成什么？</div>
+          <div className="ap-hero__subline">{currentAssistantLabel} 已准备好。</div>
+
+          <div className="ap-command">
+            <Input.TextArea
+              value={quickInput}
+              onChange={(event) => setQuickInput(event.target.value)}
+              onPressEnter={(event) => {
+                if (!event.shiftKey) {
+                  event.preventDefault();
+                  startTask();
+                }
+              }}
+              autoSize={{ minRows: 1, maxRows: 5 }}
+              placeholder="输入公司名、问题或任务..."
+              className="ap-command__input"
+            />
             <Button
               type="primary"
-              onClick={() => handleStartFromHome('/workbench', { initialTaskInput: quickInput })}
-            >
-              进入任务工作台
-            </Button>
-            <Button
-              onClick={() =>
-                handleStartFromHome('/retrieve', {
-                  taskInput: quickInput,
-                })
-              }
-            >
-              直接进资料整理
-            </Button>
-            <Button
-              onClick={() =>
-                handleStartFromHome('/compose', {
-                  taskInput: quickInput,
-                })
-              }
-            >
-              直接进参考写作
-            </Button>
-          </Space>
-        </Space>
-      </Card>
+              shape="circle"
+              icon={<ArrowUpOutlined />}
+              className="ap-command__send"
+              onClick={() => startTask()}
+            />
+          </div>
 
-      <Card title="核心治理入口" style={{ marginBottom: 24, borderRadius: 12 }}>
-        <Row gutter={[16, 16]}>
-          {governanceEntries.map((item) => (
-            <Col xs={24} md={12} lg={6} key={item.key}>
-              <Card style={{ height: '100%', borderRadius: 12 }} bodyStyle={{ height: '100%' }}>
-                <Space direction="vertical" size={14} style={{ width: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <strong style={{ fontSize: 16, color: '#1E293B' }}>{item.title}</strong>
-                    <Tag color="blue">{item.tag}</Tag>
-                  </div>
-                  <div style={{ color: '#64748B', fontSize: 14, lineHeight: 1.8, minHeight: 66 }}>
-                    {item.description}
-                  </div>
-                  <Button
-                    type={item.disabled ? 'default' : 'primary'}
-                    block
-                    disabled={item.disabled}
-                    onClick={() => item.path && navigate(item.path)}
-                  >
-                    {item.buttonText}
-                  </Button>
-                </Space>
-              </Card>
-            </Col>
-          ))}
-        </Row>
-      </Card>
+          <div className="ap-suggestions">
+            {promptSuggestions.map((item) => (
+              <Button
+                key={item.key}
+                icon={item.icon}
+                className="ap-suggestion-pill"
+                onClick={() => {
+                  setQuickInput(item.prompt);
+                  startTask(item.prompt);
+                }}
+              >
+                {item.label}
+              </Button>
+            ))}
+          </div>
+        </section>
 
-      <Card title="主链入口" style={{ marginBottom: 24, borderRadius: 12 }}>
-        <Row gutter={[16, 16]}>
-          {actionEntries.map((item) => (
-            <Col xs={24} md={8} key={item.key}>
-              <Card style={{ height: '100%', borderRadius: 12 }}>
-                <Space direction="vertical" size={14} style={{ width: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <strong style={{ fontSize: 16, color: '#1E293B' }}>{item.title}</strong>
-                    <Tag color="blue">{item.tag}</Tag>
-                  </div>
-                  <div style={{ color: '#64748B', fontSize: 14, lineHeight: 1.8, minHeight: 66 }}>
-                    {item.description}
-                  </div>
-                  <Button type="primary" block onClick={() => handleStartFromHome(item.path)}>
-                    {item.buttonText}
-                  </Button>
-                </Space>
-              </Card>
-            </Col>
-          ))}
-        </Row>
-      </Card>
-
-      <Card title="最近会话" style={{ marginBottom: 24, borderRadius: 12 }}>
-        <List
-          loading={recentSessionsLoading}
-          dataSource={recentSessions}
-          locale={{ emptyText: '当前还没有最近会话' }}
-          renderItem={(item) => (
-            <List.Item
-              actions={[
-                <Button
-                  key="continue"
-                  type="link"
-                  onClick={() => handleContinueSession(getRecommendedContinuePath(item), item.id)}
-                >
-                  继续会话
-                </Button>,
-                <Button key="detail" type="link" onClick={() => navigate(`/sessions/${item.id}`)}>
-                  查看详情
-                </Button>,
-              ]}
-            >
-              <List.Item.Meta
-                title={item.title || '未命名会话'}
-                description={
-                  <Space wrap size={[8, 8]}>
-                    <Tag color="blue">来源：{item.sourceModule || '未返回'}</Tag>
-                    <Tag color="purple">阶段：{item.currentStage || '未返回'}</Tag>
-                    <Tag color="gold">目标：{item.currentGoal || '未返回'}</Tag>
-                    <Tag color="magenta">模板：{item.assistantId || '未返回'}</Tag>
-                    <Tag color="green">步骤：{item.stepCount ?? 0}</Tag>
-                    <Tag color="cyan">资料：{item.assetCount ?? 0}</Tag>
-                    <Tag>更新时间：{formatDateTimeToBeijingTime(item.updatedAt, { includeMilliseconds: true }) || '未返回'}</Tag>
-                  </Space>
-                }
-              />
-            </List.Item>
-          )}
-        />
-      </Card>
+        <section className="ap-result-preview">
+          <div className="ap-result-preview__status">
+            <span className="ap-pulse" />
+            快速通道、本地模型和主链路会自动协同。
+          </div>
+          <div className="ap-result-grid">
+            <div className="ap-mini-card">
+              <div className="ap-mini-card__label">输入</div>
+              <div className="ap-mini-card__value">公司、问题、报告目标</div>
+            </div>
+            <div className="ap-mini-card">
+              <div className="ap-mini-card__label">执行</div>
+              <div className="ap-mini-card__value">分析、检索、生成</div>
+            </div>
+            <div className="ap-mini-card">
+              <div className="ap-mini-card__label">交付</div>
+              <div className="ap-mini-card__value">结论卡片、报告、证据</div>
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
   );
 }

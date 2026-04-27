@@ -45,6 +45,55 @@ import {
   logSearchDiagnostics,
   persistSearchTrace,
 } from '../services/searchTraceService.js';
+import { createReferencePackFromSearch } from '../services/referencePackService.js';
+import { runPaidApiConnector } from '../plugins/data-connectors/paidApiConnector.js';
+import { runWebSearchConnector } from '../plugins/data-connectors/webSearchConnector.js';
+
+const normalizeText = (value = '') => String(value || '').trim();
+
+const normalizeSourceScopeList = ({
+  sourceScopes = undefined,
+  enableExternalSupplement = false,
+  includePaidApiSources = false,
+  includeWebSources = false,
+} = {}) => {
+  const defaultScopes = ['internal', 'paid_api', 'web'];
+  const sourceScopesProvided = Array.isArray(sourceScopes);
+  const rawScopes = sourceScopesProvided ? sourceScopes : defaultScopes;
+  const normalizedScopes = rawScopes
+    .map((item) => normalizeText(item).toLowerCase())
+    .filter(Boolean);
+  const scopeSet = new Set(
+    normalizedScopes.length ? normalizedScopes : sourceScopesProvided ? [] : defaultScopes,
+  );
+
+  if (enableExternalSupplement || includeWebSources) {
+    scopeSet.add('web');
+    scopeSet.add('internet');
+  }
+
+  if (includePaidApiSources) {
+    scopeSet.add('paid_api');
+    scopeSet.add('authoritative');
+  }
+
+  return {
+    includeInternal: scopeSet.has('internal') || scopeSet.has('internal_data'),
+    includePaidApi:
+      scopeSet.has('paid_api') ||
+      scopeSet.has('paid') ||
+      scopeSet.has('authoritative') ||
+      scopeSet.has('paid_authoritative_data'),
+    includeWeb:
+      scopeSet.has('web') ||
+      scopeSet.has('internet') ||
+      scopeSet.has('web_search') ||
+      scopeSet.has('official_web') ||
+      scopeSet.has('general_web'),
+    sourceScopes: [...scopeSet],
+    defaultEnabled: !sourceScopesProvided,
+  };
+};
 
 const buildFinalSearchRoute = ({
   keywordPolicy = null,
@@ -92,6 +141,12 @@ export const runSearchDocumentsFlow = async (rawInput = {}) => {
     deliverable = '',
     variables = {},
     attachments = [],
+    appId = '',
+    sourceScopes = undefined,
+    includePaidApiSources = false,
+    includeWebSources = false,
+    useMockExternalProviderFallback = true,
+    retainRaw = false,
   } = normalizedInput;
   const runtimeSettings = settings || readSettings() || getDefaultSettings();
   const baseSearchModelConfig = getModelConfigForModule('search');
@@ -106,8 +161,12 @@ export const runSearchDocumentsFlow = async (rawInput = {}) => {
           modelRuntime.resolvedModel.resolvedProvider || baseSearchModelConfig.modelProvider,
         baseUrl: modelRuntime.resolvedModel.resolvedBaseUrl || baseSearchModelConfig.baseUrl,
         modelName: modelRuntime.resolvedModel.resolvedModelName || baseSearchModelConfig.modelName,
+        appId,
       }
-    : baseSearchModelConfig;
+    : {
+        ...baseSearchModelConfig,
+        appId,
+      };
   const assistantContext = getAssistantExecutionContext(runtimeSettings);
   const initialAssistantId =
     assistantContext.assistantId || runtimeSettings.assistant?.activeAssistantId || '';
@@ -334,6 +393,94 @@ export const runSearchDocumentsFlow = async (rawInput = {}) => {
     ...item,
     relatedSessionId: session.id,
   }));
+  const sourceScopeSelection = normalizeSourceScopeList({
+    sourceScopes: sourceScopes || variables.sourceScopes,
+    enableExternalSupplement,
+    includePaidApiSources:
+      includePaidApiSources === true || variables.includePaidApiSources === true,
+    includeWebSources: includeWebSources === true || variables.includeWebSources === true,
+  });
+  const shouldUseMockExternalProviderFallback =
+    useMockExternalProviderFallback !== false &&
+    variables.useMockExternalProviderFallback !== false;
+  let governedExternalSources = [];
+  let externalProviderStates = [];
+
+  if (sourceScopeSelection.includePaidApi) {
+    try {
+      const paidApiResult = await runPaidApiConnector({
+        keyword,
+        sessionId: session.id,
+        appId,
+        useMockFallback: shouldUseMockExternalProviderFallback,
+      });
+      governedExternalSources = [
+        ...governedExternalSources,
+        ...(Array.isArray(paidApiResult.sources) ? paidApiResult.sources : []),
+      ];
+      externalProviderStates = [
+        ...externalProviderStates,
+        ...(Array.isArray(paidApiResult.providerStates) ? paidApiResult.providerStates : []),
+      ];
+    } catch (error) {
+      externalProviderStates.push({
+        provider: 'generic_paid_api',
+        sourceType: 'paid_api',
+        status: 'failed',
+        reason: error.message,
+        resultCount: 0,
+      });
+      console.warn('[searchFlow] paid_api connector degraded:', error.message);
+    }
+  }
+
+  if (sourceScopeSelection.includeWeb) {
+    try {
+      const webSearchResult = await runWebSearchConnector({
+        keyword,
+        sessionId: session.id,
+        appId,
+        useMockFallback: shouldUseMockExternalProviderFallback,
+      });
+      governedExternalSources = [
+        ...governedExternalSources,
+        ...(Array.isArray(webSearchResult.sources) ? webSearchResult.sources : []),
+      ];
+      externalProviderStates = [
+        ...externalProviderStates,
+        ...(Array.isArray(webSearchResult.providerStates) ? webSearchResult.providerStates : []),
+      ];
+    } catch (error) {
+      externalProviderStates.push({
+        provider: 'generic_web_search',
+        sourceType: 'web_search',
+        status: 'failed',
+        reason: error.message,
+        resultCount: 0,
+      });
+      console.warn('[searchFlow] web_search connector degraded:', error.message);
+    }
+  }
+
+  let referencePackResult = null;
+  let referencePackError = null;
+
+  try {
+    referencePackResult = createReferencePackFromSearch({
+      query: keyword || taskInput || taskSubject,
+      title: keyword ? `参考资料包：${keyword}` : '参考资料包',
+      sessionId: session.id,
+      appId,
+      internalEvidenceItems: sourceScopeSelection.includeInternal ? evidenceItemsWithSession : [],
+      externalSources: governedExternalSources,
+      retainRaw: retainRaw === true || variables.retainRaw === true,
+    });
+  } catch (error) {
+    referencePackError = {
+      message: error.message,
+    };
+    console.warn('[searchFlow] reference pack generation failed:', error.message);
+  }
   const connectorRegistrySummary = buildSearchConnectorRegistrySummary(connectorRegistry);
   const searchTraceSummary = buildSearchTraceSummary({
     keywordPolicy,
@@ -406,6 +553,15 @@ export const runSearchDocumentsFlow = async (rawInput = {}) => {
       enabledRules: searchRuleEngineResult.enabledRules || [],
       executedRules: searchRuleEngineResult.executedRules || [],
     },
+    sourceScopeSelection,
+    useMockExternalProviderFallback: shouldUseMockExternalProviderFallback,
+    externalProviderStates,
+    referencePackId: referencePackResult?.referencePack?.referencePackId || '',
+    referencePack: referencePackResult?.referencePack || null,
+    governedEvidenceItems: referencePackResult?.evidenceItems || [],
+    referencePackLibrary: referencePackResult?.library || null,
+    referencePackCacheCleanup: referencePackResult?.cacheCleanup || null,
+    referencePackError,
     taskModel,
   };
   const searchStepOutput = {
@@ -436,6 +592,15 @@ export const runSearchDocumentsFlow = async (rawInput = {}) => {
     whitelistedEvidenceSummaries,
     connectorRegistrySummary,
     searchTraceSummary,
+    sourceScopeSelection,
+    useMockExternalProviderFallback: shouldUseMockExternalProviderFallback,
+    externalProviderStates,
+    referencePackId: referencePackResult?.referencePack?.referencePackId || '',
+    referencePack: referencePackResult?.referencePack || null,
+    governedEvidenceItems: referencePackResult?.evidenceItems || [],
+    referencePackLibrary: referencePackResult?.library || null,
+    referencePackCacheCleanup: referencePackResult?.cacheCleanup || null,
+    referencePackError,
     searchRuleEngine: {
       configPath: searchRuleEngineResult.configPath,
       enabledRules: searchRuleEngineResult.enabledRules || [],
@@ -518,5 +683,14 @@ export const runSearchDocumentsFlow = async (rawInput = {}) => {
     whitelistedEvidenceSummaries,
     connectorRegistrySummary,
     searchTraceSummary,
+    sourceScopeSelection,
+    useMockExternalProviderFallback: shouldUseMockExternalProviderFallback,
+    externalProviderStates,
+    referencePackId: referencePackResult?.referencePack?.referencePackId || '',
+    referencePack: referencePackResult?.referencePack || null,
+    governedEvidenceItems: referencePackResult?.evidenceItems || [],
+    referencePackLibrary: referencePackResult?.library || null,
+    referencePackCacheCleanup: referencePackResult?.cacheCleanup || null,
+    referencePackError,
   };
 };

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Descriptions, Empty, List, Space, Spin, Tag, message } from 'antd';
+import { Alert, Button, Card, Descriptions, Empty, List, Space, Spin, Tag } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import PageHeader from '../../components/common/PageHeader';
@@ -12,16 +12,27 @@ import {
 import {
   buildContinueContext,
   buildContinueNavigationState,
+  buildTaskSeedFromPayload,
+  findPreferredEvidence,
   getSessionExecutionContext,
   getStepAssistantId,
   getStepExecutionContext,
+  getStepInputPayload,
+  mergeTaskSeeds,
+  readExecutionContextAssistantId,
+  readExecutionContextPromptId,
+  readExecutionContextPromptVersion,
+  readExecutionContextStrategyId,
 } from '../../utils/sessionResume';
-import { formatDateTimeToBeijingTime } from '../../utils/dateTime';
+import { formatDateTimeToLocalTime } from '../../utils/dateTime';
 
 type SessionStep = SessionStepRecord;
 
 type SessionExecutionContext = {
   assistantId?: string;
+  promptId?: string;
+  promptVersion?: string;
+  strategyId?: string;
   rulesScope?: string;
   productScope?: string;
   docScope?: string;
@@ -35,15 +46,35 @@ type SessionDetailResponse = SessionDetailRecord;
 const getExecutionContextFromPayload = (
   payload: Record<string, unknown> | null | undefined,
 ): SessionExecutionContext | undefined => {
-  const value = payload?.executionContextSummary || payload?.executionContext;
+  const value = payload?.executionContext || payload?.executionContextSummary;
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return undefined;
+    if (!payload) {
+      return undefined;
+    }
+
+    return {
+      assistantId: getExecutionContextFieldValue(payload.assistantId),
+      promptId: getExecutionContextFieldValue(payload.promptId),
+      promptVersion: getExecutionContextFieldValue(payload.promptVersion),
+      strategyId: getExecutionContextFieldValue(payload.strategy),
+    };
   }
 
   const context = value as Record<string, unknown>;
 
   return {
-    assistantId: getExecutionContextFieldValue(context.assistantId),
+    assistantId:
+      getExecutionContextFieldValue(payload?.assistantId) ||
+      readExecutionContextAssistantId(context),
+    promptId:
+      getExecutionContextFieldValue(payload?.promptId) ||
+      readExecutionContextPromptId(context),
+    promptVersion:
+      getExecutionContextFieldValue(payload?.promptVersion) ||
+      readExecutionContextPromptVersion(context),
+    strategyId:
+      getExecutionContextFieldValue(payload?.strategy) ||
+      readExecutionContextStrategyId(context),
     rulesScope: getExecutionContextFieldValue(context.rulesScope),
     productScope: getExecutionContextFieldValue(context.productScope),
     docScope: getExecutionContextFieldValue(context.docScope),
@@ -105,6 +136,9 @@ const mergeExecutionContexts = (
     if (!context) return;
 
     if (context.assistantId) merged.assistantId = context.assistantId;
+    if (context.promptId) merged.promptId = context.promptId;
+    if (context.promptVersion) merged.promptVersion = context.promptVersion;
+    if (context.strategyId) merged.strategyId = context.strategyId;
     if (context.rulesScope) merged.rulesScope = context.rulesScope;
     if (context.productScope) merged.productScope = context.productScope;
     if (context.docScope) merged.docScope = context.docScope;
@@ -124,6 +158,26 @@ const formatBooleanLabel = (value?: boolean) => {
 
 type SessionResumeContext = {
   continueContext?: ReturnType<typeof buildContinueContext>;
+  carryPayload?: Record<string, unknown>;
+};
+
+const hasCarryPayloadValue = (value: unknown) => {
+  if (typeof value === 'string') {
+    return Boolean(value.trim());
+  }
+
+  return value !== undefined && value !== null;
+};
+
+const buildEvidenceReferenceSummary = (title = '', summary = '') => {
+  const normalizedTitle = title.trim();
+  const normalizedSummary = summary.trim();
+
+  if (normalizedTitle && normalizedSummary) {
+    return `${normalizedTitle}：${normalizedSummary}`;
+  }
+
+  return normalizedTitle || normalizedSummary;
 };
 
 function DatailPage() {
@@ -131,11 +185,13 @@ function DatailPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<SessionDetailResponse | null>(null);
+  const [loadIssue, setLoadIssue] = useState('');
   const latestStep = detail?.latestStep || detail?.steps?.[detail.steps.length - 1] || null;
 
   const loadDetail = useCallback(async () => {
     if (!id) {
-      message.error('未找到会话 ID');
+      setDetail(null);
+      setLoadIssue('未找到会话 ID，无法恢复会话详情。');
       return;
     }
 
@@ -145,12 +201,15 @@ function DatailPage() {
 
       if (result?.data) {
         setDetail(result.data);
+        setLoadIssue('');
       } else {
-        message.error(result?.message || '会话详情加载失败');
+        setDetail(null);
+        setLoadIssue(result?.message ? `${result.message}（sessionId：${id}）` : `sessionId ${id} 未找到`);
       }
     } catch (error) {
       console.error('会话详情加载失败：', error);
-      message.error('会话详情加载失败');
+      setDetail(null);
+      setLoadIssue(`会话详情加载失败（sessionId：${id}），请稍后重试。`);
     } finally {
       setLoading(false);
     }
@@ -261,49 +320,75 @@ function DatailPage() {
   const buildResumeContext = (
     target: 'analyze' | 'search' | 'script',
   ): SessionResumeContext => {
-    const primaryEvidence =
-      detail?.evidences?.find((item) => item.isPrimaryEvidence) ||
-      detail?.evidences?.[0] ||
-      null;
+    const targetStep =
+      target === 'analyze'
+        ? latestAnalyzeStep || latestStep || null
+        : target === 'search'
+          ? latestSearchStep || latestAnalyzeStep || latestStep || null
+          : latestOutputStep || latestSearchStep || latestAnalyzeStep || latestStep || null;
+    const targetEvidence =
+      target === 'script'
+        ? findPreferredEvidence({
+            detail,
+            step: targetStep,
+          })
+        : null;
+    const mergedSeed = mergeTaskSeeds(
+      buildTaskSeedFromPayload(getStepInputPayload(targetStep)),
+      buildTaskSeedFromPayload(detail?.session || null),
+    );
+    const evidenceReferenceSummary = buildEvidenceReferenceSummary(
+      targetEvidence?.title || '',
+      targetEvidence?.summary || '',
+    );
+    const carryPayload = Object.fromEntries(
+      Object.entries({
+        taskObject: mergedSeed.taskObject,
+        audience: mergedSeed.audience,
+        industryType: mergedSeed.industryType,
+        taskPhase: mergedSeed.taskPhase,
+        taskSubject: mergedSeed.taskSubject,
+        taskInput: mergedSeed.taskInput,
+        context: mergedSeed.context || (target === 'script' ? evidenceReferenceSummary : undefined),
+        goal: mergedSeed.goal,
+        focusPoints: mergedSeed.focusPoints,
+        toneStyle: mergedSeed.toneStyle,
+        docType: mergedSeed.docType,
+        onlyExternalAvailable: mergedSeed.onlyExternalAvailable,
+        enableExternalSupplement: mergedSeed.enableExternalSupplement,
+        referenceSummary: target === 'script' ? evidenceReferenceSummary || undefined : undefined,
+        sourceDocName: target === 'script' ? targetEvidence?.title || undefined : undefined,
+        sourceDocType: target === 'script' ? targetEvidence?.docType || undefined : undefined,
+        sourceApplicableScene:
+          target === 'script' ? targetEvidence?.applicableScene || undefined : undefined,
+        sourceRef: target === 'script' ? targetEvidence?.sourceRef || undefined : undefined,
+        sourceType: target === 'script' ? targetEvidence?.sourceType || undefined : undefined,
+        evidenceId: target === 'script' ? targetEvidence?.evidenceId || undefined : undefined,
+      }).filter(([, value]) => hasCarryPayloadValue(value)),
+    );
 
     return {
       continueContext: buildContinueContext({
         sessionId: detail?.session.id || id,
         fromModule: 'session-detail',
-        stepId:
-          target === 'analyze'
-            ? latestAnalyzeStep?.id || latestStep?.id || undefined
-            : target === 'search'
-              ? latestSearchStep?.id || latestAnalyzeStep?.id || latestStep?.id || undefined
-              : latestOutputStep?.id ||
-                latestSearchStep?.id ||
-                latestAnalyzeStep?.id ||
-                latestStep?.id ||
-                undefined,
-        evidenceId: target === 'script' ? primaryEvidence?.evidenceId || undefined : undefined,
+        stepId: targetStep?.id || undefined,
+        evidenceId: target === 'script' ? targetEvidence?.evidenceId || undefined : undefined,
         assistantId:
           getStepAssistantId(
-            target === 'analyze'
-              ? latestAnalyzeStep
-              : target === 'search'
-                ? latestSearchStep || latestAnalyzeStep
-                : latestOutputStep || latestSearchStep || latestAnalyzeStep,
+            targetStep,
           ) ||
           getStepAssistantId(latestStep) ||
           detail?.session.assistantId ||
           undefined,
         executionContext:
           getStepExecutionContext(
-            target === 'analyze'
-              ? latestAnalyzeStep
-              : target === 'search'
-                ? latestSearchStep || latestAnalyzeStep
-                : latestOutputStep || latestSearchStep || latestAnalyzeStep,
+            targetStep,
           ) ||
           getStepExecutionContext(latestStep) ||
           getSessionExecutionContext(detail) ||
           undefined,
       }),
+      carryPayload: Object.keys(carryPayload).length ? carryPayload : undefined,
     };
   };
 
@@ -334,7 +419,16 @@ function DatailPage() {
   }
 
   if (!detail) {
-    return <Empty description="当前未找到会话详情" />;
+    return (
+      <Empty description={loadIssue || (id ? `sessionId ${id} 未找到` : '当前未找到会话详情')}>
+        <Space>
+          <Button onClick={() => navigate('/sessions')}>返回会话列表</Button>
+          <Button type="primary" onClick={() => navigate('/home')}>
+            返回首页
+          </Button>
+        </Space>
+      </Empty>
+    );
   }
 
   return (
@@ -384,10 +478,10 @@ function DatailPage() {
             {detail.session.currentGoal || '未返回'}
           </Descriptions.Item>
           <Descriptions.Item label="当前 assistant">
-            {detail.session.assistantId || '未返回'}
+            {latestExecutionContext?.assistantId || detail.session.assistantId || '未返回'}
           </Descriptions.Item>
           <Descriptions.Item label="最近更新时间">
-            {formatDateTimeToBeijingTime(detail.session.updatedAt, { includeMilliseconds: true }) || '未返回'}
+            {formatDateTimeToLocalTime(detail.session.updatedAt, { includeMilliseconds: true }) || '未返回'}
           </Descriptions.Item>
           <Descriptions.Item label="sessionId">
             {detail.session.id || '未返回'}
@@ -510,18 +604,20 @@ function DatailPage() {
               {formatStepTypeLabel(latestStep.stepType)}
             </Descriptions.Item>
             <Descriptions.Item label="最近执行时间">
-              {formatDateTimeToBeijingTime(latestStep.createdAt, { includeMilliseconds: true }) || '未返回'}
+              {formatDateTimeToLocalTime(latestStep.createdAt, { includeMilliseconds: true }) || '未返回'}
             </Descriptions.Item>
             <Descriptions.Item label="最新 route">{latestStep.route || '未返回'}</Descriptions.Item>
             <Descriptions.Item label="最新 strategy">{latestStep.strategy || '未返回'}</Descriptions.Item>
             <Descriptions.Item label="当前 Prompt ID">
               {getStringFromPayload(latestStep.inputPayload, 'promptId') ||
                 getStringFromPayload(latestStep.outputPayload, 'promptId') ||
+                latestExecutionContext?.promptId ||
                 '未返回'}
             </Descriptions.Item>
             <Descriptions.Item label="Prompt 版本">
               {getStringFromPayload(latestStep.inputPayload, 'promptVersion') ||
                 getStringFromPayload(latestStep.outputPayload, 'promptVersion') ||
+                latestExecutionContext?.promptVersion ||
                 '未返回'}
             </Descriptions.Item>
             <Descriptions.Item label="Assistant ID">
@@ -529,6 +625,14 @@ function DatailPage() {
                 getStringFromPayload(latestStep.outputPayload, 'assistantId') ||
                 latestExecutionContext?.assistantId ||
                 detail.session.assistantId ||
+                '未返回'}
+            </Descriptions.Item>
+            <Descriptions.Item label="策略 ID">
+              {latestExecutionContext?.strategyId ||
+                latestExecutionContext?.scriptStrategy ||
+                latestExecutionContext?.searchStrategy ||
+                latestExecutionContext?.analyzeStrategy ||
+                latestStep.strategy ||
                 '未返回'}
             </Descriptions.Item>
             <Descriptions.Item label="rulesScope">
@@ -556,12 +660,20 @@ function DatailPage() {
           renderItem={(step) => (
             <List.Item>
               <Card style={{ width: '100%' }}>
+                {(() => {
+                  const stepExecutionContext = getMergedExecutionContext(
+                    step,
+                    getSessionExecutionContext(detail),
+                  );
+
+                  return (
+                    <>
                 <Space wrap style={{ marginBottom: 12 }}>
                   <Tag color="blue">{formatStepTypeLabel(step.stepType)}</Tag>
                   <Tag color="purple">route：{step.route || '未返回'}</Tag>
                   <Tag color="gold">strategy：{step.strategy || '未返回'}</Tag>
                   <Tag color="green">execution：{step.executionStrategy || '未返回'}</Tag>
-                  <Tag>{formatDateTimeToBeijingTime(step.createdAt, { includeMilliseconds: true }) || '未返回'}</Tag>
+                  <Tag>{formatDateTimeToLocalTime(step.createdAt, { includeMilliseconds: true }) || '未返回'}</Tag>
                 </Space>
                 <p style={{ marginBottom: 8 }}>
                   <strong>摘要：</strong>
@@ -569,35 +681,39 @@ function DatailPage() {
                 </p>
                 <p style={{ marginBottom: 8 }}>
                   <strong>Assistant：</strong>
-                  {getStringFromPayload(step.inputPayload, 'assistantId') || detail.session.assistantId || '未返回'}
+                  {getStringFromPayload(step.inputPayload, 'assistantId') ||
+                    getStringFromPayload(step.outputPayload, 'assistantId') ||
+                    stepExecutionContext?.assistantId ||
+                    detail.session.assistantId ||
+                    '未返回'}
                   {' / '}
                   <strong>Prompt：</strong>
-                  {getStringFromPayload(step.inputPayload, 'promptId') || '未返回'}
+                  {getStringFromPayload(step.inputPayload, 'promptId') ||
+                    getStringFromPayload(step.outputPayload, 'promptId') ||
+                    stepExecutionContext?.promptId ||
+                    '未返回'}
                   {' / '}
                   <strong>版本：</strong>
-                  {getStringFromPayload(step.inputPayload, 'promptVersion') || '未返回'}
+                  {getStringFromPayload(step.inputPayload, 'promptVersion') ||
+                    getStringFromPayload(step.outputPayload, 'promptVersion') ||
+                    stepExecutionContext?.promptVersion ||
+                    '未返回'}
                 </p>
                 <p style={{ marginBottom: 8 }}>
                   <strong>executionContext：</strong>
-                  {(() => {
-                    const stepExecutionContext = getMergedExecutionContext(
-                      step,
-                      getSessionExecutionContext(detail),
-                    );
-
-                    return stepExecutionContext
-                      ? [
-                          stepExecutionContext.rulesScope,
-                          stepExecutionContext.productScope,
-                          stepExecutionContext.docScope,
-                          stepExecutionContext.analyzeStrategy,
-                          stepExecutionContext.searchStrategy,
-                          stepExecutionContext.scriptStrategy,
-                        ]
-                          .filter(Boolean)
-                          .join(' / ') || '已返回但为空'
-                      : '未返回';
-                  })()}
+                  {stepExecutionContext
+                    ? [
+                        stepExecutionContext.strategyId,
+                        stepExecutionContext.rulesScope,
+                        stepExecutionContext.productScope,
+                        stepExecutionContext.docScope,
+                        stepExecutionContext.analyzeStrategy,
+                        stepExecutionContext.searchStrategy,
+                        stepExecutionContext.scriptStrategy,
+                      ]
+                        .filter(Boolean)
+                        .join(' / ') || '已返回但为空'
+                    : '未返回'}
                 </p>
                 <p style={{ marginBottom: 8 }}>
                   <strong>出网结论：</strong>
@@ -607,6 +723,9 @@ function DatailPage() {
                   <strong>模型：</strong>
                   {step.modelName || '未返回'}
                 </p>
+                    </>
+                  );
+                })()}
               </Card>
             </List.Item>
           )}

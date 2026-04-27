@@ -202,13 +202,43 @@ const buildPromptBindingSummary = ({ assistantId = '', moduleName = 'analyze' })
   };
 };
 
+const buildCarryTaskSubject = ({
+  taskInput = '',
+  contextNote = '',
+  expectedDeliverable = '',
+}) => {
+  const primarySegment =
+    splitTextSegments(expectedDeliverable)[0] ||
+    splitTextSegments(taskInput)[0] ||
+    splitTextSegments(contextNote)[0] ||
+    '';
+
+  return truncateText(primarySegment || taskInput || expectedDeliverable, 60);
+};
+
 const buildRouteRecommendation = ({
   intent = 'general_assistant',
   taskInput = '',
   contextNote = '',
   expectedDeliverable = '',
+  assistantIndustryType = '',
 }) => {
   const moduleName = mapIntentToModule(intent);
+  const taskSubject = buildCarryTaskSubject({
+    taskInput,
+    contextNote,
+    expectedDeliverable,
+  });
+  const baseCarryPayload = {
+    taskInput,
+    taskSubject,
+    productDirection: taskSubject,
+    industryType: normalizeString(assistantIndustryType) || 'other',
+    context: contextNote || expectedDeliverable,
+    referenceSummary: contextNote || expectedDeliverable,
+    goal: expectedDeliverable || intent,
+    deliverable: expectedDeliverable,
+  };
 
   if (moduleName === 'search') {
     return {
@@ -217,10 +247,7 @@ const buildRouteRecommendation = ({
       path: '/retrieve',
       label: '进入资料整理链',
       carryPayload: {
-        taskInput,
-        context: contextNote,
-        goal: intent,
-        deliverable: expectedDeliverable,
+        ...baseCarryPayload,
         keyword: taskInput || expectedDeliverable,
         remark: contextNote,
       },
@@ -234,11 +261,7 @@ const buildRouteRecommendation = ({
       path: '/compose',
       label: '进入参考写作链',
       carryPayload: {
-        taskInput,
-        context: contextNote || expectedDeliverable,
-        goal: expectedDeliverable || intent,
-        deliverable: expectedDeliverable,
-        referenceSummary: contextNote || expectedDeliverable,
+        ...baseCarryPayload,
       },
     };
   }
@@ -248,12 +271,7 @@ const buildRouteRecommendation = ({
     moduleLabel: MODULE_LABELS[moduleName],
     path: '/judge',
     label: '进入判断分析链',
-    carryPayload: {
-      taskInput,
-      context: contextNote || expectedDeliverable,
-      goal: expectedDeliverable || intent,
-      deliverable: expectedDeliverable,
-    },
+    carryPayload: baseCarryPayload,
   };
 };
 
@@ -472,6 +490,7 @@ export const buildTaskWorkbenchResult = (rawInput = {}, options = {}) => {
     taskInput,
     contextNote,
     expectedDeliverable,
+    assistantIndustryType: assistantProfile?.industryType || '',
   });
   const materialPackage = buildMaterialPackage({
     intent: intentResult.intent,

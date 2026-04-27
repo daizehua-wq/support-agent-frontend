@@ -129,6 +129,13 @@ export type AgentResponseContext = {
   sessionId?: string;
   latestStep?: string;
   referenceSummary?: string;
+  referencePackId?: string;
+  referencePack?: ReferencePack | null;
+  facts?: ReferencePackEntry[];
+  background?: ReferencePackEntry[];
+  riskNotes?: ReferencePackEntry[];
+  conflicts?: ReferencePackEntry[];
+  doNotUse?: ReferencePackEntry[];
   sourceDocName?: string;
 };
 
@@ -518,7 +525,10 @@ export type SearchEvidenceSourceType =
   | 'local-file'
   | 'enterprise-database'
   | 'external-document'
-  | 'external-search';
+  | 'external-search'
+  | 'internal_data'
+  | 'paid_api'
+  | 'web_search';
 
 export type SearchEvidenceOutboundStatus = 'allowed' | 'internal-only' | 'unknown';
 
@@ -552,13 +562,87 @@ export type SearchEvidenceItem = {
   productName?: string;
   connectorId?: string;
   connectorType?: string;
+  sourceName?: string;
+  provider?: string;
+  category?: string;
+  trustLevel?: 'high' | 'medium' | 'low' | string;
+  priority?: string;
+  relevanceScore?: number;
+  freshnessScore?: number;
+  finalScore?: number;
+  retrievedAt?: string;
+  updatedAt?: string | null;
+  publishedAt?: string | null;
+  isDuplicate?: boolean;
+  duplicateOf?: string | null;
+  canUseAsFact?: boolean;
+  canUseAsBackground?: boolean;
+  canUseInExternalOutput?: boolean;
+  useType?: 'fact' | 'background' | 'riskNote' | 'conflict' | 'doNotUse' | string;
+  useReason?: string;
 };
 
 export type SearchDocumentsData = {
   evidenceItems?: SearchEvidenceItem[];
+  referencePackId?: string;
+  referencePack?: ReferencePack;
+  governedEvidenceItems?: SearchEvidenceItem[];
+  referencePackLibrary?: Record<string, unknown> | null;
+  referencePackCacheCleanup?: Record<string, unknown> | null;
+  referencePackError?: Record<string, unknown> | null;
+  externalProviderStates?: ExternalProviderState[];
   databaseRelationSummary?: DatabaseRelationSummary;
   taskModel?: TaskModelSummary;
   continuePayload?: RuntimeContinuePayload | null;
+};
+
+export type ReferencePackEntry = {
+  evidenceId?: string;
+  conflictId?: string;
+  content?: string;
+  description?: string;
+  source?: string;
+  sourceType?: string;
+  category?: string;
+  trustLevel?: string;
+  priority?: string;
+  finalScore?: number;
+  retrievedAt?: string;
+  reason?: string;
+  suggestedResolution?: string;
+  needHumanConfirmation?: boolean;
+};
+
+export type ReferencePack = {
+  referencePackId: string;
+  title?: string;
+  query?: string;
+  sessionId?: string;
+  appId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  status?: string;
+  emptyReason?: string;
+  validUntil?: string;
+  summary?: string;
+  facts?: ReferencePackEntry[];
+  background?: ReferencePackEntry[];
+  riskNotes?: ReferencePackEntry[];
+  conflicts?: ReferencePackEntry[];
+  doNotUse?: ReferencePackEntry[];
+  evidenceIds?: string[];
+  sourceCount?: number;
+  highTrustCount?: number;
+  riskCount?: number;
+  reuseCount?: number;
+};
+
+export type ExternalProviderState = {
+  provider?: string;
+  sourceType?: string;
+  status?: string;
+  reason?: string;
+  resultCount?: number;
 };
 
 export type SearchExternalResultItem = {
@@ -595,6 +679,14 @@ export type SearchResponseMeta = RuntimeResponseMeta & {
     fileSystemCount?: number;
     enterpriseDatabaseCount?: number;
   };
+  sourceScopeSelection?: Record<string, unknown> | null;
+  referencePackId?: string;
+  referencePack?: ReferencePack | null;
+  governedEvidenceItems?: SearchEvidenceItem[];
+  referencePackLibrary?: Record<string, unknown> | null;
+  referencePackCacheCleanup?: Record<string, unknown> | null;
+  referencePackError?: Record<string, unknown> | null;
+  externalProviderStates?: ExternalProviderState[];
   sanitizedKeyword?: string;
   searchOutboundAllowed?: boolean;
   searchOutboundReason?: string;
@@ -701,6 +793,13 @@ export type ScriptResponseData = {
   sessionId?: string;
   latestStep?: string;
   referenceSummary?: string;
+  referencePackId?: string;
+  referencePack?: ReferencePack | null;
+  facts?: ReferencePackEntry[];
+  background?: ReferencePackEntry[];
+  riskNotes?: ReferencePackEntry[];
+  conflicts?: ReferencePackEntry[];
+  doNotUse?: ReferencePackEntry[];
   sourceDocName?: string;
   evidenceId?: string;
   sourceDocId?: string;
@@ -795,6 +894,33 @@ export async function judgeTask(
   return withRuntimeSnapshot(response, 'analyze') as JudgeTaskResponse;
 }
 
+export function analyzeContext(data: JudgeTaskRequest): Promise<JudgeTaskResponse>;
+export function analyzeContext(
+  data: JudgeTaskRequest,
+  options: WebAgentRequestOptions,
+): Promise<JudgeTaskResponse>;
+export function analyzeContext(
+  data: JudgeTaskRequest,
+  options?: AgentRequestOptions,
+): Promise<JudgeTaskResponse | AgentAdapterResponse>;
+export async function analyzeContext(
+  data: JudgeTaskRequest,
+  options?: AgentRequestOptions,
+): Promise<JudgeTaskResponse | AgentAdapterResponse> {
+  const response = await postAgentResponse<AnalyzeResponseData, RuntimeResponseMeta>(
+    '/api/agent/analyze-context',
+    data,
+    '判断成功',
+    options,
+  );
+
+  if (!isApiEnvelopeResponse<AnalyzeResponseData, RuntimeResponseMeta>(response)) {
+    return response;
+  }
+
+  return withRuntimeSnapshot(response, 'analyze') as JudgeTaskResponse;
+}
+
 export type AnalyzeCustomerRequest = JudgeTaskRequest;
 
 export function analyzeCustomer(data: AnalyzeCustomerRequest): Promise<AnalyzeCustomerResponse>;
@@ -815,10 +941,14 @@ export function analyzeCustomer(
 
 export type SearchDocumentsRequest = GenericTaskRequest & {
   keyword?: string;
-  docType?: 'spec' | 'faq' | 'case' | 'project';
+  docType?: string;
   industryType?: IndustryType;
   onlyExternalAvailable?: boolean;
   enableExternalSupplement?: boolean;
+  sourceScopes?: string[];
+  includePaidApiSources?: boolean;
+  includeWebSources?: boolean;
+  retainRaw?: boolean;
 };
 
 export type SearchDocumentsResponse = AgentRuntimeResponse<
@@ -904,6 +1034,28 @@ export type RetrieveMaterialsRequest = SearchDocumentsRequest;
 
 export type RetrieveMaterialsResponse = SearchDocumentsResponse;
 
+export type RetrieveMaterialCategoryOption = {
+  label: string;
+  value: string;
+  count?: number;
+  sourceValues?: string[];
+};
+
+export type RetrieveMaterialCategoriesData = {
+  categories: RetrieveMaterialCategoryOption[];
+  source?: string;
+  appId?: string;
+};
+
+export async function listRetrieveMaterialCategories(): Promise<RetrieveMaterialCategoryOption[]> {
+  const response = await apiGetEnvelope<RetrieveMaterialCategoriesData>(
+    '/api/agent/retrieve-materials/categories',
+    '资料分类加载成功',
+  );
+
+  return Array.isArray(response.data?.categories) ? response.data.categories : [];
+}
+
 export function retrieveMaterials(
   data: RetrieveMaterialsRequest,
 ): Promise<RetrieveMaterialsResponse>;
@@ -933,6 +1085,35 @@ export async function retrieveMaterials(
   return withRuntimeSnapshot(response, 'search') as RetrieveMaterialsResponse;
 }
 
+export function searchReferences(
+  data: SearchDocumentsRequest,
+): Promise<SearchDocumentsResponse>;
+export function searchReferences(
+  data: SearchDocumentsRequest,
+  options: WebAgentRequestOptions,
+): Promise<SearchDocumentsResponse>;
+export function searchReferences(
+  data: SearchDocumentsRequest,
+  options?: AgentRequestOptions,
+): Promise<SearchDocumentsResponse | AgentAdapterResponse>;
+export async function searchReferences(
+  data: SearchDocumentsRequest,
+  options?: AgentRequestOptions,
+): Promise<SearchDocumentsResponse | AgentAdapterResponse> {
+  const response = await postAgentResponse<SearchDocumentsData, SearchResponseMeta>(
+    '/api/agent/search-references',
+    data,
+    '检索成功',
+    options,
+  );
+
+  if (!isApiEnvelopeResponse<SearchDocumentsData, SearchResponseMeta>(response)) {
+    return response;
+  }
+
+  return withRuntimeSnapshot(response, 'search') as SearchDocumentsResponse;
+}
+
 export function searchDocuments(
   data: SearchDocumentsRequest,
 ): Promise<SearchDocumentsResponse>;
@@ -948,7 +1129,7 @@ export function searchDocuments(
   data: SearchDocumentsRequest,
   options?: AgentRequestOptions,
 ): Promise<SearchDocumentsResponse | AgentAdapterResponse> {
-  return retrieveMaterials(data, options);
+  return searchReferences(data, options);
 }
 
 export type ComposeDocumentRequest = GenericTaskRequest & {
@@ -965,6 +1146,7 @@ export type ComposeDocumentRequest = GenericTaskRequest & {
   sourceDocType?: string;
   sourceApplicableScene?: string;
   sourceExternalAvailable?: boolean;
+  referencePackId?: string;
 };
 
 export type GenerateScriptRequest = ComposeDocumentRequest;

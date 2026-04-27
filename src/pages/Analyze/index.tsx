@@ -9,6 +9,7 @@ import PageHeader from '../../components/common/PageHeader';
 import ResultCard from '../../components/common/ResultCard';
 import ResolvedSummaryCard from '../../components/card/ResolvedSummaryCard';
 import {
+  analyzeContext,
   judgeTask,
   getSessionDetail,
   type AgentAdapterResponse,
@@ -27,7 +28,9 @@ import {
   buildContinueContext,
   buildContinueNavigationState,
   buildTaskSeedFromPayload,
+  findStepById,
   findPreferredStep,
+  hasPersistedSession,
   getSessionExecutionContext,
   getStepAssistantId,
   getStepExecutionContext,
@@ -35,7 +38,18 @@ import {
   mergeContinueContexts,
   mergeTaskSeeds,
   parseContinueContext,
+  readExecutionContextAssistantId,
+  readExecutionContextPromptId,
+  readExecutionContextPromptVersion,
+  readExecutionContextStrategyId,
 } from '../../utils/sessionResume';
+import {
+  buildAnalyzeTemplateExample,
+  loadActiveAssistantTemplateDefaults,
+  shouldApplyAssistantDefault,
+  type ActiveAssistantTemplateDefaults,
+} from '../../utils/assistantTemplateDefaults';
+import { formatTechnicalLabel, formatTechnicalValue } from '../../utils/displayLabel';
 
 const { TextArea } = Input;
 
@@ -47,14 +61,12 @@ const stageOptions = [
   { label: '其他', value: 'other' },
 ];
 
-const exampleValues = {
-  taskObject: '法务评审任务',
-  industryType: 'legal',
-  taskPhase: 'requirement_discussion',
-  taskSubject: '合同条款风险',
-  taskInput:
-    '请帮我判断这份合同的违约责任和付款节点风险，并给出是否建议本周签署的判断。',
-  context: '老板需要一页汇报要点；重点关注风险等级、需要修改的条款和下一步建议。',
+const staleAnalyzeDefaults = {
+  taskObject: ['法务评审任务'],
+  industryType: ['legal'],
+  taskSubject: ['合同条款风险'],
+  taskInput: ['请帮我判断这份合同的违约责任和付款节点风险，并给出是否建议本周签署的判断。'],
+  context: ['老板需要一页汇报要点；重点关注风险等级、需要修改的条款和下一步建议。'],
 };
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -97,19 +109,18 @@ function formatExecutionValue(value: unknown) {
 }
 
 function formatDisplayText(value: unknown) {
-  if (value === undefined || value === null || value === '') return '未返回';
-
-  if (typeof value === 'string') return value;
-
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-
-  return safeStringify(value);
+  return formatTechnicalValue(value);
 }
 
 function readStringValue(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+function formatResumeStepLabel(stepType?: string) {
+  if (stepType === 'analyze') return '最近的判断步骤';
+  if (stepType === 'search') return '最近的检索步骤';
+  if (stepType === 'script') return '最近的写作步骤';
+  return 'session 级上下文';
 }
 
 function formatSourceSummary(value: unknown) {
@@ -125,7 +136,7 @@ function formatSourceSummary(value: unknown) {
       'settings.default-model': '系统默认模型',
     };
 
-    return sourceMap[value] || value;
+    return sourceMap[value] || formatTechnicalLabel(value);
   }
 
   if (typeof value === 'object' && !Array.isArray(value)) {
@@ -161,7 +172,7 @@ function formatSourceSummary(value: unknown) {
       })
       .map(([key, entryValue]) => {
         const label = labelMap[key] || key;
-        const displayValue = valueMap[String(entryValue)] || String(entryValue);
+        const displayValue = valueMap[String(entryValue)] || formatTechnicalLabel(entryValue);
         return `${label}：${displayValue}`;
       });
 
@@ -182,7 +193,7 @@ function formatFallbackSummary(value: unknown) {
       'module-strategy-applied': '策略命中模块策略',
     };
 
-    return fallbackMap[value] || value;
+    return fallbackMap[value] || formatTechnicalLabel(value);
   }
 
   if (typeof value === 'object' && !Array.isArray(value)) {
@@ -210,7 +221,7 @@ function formatFallbackSummary(value: unknown) {
       })
       .map(([key, entryValue]) => {
         const label = labelMap[key] || key;
-        const displayValue = fallbackMap[String(entryValue)] || String(entryValue);
+        const displayValue = fallbackMap[String(entryValue)] || formatTechnicalLabel(entryValue);
         return `${label}：${displayValue}`;
       });
 
@@ -290,7 +301,16 @@ function AnalyzePage() {
   const [adapterPreview, setAdapterPreview] = useState<AgentAdapterResponse | null>(null);
   const [analyzeResult, setAnalyzeResult] = useState<AnalyzeResultData | null>(null);
   const [analyzeRuntime, setAnalyzeRuntime] = useState<RuntimeSnapshot | null>(null);
+  const [resumeLoading, setResumeLoading] = useState(false);
+  const [resumeLoadIssue, setResumeLoadIssue] = useState('');
+  const [assistantDefaults, setAssistantDefaults] =
+    useState<ActiveAssistantTemplateDefaults | null>(null);
   const navigate = useNavigate();
+  const hasResumeSession = hasPersistedSession(resumeState);
+  const hasNavigationTaskSeed = useMemo(
+    () => Object.keys(buildTaskSeedFromPayload(location.state)).length > 0,
+    [location.state],
+  );
   const resumeStep = useMemo(
     () =>
       findPreferredStep({
@@ -301,10 +321,11 @@ function AnalyzePage() {
     [resumeDetail, resumeState?.stepId],
   );
 
-  const effectiveSessionId = analyzeRuntime?.sessionId || resumeState?.sessionId || '';
+  const effectiveSessionId = analyzeRuntime?.sessionId || resumeDetail?.session.id || '';
   const effectiveAssistantId =
     analyzeRuntime?.assistantId ||
     resumeState?.assistantId ||
+    readExecutionContextAssistantId(analyzeRuntime?.executionContext) ||
     getStepAssistantId(resumeStep) ||
     resumeDetail?.session.assistantId ||
     '';
@@ -318,22 +339,35 @@ function AnalyzePage() {
       null) as
       | AnalyzeExecutionContext
       | null;
+  const resumeFallbackNotice = useMemo(() => {
+    if (!resumeDetail || !resumeState?.stepId) {
+      return '';
+    }
+
+    if (findStepById(resumeDetail, resumeState.stepId)) {
+      return '';
+    }
+
+    return resumeStep
+      ? `stepId ${resumeState.stepId} 未找到，已自动回退到${formatResumeStepLabel(resumeStep.stepType)}继续恢复。`
+      : `stepId ${resumeState.stepId} 未找到，已自动退回 session 级数据恢复。`;
+  }, [resumeDetail, resumeState?.stepId, resumeStep]);
 
   const analyzeResultRecord = (analyzeResult as Record<string, unknown> | null) || null;
   const executionContextSummaryRecord = analyzeRuntime?.executionContextSummary || undefined;
   const governanceSummaryRecord = analyzeRuntime?.governanceSummary || undefined;
   const effectivePromptId =
-    effectiveExecutionContext?.promptId ||
+    readExecutionContextPromptId(effectiveExecutionContext) ||
     readStringValue(executionContextSummaryRecord?.promptId) ||
     readStringValue(governanceSummaryRecord?.promptId) ||
     '未返回';
   const effectivePromptVersion =
-    effectiveExecutionContext?.promptVersion ||
+    readExecutionContextPromptVersion(effectiveExecutionContext) ||
     readStringValue(executionContextSummaryRecord?.promptVersion) ||
     readStringValue(governanceSummaryRecord?.promptVersion) ||
     '未返回';
   const effectiveStrategyId =
-    effectiveExecutionContext?.strategyId ||
+    readExecutionContextStrategyId(effectiveExecutionContext) ||
     readStringValue(executionContextSummaryRecord?.strategyId) ||
     readStringValue(governanceSummaryRecord?.strategyId) ||
     formatDisplayText(analyzeResult?.analyzeStrategy || analyzeResult?.analyzeExecutionStrategy) ||
@@ -375,16 +409,92 @@ function AnalyzePage() {
   useEffect(() => {
     let cancelled = false;
 
-    const loadResumeDetail = async () => {
-      if (!resumeState?.sessionId) {
-        setResumeDetail(null);
+    const applyActiveAssistantDefaults = async () => {
+      const defaults = await loadActiveAssistantTemplateDefaults();
+
+      if (cancelled) {
         return;
       }
 
+      setAssistantDefaults(defaults);
+
+      if (hasResumeSession || hasNavigationTaskSeed) {
+        return;
+      }
+
+      const currentValues = form.getFieldsValue([
+        'taskObject',
+        'industryType',
+        'taskPhase',
+        'taskSubject',
+        'taskInput',
+        'context',
+      ]) as Record<string, unknown>;
+      const nextValues: Record<string, string> = {};
+
+      if (shouldApplyAssistantDefault(currentValues.taskObject, staleAnalyzeDefaults.taskObject)) {
+        nextValues.taskObject = defaults.taskObject;
+      }
+
+      if (shouldApplyAssistantDefault(currentValues.industryType, staleAnalyzeDefaults.industryType)) {
+        nextValues.industryType = defaults.industryType;
+      }
+
+      if (shouldApplyAssistantDefault(currentValues.taskPhase)) {
+        nextValues.taskPhase = defaults.taskPhase;
+      }
+
+      if (shouldApplyAssistantDefault(currentValues.taskSubject, staleAnalyzeDefaults.taskSubject)) {
+        nextValues.taskSubject = defaults.taskSubject;
+      }
+
+      if (shouldApplyAssistantDefault(currentValues.taskInput, staleAnalyzeDefaults.taskInput)) {
+        nextValues.taskInput = defaults.analyzeTaskInput;
+      }
+
+      if (shouldApplyAssistantDefault(currentValues.context, staleAnalyzeDefaults.context)) {
+        nextValues.context = defaults.analyzeContext;
+      }
+
+      if (Object.keys(nextValues).length) {
+        form.setFieldsValue(nextValues);
+      }
+    };
+
+    applyActiveAssistantDefaults().catch((error) => {
+      console.warn('判断页当前 Assistant 默认值读取失败：', error);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [form, hasNavigationTaskSeed, hasResumeSession]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadResumeDetail = async () => {
+      if (!hasResumeSession || !resumeState?.sessionId) {
+        setResumeDetail(null);
+        setResumeLoadIssue('');
+        setResumeLoading(false);
+        return;
+      }
+
+      setResumeLoading(true);
       const response = await getSessionDetail(resumeState.sessionId);
+      const detail = response.data || null;
 
       if (!cancelled) {
-        setResumeDetail(response.data || null);
+        setResumeDetail(detail);
+        setResumeLoadIssue(
+          detail
+            ? ''
+            : response.message
+              ? `${response.message}（sessionId：${resumeState.sessionId}）`
+              : `sessionId ${resumeState.sessionId} 未找到，已退回页面入参恢复。`,
+        );
+        setResumeLoading(false);
       }
     };
 
@@ -392,13 +502,19 @@ function AnalyzePage() {
       console.error('Analyze 恢复上下文加载失败：', error);
       if (!cancelled) {
         setResumeDetail(null);
+        setResumeLoadIssue(
+          resumeState?.sessionId
+            ? `sessionId ${resumeState.sessionId} 加载失败，当前仅保留已带入页面的字段。`
+            : '恢复上下文加载失败，当前仅保留已带入页面的字段。',
+        );
+        setResumeLoading(false);
       }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [resumeState?.sessionId]);
+  }, [hasResumeSession, resumeState?.sessionId]);
 
   useEffect(() => {
     const navigationSeed = buildTaskSeedFromPayload(location.state);
@@ -418,7 +534,7 @@ function AnalyzePage() {
   }, [form, location.state]);
 
   useEffect(() => {
-    if (!resumeState?.sessionId && !resumeStep) {
+    if (!resumeStep && !resumeDetail) {
       return;
     }
 
@@ -426,6 +542,10 @@ function AnalyzePage() {
       buildTaskSeedFromPayload(getStepInputPayload(resumeStep)),
       buildTaskSeedFromPayload(resumeDetail?.session || null),
     );
+
+    if (!Object.keys(resumeSeed).length) {
+      return;
+    }
 
     form.setFieldsValue({
       taskObject: resumeSeed.taskObject || undefined,
@@ -435,10 +555,15 @@ function AnalyzePage() {
       taskInput: resumeSeed.taskInput || undefined,
       context: resumeSeed.context || undefined,
     });
-  }, [form, resumeDetail, resumeState?.sessionId, resumeStep]);
+  }, [form, resumeDetail, resumeStep]);
 
   const handleSubmit = async () => {
     try {
+      if (hasResumeSession && resumeLoading && !resumeDetail?.session.id) {
+        message.warning('session 正在恢复，请稍后再提交。');
+        return;
+      }
+
       const values = await form.validateFields();
 
       setLoading(true);
@@ -449,7 +574,7 @@ function AnalyzePage() {
         ...values,
       };
 
-      const response = await judgeTask(
+      const response = await (effectiveSessionId ? judgeTask : analyzeContext)(
         {
           ...payload,
           taskInput: values.taskInput || '',
@@ -487,8 +612,17 @@ function AnalyzePage() {
         message.error(response.message || '判断失败');
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '判断失败，请稍后重试。';
-      message.error(errorMessage);
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'errorFields' in error &&
+        Array.isArray((error as { errorFields?: unknown[] }).errorFields)
+      ) {
+        message.warning('请先补充必填信息');
+      } else {
+        const errorMessage = error instanceof Error ? error.message : '判断失败，请稍后重试。';
+        message.error(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -504,7 +638,7 @@ function AnalyzePage() {
   };
 
   const handleFillExample = () => {
-    form.setFieldsValue(exampleValues);
+    form.setFieldsValue(buildAnalyzeTemplateExample(assistantDefaults));
   };
 
   const analysisRouteLabel = formatDisplayText(analyzeResult?.analysisRoute);
@@ -605,7 +739,27 @@ function AnalyzePage() {
         description="输入任务与背景，快速形成判断摘要、风险提示和下一步建议。"
         extra={<AgentClientStatusBadge clientType={clientType} />}
       />
-      {!resumeState?.sessionId && !analyzeRuntime?.sessionId ? (
+      {resumeLoadIssue ? (
+        <Alert
+          style={{ marginBottom: 16 }}
+          type="warning"
+          showIcon
+          message="session 恢复失败"
+          description={resumeLoadIssue}
+        />
+      ) : null}
+
+      {resumeFallbackNotice ? (
+        <Alert
+          style={{ marginBottom: 16 }}
+          type="info"
+          showIcon
+          message="session 恢复已自动降级"
+          description={resumeFallbackNotice}
+        />
+      ) : null}
+
+      {!resumeLoadIssue && !resumeLoading && !effectiveSessionId ? (
         <Alert
           style={{ marginBottom: 16 }}
           type="warning"
@@ -665,11 +819,17 @@ function AnalyzePage() {
       <Card style={{ borderRadius: 12 }}>
         <Form form={form} layout="vertical">
           <Form.Item label="任务对象" name="taskObject">
-            <Input placeholder="例如：合同评审 / 采购申请 / 客诉工单（可选）" />
+            <Input
+              placeholder={`例如：${assistantDefaults?.taskObject || '客户需求澄清 / 方案推进 / 样品跟进'}`}
+            />
           </Form.Item>
 
-          <Form.Item label="任务域" name="industryType" extra="支持任意领域标识，例如 legal、healthcare、pcb。">
-            <Input placeholder="例如：legal" />
+          <Form.Item
+            label="任务域"
+            name="industryType"
+            extra={`当前模板：${assistantDefaults?.assistantName || '读取中'}；支持任意领域标识，例如 pcb、legal、healthcare。`}
+          >
+            <Input placeholder={`例如：${assistantDefaults?.industryType || 'pcb'}`} />
           </Form.Item>
 
           <Form.Item label="任务阶段" name="taskPhase">
@@ -677,7 +837,9 @@ function AnalyzePage() {
           </Form.Item>
 
           <Form.Item label="任务主题" name="taskSubject">
-            <Input placeholder="例如：合同条款 / 采购审批 / 客诉处理" />
+            <Input
+              placeholder={`例如：${assistantDefaults?.taskSubject || assistantDefaults?.subjectHint || '湿制程材料方案'}`}
+            />
           </Form.Item>
 
           <Form.Item
@@ -686,7 +848,7 @@ function AnalyzePage() {
             rules={[{ required: true, message: '请输入任务输入' }]}
           >
             <TextArea
-              placeholder="请输入你想让平台判断的问题、原始描述或待处理事项"
+              placeholder={assistantDefaults?.analyzeTaskInput || '请输入你想让平台判断的问题、原始描述或待处理事项'}
               rows={6}
               showCount
               maxLength={1000}
@@ -694,7 +856,10 @@ function AnalyzePage() {
           </Form.Item>
 
           <Form.Item label="补充上下文" name="context">
-            <TextArea placeholder="可填写背景、约束条件、已有事实或内部备注" rows={4} />
+            <TextArea
+              placeholder={assistantDefaults?.analyzeContext || '可填写背景、约束条件、已有事实或内部备注'}
+              rows={4}
+            />
           </Form.Item>
 
           <Space wrap>
@@ -789,6 +954,14 @@ function AnalyzePage() {
                     navigate('/retrieve', {
                       state: buildContinueNavigationState({
                         continueContext: analyzeContinueContext,
+                        carryPayload: {
+                          taskObject: form.getFieldValue('taskObject'),
+                          industryType: form.getFieldValue('industryType'),
+                          taskPhase: form.getFieldValue('taskPhase'),
+                          taskSubject: form.getFieldValue('taskSubject'),
+                          taskInput: form.getFieldValue('taskInput'),
+                          context: form.getFieldValue('context'),
+                        },
                       }),
                     })
                   }
@@ -803,6 +976,17 @@ function AnalyzePage() {
                     navigate('/compose', {
                       state: buildContinueNavigationState({
                         continueContext: analyzeContinueContext,
+                        carryPayload: {
+                          industryType: form.getFieldValue('industryType'),
+                          taskPhase: form.getFieldValue('taskPhase'),
+                          goal: '输出专业说明',
+                          taskSubject: form.getFieldValue('taskSubject'),
+                          taskInput: form.getFieldValue('taskInput'),
+                          context:
+                            analyzeResult?.summary ||
+                            form.getFieldValue('context'),
+                          focusPoints: (analyzeResult?.riskNotes || []).join('；'),
+                        },
                       }),
                     })
                   }

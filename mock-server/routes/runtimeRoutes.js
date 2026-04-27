@@ -29,6 +29,20 @@ import {
   mergeSearchResultWithRuleEngine,
   runSearchRuleEngine,
 } from '../plugins/search-rule-engine/index.js';
+import { safeRecordGap } from '../data/models/knowledgeGap.js';
+import {
+  allVariablesAvailable,
+  incrementUsage,
+  listTemplates,
+  renderTemplate,
+} from '../data/models/generationTemplate.js';
+import { listResourceCategories } from '../data/models/knowledgeResource.js';
+import { getPromptByAppId } from '../data/models/appPrompt.js';
+import { estimateTokens, safeRecordCall } from '../data/models/modelCallLog.js';
+import {
+  buildReferencePackSummaryText,
+  getReferencePackScriptInput,
+} from '../services/referencePackService.js';
 
 const router = Router();
 const tracer = otelTrace.getTracer('mock-server.runtime-routes');
@@ -147,6 +161,155 @@ const readNonEmptyString = (...values) => {
   return '';
 };
 
+const SEARCH_EMPTY_STATE_TIMEOUT_MS = Math.min(
+  12000,
+  Math.max(1000, Number(process.env.SEARCH_EMPTY_STATE_TIMEOUT_MS || '10000') || 10000),
+);
+
+const buildSearchEmptyStateExecution = ({
+  keyword = '',
+  sessionId = '',
+  appId = '',
+  startedAt = Date.now(),
+  reason = '',
+} = {}) => {
+  const durationMs = Math.max(0, Date.now() - startedAt);
+  const searchSummary = `未找到与“${keyword || '当前关键词'}”直接匹配的资料，已记录知识缺口，请补充更明确的产品名、工序名或场景关键词。`;
+
+  return {
+    output: {
+      keyword,
+      sessionId,
+      appId,
+      matchedSearchRules: [],
+      matchedRule: null,
+      matchedProducts: [],
+      evidenceItems: [],
+      primaryEvidenceIds: [],
+      sourceSummary: {},
+      referenceSummary: searchSummary,
+      searchSummary,
+      externalResults: [],
+      searchRoute: 'search-empty-timeout',
+      searchReason: reason || `search empty-state guard returned after ${durationMs}ms`,
+      modelRuntime: {
+        source: 'search-empty-state-guard',
+        durationMs,
+        fallbackReason: reason || 'search-empty-state-timeout',
+      },
+      executionContext: {
+        source: {
+          search: 'empty-state-guard',
+        },
+        fallbackReason: {
+          search: reason || 'search-empty-state-timeout',
+        },
+        summary: {
+          route: 'search-empty-timeout',
+        },
+      },
+      searchTraceSummary: {
+        outboundAllowed: false,
+        outboundReason: reason || 'search-empty-state-timeout',
+      },
+    },
+    plugin: {
+      pluginId: 'builtin.search.empty-state-guard',
+      executedPluginId: 'builtin.search.empty-state-guard',
+    },
+    trace: {
+      timing: {
+        durationMs,
+      },
+      timeoutFallback: true,
+    },
+    registrySummary: {
+      resolution: {
+        mode: 'empty-state-timeout',
+        reason,
+      },
+    },
+  };
+};
+
+const hasSearchRuleEngineHit = (result = null) => {
+  if (!result || typeof result !== 'object') {
+    return false;
+  }
+
+  return [
+    result.matchedRules,
+    result.matchedProducts,
+    result.documents,
+  ].some((items) => Array.isArray(items) && items.length > 0);
+};
+
+const normalizeSearchText = (value = '') => {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const isRelevantEvidenceForKeyword = (item = {}, keyword = '') => {
+  const normalizedKeyword = normalizeSearchText(keyword);
+  if (!normalizedKeyword || normalizedKeyword.length < 2) {
+    return true;
+  }
+
+  const haystack = normalizeSearchText(
+    [
+      item.title,
+      item.docType,
+      item.summary,
+      item.applicableScene,
+      item.sourceRef,
+    ].filter(Boolean).join(' '),
+  );
+
+  if (!haystack) {
+    return false;
+  }
+
+  if (haystack.includes(normalizedKeyword)) {
+    return true;
+  }
+
+  const terms = normalizedKeyword.split(' ').filter((term) => term.length >= 2);
+  return terms.length > 0 && terms.some((term) => haystack.includes(term));
+};
+
+const withSearchEmptyStateTimeout = async (promise, context = {}, options = {}) => {
+  if (options.enabled === false) {
+    return promise;
+  }
+
+  const startedAt = Date.now();
+  let timer = null;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((resolve) => {
+        timer = setTimeout(() => {
+          resolve(
+            buildSearchEmptyStateExecution({
+              ...context,
+              startedAt,
+              reason: `search-main exceeded ${SEARCH_EMPTY_STATE_TIMEOUT_MS}ms empty-state guard`,
+            }),
+          );
+        }, SEARCH_EMPTY_STATE_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+};
+
 const assignIfMissing = (target, key, ...candidates) => {
   if (!isPlainObject(target) || readNonEmptyString(target[key])) {
     return;
@@ -169,6 +332,70 @@ const assignBooleanIfMissing = (target, key, ...candidates) => {
       return;
     }
   }
+};
+
+const resolveRuntimeAssistantArtifacts = ({
+  assistantId = '',
+  executionContext = null,
+  executionContextSummary = null,
+  fallbackAssistantId = '',
+} = {}) => {
+  const normalizedExecutionContext = isPlainObject(executionContext)
+    ? {
+        ...executionContext,
+      }
+    : null;
+  const normalizedExecutionContextSummary = isPlainObject(executionContextSummary)
+    ? {
+        ...executionContextSummary,
+      }
+    : isPlainObject(normalizedExecutionContext?.summary)
+      ? {
+          ...normalizedExecutionContext.summary,
+        }
+      : null;
+  const settingsAssistantId = readNonEmptyString(readSettings()?.assistant?.activeAssistantId);
+  const resolvedAssistantId = readNonEmptyString(
+    assistantId,
+    normalizedExecutionContext?.resolvedAssistant?.assistantId,
+    normalizedExecutionContext?.assistantId,
+    normalizedExecutionContextSummary?.assistantId,
+    fallbackAssistantId,
+    settingsAssistantId,
+  );
+
+  if (normalizedExecutionContextSummary) {
+    assignIfMissing(normalizedExecutionContextSummary, 'assistantId', resolvedAssistantId);
+  }
+
+  if (normalizedExecutionContext) {
+    assignIfMissing(normalizedExecutionContext, 'assistantId', resolvedAssistantId);
+
+    const normalizedResolvedAssistant = isPlainObject(normalizedExecutionContext.resolvedAssistant)
+      ? {
+          ...normalizedExecutionContext.resolvedAssistant,
+        }
+      : resolvedAssistantId
+        ? {}
+        : null;
+
+    if (normalizedResolvedAssistant) {
+      assignIfMissing(normalizedResolvedAssistant, 'assistantId', resolvedAssistantId);
+      normalizedExecutionContext.resolvedAssistant = normalizedResolvedAssistant;
+    }
+
+    if (normalizedExecutionContextSummary) {
+      normalizedExecutionContext.summary = normalizedExecutionContextSummary;
+    }
+  }
+
+  return {
+    assistantId: resolvedAssistantId,
+    executionContext: normalizedExecutionContext || executionContext || null,
+    executionContextSummary:
+      normalizedExecutionContextSummary ||
+      (isPlainObject(executionContextSummary) ? executionContextSummary : null),
+  };
 };
 
 const ensureVariables = (payload = {}) => {
@@ -200,7 +427,15 @@ const mirrorDerivedVariables = (payload = {}) => {
 
 const shouldCreateManagedSession = (req) => {
   const requestPath = readNonEmptyString(req?.path, req?.originalUrl);
-  return requestPath.endsWith('/analyze-context');
+  return [
+    '/analyze-context',
+    '/search-documents',
+    '/search-references',
+    '/retrieve-materials',
+    '/generate-script',
+    '/generate-content',
+    '/compose-document',
+  ].some((suffix) => requestPath.endsWith(suffix));
 };
 
 const shouldUseManagedSession = (req, sessionId = '') => {
@@ -295,6 +530,8 @@ const hydrateComposeInputFromContext = (payload = {}, contextRecord = null) => {
     contextRecord?.analysis?.domainType,
   );
   const cachedReferenceSummary = readNonEmptyString(
+    contextRecord?.search?.searchSummary,
+    contextRecord?.search?.primaryEvidence?.summary,
     contextRecord?.search?.referenceSummary,
     contextRecord?.content?.referenceSummary,
     contextRecord?.analysis?.summary,
@@ -388,6 +625,11 @@ const buildSearchContextSnapshot = ({
     searchEvidenceItems.find((item) => primaryEvidenceIds.includes(item.evidenceId)) ||
     searchEvidenceItems[0] ||
     null;
+  const referenceSummary = readNonEmptyString(
+    normalizedInput.referenceSummary,
+    normalizedInput.context,
+    searchResult.referenceSummary,
+  );
 
   return {
     keyword: normalizedInput.keyword || '',
@@ -396,12 +638,16 @@ const buildSearchContextSnapshot = ({
     industryType: normalizedInput.industryType || 'other',
     domainType: normalizedInput.industryType || 'other',
     docType: normalizedInput.docType || '',
-    referenceSummary: searchResult.referenceSummary || '',
+    referenceSummary,
+    searchSummary: searchResult.searchSummary || searchResult.referenceSummary || '',
     sourceSummary: searchResult.sourceSummary || null,
     primaryEvidenceId: primaryEvidence?.evidenceId || primaryEvidenceIds[0] || '',
     primaryEvidence,
     primaryEvidenceIds,
     evidenceItems: searchEvidenceItems,
+    referencePackId: searchResult.referencePackId || '',
+    referencePack: searchResult.referencePack || null,
+    governedEvidenceItems: searchResult.governedEvidenceItems || [],
     sessionId: searchResult.sessionId || normalizedInput.sessionId || '',
   };
 };
@@ -416,6 +662,7 @@ const buildContentContextSnapshot = ({ normalizedInput = {}, finalScriptResult =
   goal: normalizedInput.goal || '',
   goalScene: normalizedInput.goalScene || normalizedInput.communicationGoal || '',
   evidenceId: finalScriptResult.evidenceId || normalizedInput.evidenceId || '',
+  referencePackId: finalScriptResult.referencePackId || normalizedInput.referencePackId || '',
   sourceDocId: finalScriptResult.sourceDocId || normalizedInput.sourceDocId || '',
   sourceDocName: finalScriptResult.sourceDocName || normalizedInput.sourceDocName || '',
   sourceDocType: finalScriptResult.sourceDocType || normalizedInput.sourceDocType || '',
@@ -497,19 +744,30 @@ const buildGovernanceSummary = ({
   promptVersion = '',
   strategy = null,
   executionContext = null,
+  executionContextSummary = null,
   source = null,
   fallbackReason = null,
-} = {}) => ({
-  assistantId,
-  promptId,
-  promptVersion,
-  resolvedAssistant: executionContext?.resolvedAssistant || null,
-  resolvedPrompt: executionContext?.resolvedPrompt || null,
-  strategy: strategy || executionContext?.strategy || null,
-  executionContextSummary: executionContext?.summary || null,
-  source: source || executionContext?.source || null,
-  fallbackReason: fallbackReason || executionContext?.fallbackReason || null,
-});
+  fallbackAssistantId = '',
+} = {}) => {
+  const resolvedAssistantArtifacts = resolveRuntimeAssistantArtifacts({
+    assistantId,
+    executionContext,
+    executionContextSummary,
+    fallbackAssistantId,
+  });
+
+  return {
+    assistantId: resolvedAssistantArtifacts.assistantId,
+    promptId,
+    promptVersion,
+    resolvedAssistant: resolvedAssistantArtifacts.executionContext?.resolvedAssistant || null,
+    resolvedPrompt: resolvedAssistantArtifacts.executionContext?.resolvedPrompt || null,
+    strategy: strategy || resolvedAssistantArtifacts.executionContext?.strategy || null,
+    executionContextSummary: resolvedAssistantArtifacts.executionContextSummary,
+    source: source || resolvedAssistantArtifacts.executionContext?.source || null,
+    fallbackReason: fallbackReason || resolvedAssistantArtifacts.executionContext?.fallbackReason || null,
+  };
+};
 
 const buildModelRuntimeSummary = (modelRuntime = null) => ({
   resolvedModel: modelRuntime?.resolvedModel || null,
@@ -524,22 +782,23 @@ const buildContinuePayload = ({
   assistantId = '',
   executionContext = null,
   executionContextSummary = null,
+  fallbackAssistantId = '',
 } = {}) => {
-  const normalizedExecutionContextSummary =
-    executionContextSummary || executionContext?.summary || null;
+  const resolvedAssistantArtifacts = resolveRuntimeAssistantArtifacts({
+    assistantId,
+    executionContext,
+    executionContextSummary,
+    fallbackAssistantId,
+  });
 
   return {
     sessionId: sessionId || undefined,
     stepId: stepId || undefined,
     evidenceId: evidenceId || undefined,
     fromModule: fromModule || undefined,
-    assistantId:
-      assistantId ||
-      executionContext?.resolvedAssistant?.assistantId ||
-      normalizedExecutionContextSummary?.assistantId ||
-      undefined,
-    executionContext: executionContext || null,
-    executionContextSummary: normalizedExecutionContextSummary,
+    assistantId: resolvedAssistantArtifacts.assistantId || undefined,
+    executionContext: resolvedAssistantArtifacts.executionContext,
+    executionContextSummary: resolvedAssistantArtifacts.executionContextSummary,
   };
 };
 
@@ -598,11 +857,231 @@ const buildSessionTitle = (prefix = '', ...candidates) => {
 
 const resolveModelNameFromRuntime = (modelRuntime = {}) => {
   return readNonEmptyString(
+    modelRuntime?.resolvedModel?.resolvedModelName,
     modelRuntime?.resolvedModel?.modelName,
     modelRuntime?.resolvedModel?.model,
     modelRuntime?.resolvedModel?.id,
     modelRuntime?.modelName,
   );
+};
+
+const isModelRuntimeSuccess = (modelRuntime = {}) => {
+  const statusText = [
+    modelRuntime?.route,
+    modelRuntime?.reason,
+    modelRuntime?.error,
+    ...(Array.isArray(modelRuntime?.attempts)
+      ? modelRuntime.attempts.map((item) => `${item?.result || ''} ${item?.error || ''}`)
+      : []),
+  ]
+    .join(' ')
+    .toLowerCase();
+
+  if (!statusText) {
+    return true;
+  }
+
+  return !/(error|failed|failure|fallback|not-configured|authenticationerror|apiconnectionerror)/i.test(
+    statusText,
+  );
+};
+
+const recordWorkflowModelCall = ({
+  appId = '',
+  modelRuntime = null,
+  latencyMs = 0,
+  tokensUsed = null,
+  inputText = '',
+  outputText = '',
+} = {}) => {
+  const model = resolveModelNameFromRuntime(modelRuntime || {});
+
+  if (!model) {
+    return;
+  }
+
+  safeRecordCall({
+    appId,
+    model,
+    success: isModelRuntimeSuccess(modelRuntime || {}),
+    latencyMs,
+    tokensUsed:
+      tokensUsed === null || tokensUsed === undefined
+        ? estimateTokens(inputText, outputText)
+        : Math.max(0, Number(tokensUsed) || 0),
+  });
+};
+
+const resolveGenerationTemplateForUsage = ({
+  goalScene = '',
+  toneStyle = 'formal',
+  appId = '',
+} = {}) => {
+  const scene = readNonEmptyString(goalScene, 'first_reply');
+  const normalizedToneStyle = readNonEmptyString(toneStyle, 'formal');
+  const templates = listTemplates({ appId });
+  let sceneTemplates = templates.filter((item) => item.scene === scene);
+
+  if (sceneTemplates.length === 0) {
+    sceneTemplates = templates.filter((item) => item.scene === 'first_reply');
+  }
+
+  return (
+    sceneTemplates.find((item) => item.toneStyle === normalizedToneStyle) ||
+    templates.find((item) => item.scene === 'first_reply' && item.toneStyle === normalizedToneStyle) ||
+    sceneTemplates[0] ||
+    null
+  );
+};
+
+const stringifyTemplateValue = (value) => {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (isPlainObject(item) ? JSON.stringify(item) : readNonEmptyString(item)))
+      .filter(Boolean)
+      .join('；');
+  }
+
+  if (isPlainObject(value)) {
+    return JSON.stringify(value);
+  }
+
+  return readNonEmptyString(value);
+};
+
+const firstTemplateValue = (...values) => {
+  for (const value of values) {
+    const normalizedValue = stringifyTemplateValue(value);
+    if (normalizedValue) {
+      return normalizedValue;
+    }
+  }
+
+  return '';
+};
+
+const buildDirectTemplateContext = (normalizedInput = {}) => {
+  const variables = isPlainObject(normalizedInput.variables) ? normalizedInput.variables : {};
+  const analysisResult = isPlainObject(normalizedInput.analysisResult)
+    ? normalizedInput.analysisResult
+    : isPlainObject(normalizedInput.analysis_result)
+      ? normalizedInput.analysis_result
+      : {};
+  const companyData = isPlainObject(normalizedInput.companyData)
+    ? normalizedInput.companyData
+    : isPlainObject(normalizedInput.cachedCompanyData)
+      ? normalizedInput.cachedCompanyData
+      : {};
+  const guidanceNotes = [
+    ...(Array.isArray(normalizedInput.guidanceNotes) ? normalizedInput.guidanceNotes : []),
+    ...(Array.isArray(normalizedInput.cautionNotes) ? normalizedInput.cautionNotes : []),
+  ];
+  const contextData = {
+    ...variables,
+    task_subject: normalizedInput.taskSubject || normalizedInput.productDirection || '',
+    taskSubject: normalizedInput.taskSubject || normalizedInput.productDirection || '',
+    task_input: normalizedInput.taskInput || normalizedInput.customerText || '',
+    taskInput: normalizedInput.taskInput || normalizedInput.customerText || '',
+    reference_summary: normalizedInput.referenceSummary || normalizedInput.context || '',
+    referenceSummary: normalizedInput.referenceSummary || normalizedInput.context || '',
+    focus_points: normalizedInput.focusPoints || normalizedInput.concernPoints || '',
+    focusPoints: normalizedInput.focusPoints || normalizedInput.concernPoints || '',
+    guidance_notes: guidanceNotes.map((item) => stringifyTemplateValue(item?.content || item)).filter(Boolean).join('\n'),
+  };
+
+  contextData.company_name = firstTemplateValue(
+    variables.company_name,
+    variables.companyName,
+    normalizedInput.company_name,
+    normalizedInput.companyName,
+    companyData.company_name,
+    companyData.companyName,
+    normalizedInput.taskSubject,
+    normalizedInput.productDirection,
+    normalizedInput.taskObject,
+  );
+  contextData.companyName = contextData.company_name;
+  contextData.risk_level = firstTemplateValue(
+    variables.risk_level,
+    variables.riskLevel,
+    normalizedInput.risk_level,
+    normalizedInput.riskLevel,
+    analysisResult.risk_level,
+    analysisResult.riskLevel,
+  );
+  contextData.riskLevel = contextData.risk_level;
+  contextData.risk_details = firstTemplateValue(
+    variables.risk_details,
+    variables.riskDetails,
+    normalizedInput.risk_details,
+    normalizedInput.riskDetails,
+    analysisResult.risk_details,
+    analysisResult.riskDetails,
+    analysisResult.summary,
+    companyData.risk_info,
+    companyData.riskInfo,
+  );
+  contextData.riskDetails = contextData.risk_details;
+  contextData.suggestions = firstTemplateValue(
+    variables.suggestions,
+    variables.recommended_actions,
+    variables.recommendedActions,
+    normalizedInput.suggestions,
+    normalizedInput.recommendations,
+    analysisResult.suggestions,
+    analysisResult.recommended_actions,
+    analysisResult.recommendedActions,
+  );
+
+  return contextData;
+};
+
+const buildDirectTemplateModelRuntime = (durationMs = 0) => ({
+  route: 'rule_only',
+  reason: 'standard_template_rendered_before_plugin',
+  durationMs,
+  latencyMs: durationMs,
+  tokensUsed: 0,
+  resolvedModel: {
+    isResolved: true,
+    resolvedProvider: 'rule',
+    resolvedModelName: 'rule_only',
+    source: 'generation-template',
+  },
+});
+
+const recordGenerationTemplateUsage = ({
+  normalizedInput = {},
+  scriptResult = {},
+  finalScriptResult = {},
+} = {}) => {
+  const explicitTemplateId = readNonEmptyString(
+    scriptResult.selectedTemplateId,
+    finalScriptResult.selectedTemplateId,
+  );
+  const appId = readNonEmptyString(normalizedInput.appId, normalizedInput.app_id);
+  const scopedTemplate = resolveGenerationTemplateForUsage({
+    goalScene: normalizedInput.goalScene || normalizedInput.communicationGoal || '',
+    toneStyle: normalizedInput.toneStyle || 'formal',
+    appId,
+  });
+  const template =
+    appId && scopedTemplate?.appId
+      ? scopedTemplate
+      : explicitTemplateId
+        ? { id: explicitTemplateId }
+        : scopedTemplate;
+
+  if (!template?.id) {
+    return '';
+  }
+
+  incrementUsage(template.id);
+  return template.id;
 };
 
 const persistAnalyzeTraceCompat = ({
@@ -618,6 +1097,14 @@ const persistAnalyzeTraceCompat = ({
   }
 
   const executionContext = analyzeResult.executionContext || null;
+  const resolvedAssistantArtifacts = resolveRuntimeAssistantArtifacts({
+    assistantId: analyzeResult.activeAssistantId || '',
+    executionContext,
+    fallbackAssistantId: normalizedInput.assistantId || '',
+  });
+  const resolvedAssistantId = resolvedAssistantArtifacts.assistantId;
+  const resolvedExecutionContext = resolvedAssistantArtifacts.executionContext;
+  const resolvedExecutionContextSummary = resolvedAssistantArtifacts.executionContextSummary;
   const title = buildSessionTitle(
     'judge',
     normalizedInput.taskSubject,
@@ -640,8 +1127,8 @@ const persistAnalyzeTraceCompat = ({
     currentStage: readNonEmptyString(normalizedInput.taskPhase, normalizedInput.salesStage, 'requirement_discussion'),
     currentGoal: normalizedInput.goal || 'judge_task',
     taskSubject: readNonEmptyString(normalizedInput.taskSubject, normalizedInput.productDirection),
-    assistantId: analyzeResult.activeAssistantId || '',
-    executionContext,
+    assistantId: resolvedAssistantId,
+    executionContext: resolvedExecutionContext,
     databaseSummary: databaseRelationSummary,
   });
 
@@ -652,16 +1139,16 @@ const persistAnalyzeTraceCompat = ({
     inputPayload: {
       sessionId,
       fromModule: normalizedInput.fromModule || '',
-      assistantId: analyzeResult.activeAssistantId || '',
+      assistantId: resolvedAssistantId,
       promptId: analyzeResult.promptId || '',
       promptVersion: analyzeResult.promptVersion || '',
       strategy: analyzeResult.strategy || '',
       source: analyzeResult.source || null,
       fallbackReason: analyzeResult.fallbackReason || null,
-      resolvedAssistant: executionContext?.resolvedAssistant || null,
-      resolvedPrompt: executionContext?.resolvedPrompt || null,
-      executionContextSummary: executionContext?.summary || null,
-      executionContext,
+      resolvedAssistant: resolvedExecutionContext?.resolvedAssistant || null,
+      resolvedPrompt: resolvedExecutionContext?.resolvedPrompt || null,
+      executionContextSummary: resolvedExecutionContextSummary,
+      executionContext: resolvedExecutionContext,
       resolvedModel: analyzeResult.modelRuntime?.resolvedModel || null,
       taskObject: normalizedInput.taskObject || '',
       audience: normalizedInput.audience || '',
@@ -683,8 +1170,11 @@ const persistAnalyzeTraceCompat = ({
         ? analyzeResult.relatedDocumentNames
         : [],
       finalAnalyzeData: analyzeResult.finalAnalyzeData || {},
-      executionContextSummary: executionContext?.summary || null,
-      executionContext,
+      assistantId: resolvedAssistantId,
+      resolvedAssistant: resolvedExecutionContext?.resolvedAssistant || null,
+      resolvedPrompt: resolvedExecutionContext?.resolvedPrompt || null,
+      executionContextSummary: resolvedExecutionContextSummary,
+      executionContext: resolvedExecutionContext,
       resolvedModel: analyzeResult.modelRuntime?.resolvedModel || null,
       modelRuntime: analyzeResult.modelRuntime || null,
     },
@@ -721,8 +1211,8 @@ const persistAnalyzeTraceCompat = ({
     sourceModule: 'analyze',
     currentStage: readNonEmptyString(normalizedInput.taskPhase, normalizedInput.salesStage, 'requirement_discussion'),
     currentGoal: normalizedInput.goal || 'judge_task',
-    assistantId: analyzeResult.activeAssistantId || '',
-    executionContextSummary: executionContext?.summary || null,
+    assistantId: resolvedAssistantId,
+    executionContextSummary: resolvedExecutionContextSummary,
     databaseSummary: databaseRelationSummary,
     title: title || session.title,
   });
@@ -742,6 +1232,19 @@ const persistSearchTraceCompat = ({
   }
 
   const executionContext = searchResult.executionContext || null;
+  const resolvedAssistantArtifacts = resolveRuntimeAssistantArtifacts({
+    assistantId: searchResult.activeAssistantId || '',
+    executionContext,
+    fallbackAssistantId: normalizedInput.assistantId || '',
+  });
+  const resolvedAssistantId = resolvedAssistantArtifacts.assistantId;
+  const resolvedExecutionContext = resolvedAssistantArtifacts.executionContext;
+  const resolvedExecutionContextSummary = resolvedAssistantArtifacts.executionContextSummary;
+  const hydratedReferenceSummary = readNonEmptyString(
+    normalizedInput.referenceSummary,
+    normalizedInput.context,
+    searchResult.referenceSummary,
+  );
   const title = buildSessionTitle(
     'retrieve',
     normalizedInput.keyword,
@@ -768,8 +1271,8 @@ const persistSearchTraceCompat = ({
       searchResult.matchedProducts?.[0]?.productName,
       normalizedInput.keyword,
     ),
-    assistantId: searchResult.activeAssistantId || '',
-    executionContext,
+    assistantId: resolvedAssistantId,
+    executionContext: resolvedExecutionContext,
     databaseSummary: databaseRelationSummary,
   });
 
@@ -781,17 +1284,20 @@ const persistSearchTraceCompat = ({
       sessionId,
       keyword: normalizedInput.keyword || '',
       docType: normalizedInput.docType,
-      assistantId: searchResult.activeAssistantId || '',
+      assistantId: resolvedAssistantId,
       promptId: searchResult.promptId || '',
       promptVersion: searchResult.promptVersion || '',
       strategy: searchResult.strategy || '',
       source: searchResult.source || null,
       fallbackReason: searchResult.fallbackReason || null,
-      executionContextSummary: executionContext?.summary || null,
-      executionContext,
+      resolvedAssistant: resolvedExecutionContext?.resolvedAssistant || null,
+      resolvedPrompt: resolvedExecutionContext?.resolvedPrompt || null,
+      executionContextSummary: resolvedExecutionContextSummary,
+      executionContext: resolvedExecutionContext,
       resolvedModel: searchResult.modelRuntime?.resolvedModel || null,
       taskInput: normalizedInput.taskInput || '',
       context: normalizedInput.context || '',
+      referenceSummary: hydratedReferenceSummary,
       goal: normalizedInput.goal || '',
       deliverable: normalizedInput.deliverable || '',
       variables: normalizedInput.variables || {},
@@ -804,13 +1310,17 @@ const persistSearchTraceCompat = ({
       evidenceItems: searchEvidenceItems,
       primaryEvidenceIds: Array.isArray(searchResult.primaryEvidenceIds) ? searchResult.primaryEvidenceIds : [],
       searchSummary: searchResult.searchSummary || '',
+      referenceSummary: hydratedReferenceSummary,
       sourceSummary: searchResult.sourceSummary || null,
-      executionContextSummary: executionContext?.summary || null,
-      executionContext,
+      assistantId: resolvedAssistantId,
+      resolvedAssistant: resolvedExecutionContext?.resolvedAssistant || null,
+      resolvedPrompt: resolvedExecutionContext?.resolvedPrompt || null,
+      executionContextSummary: resolvedExecutionContextSummary,
+      executionContext: resolvedExecutionContext,
       modelRuntime: searchResult.modelRuntime || null,
       externalResults: Array.isArray(searchResult.externalResults) ? searchResult.externalResults : [],
     },
-    summary: searchResult.searchSummary || searchResult.referenceSummary || '',
+    summary: searchResult.searchSummary || hydratedReferenceSummary || '',
     route: searchResult.searchRoute || '',
     strategy: searchResult.searchStrategy || '',
     executionStrategy: searchResult.searchExecutionStrategy || '',
@@ -874,8 +1384,8 @@ const persistSearchTraceCompat = ({
     sourceModule: 'search',
     currentStage: 'requirement_discussion',
     currentGoal: normalizedInput.goal || 'retrieve_materials',
-    assistantId: searchResult.activeAssistantId || '',
-    executionContextSummary: executionContext?.summary || null,
+    assistantId: resolvedAssistantId,
+    executionContextSummary: resolvedExecutionContextSummary,
     databaseSummary: databaseRelationSummary,
     title: title || session.title,
   });
@@ -895,6 +1405,15 @@ const persistComposeTraceCompat = ({
   }
 
   const executionContext = scriptResult.executionContext || finalScriptResult.executionContext || null;
+  const resolvedAssistantArtifacts = resolveRuntimeAssistantArtifacts({
+    assistantId: scriptResult.activeAssistantId || finalScriptResult.assistantId || '',
+    executionContext,
+    executionContextSummary: finalScriptResult.executionContextSummary || null,
+    fallbackAssistantId: normalizedInput.assistantId || '',
+  });
+  const resolvedAssistantId = resolvedAssistantArtifacts.assistantId;
+  const resolvedExecutionContext = resolvedAssistantArtifacts.executionContext;
+  const resolvedExecutionContextSummary = resolvedAssistantArtifacts.executionContextSummary;
   const effectiveTaskSubject = readNonEmptyString(
     normalizedInput.taskSubject,
     normalizedInput.productDirection,
@@ -920,9 +1439,10 @@ const persistComposeTraceCompat = ({
     currentStage: readNonEmptyString(normalizedInput.taskPhase, 'drafting'),
     currentGoal: normalizedInput.goal || 'compose_document',
     taskSubject: effectiveTaskSubject,
-    assistantId: scriptResult.activeAssistantId || finalScriptResult.assistantId || '',
-    executionContext,
+    assistantId: resolvedAssistantId,
+    executionContext: resolvedExecutionContext,
     databaseSummary: databaseRelationSummary,
+    appId: normalizedInput.appId || normalizedInput.app_id || '',
   });
 
   appendSessionStep({
@@ -931,18 +1451,20 @@ const persistComposeTraceCompat = ({
     stepType: 'script',
     inputPayload: {
       sessionId,
+      appId: normalizedInput.appId || normalizedInput.app_id || '',
       fromModule: normalizedInput.fromModule || '',
       evidenceId: finalScriptResult.evidenceId || normalizedInput.evidenceId || '',
-      assistantId: scriptResult.activeAssistantId || finalScriptResult.assistantId || '',
+      assistantId: resolvedAssistantId,
       promptId: scriptResult.promptId || finalScriptResult.promptId || '',
       promptVersion: scriptResult.promptVersion || finalScriptResult.promptVersion || '',
       strategy: scriptResult.strategy || finalScriptResult.strategy || '',
       source: scriptResult.source || finalScriptResult.source || null,
       fallbackReason: scriptResult.fallbackReason || finalScriptResult.fallbackReason || null,
-      resolvedAssistant: executionContext?.resolvedAssistant || finalScriptResult.resolvedAssistant || null,
-      resolvedPrompt: executionContext?.resolvedPrompt || finalScriptResult.resolvedPrompt || null,
-      executionContextSummary: executionContext?.summary || finalScriptResult.executionContextSummary || null,
-      executionContext,
+      resolvedAssistant:
+        resolvedExecutionContext?.resolvedAssistant || finalScriptResult.resolvedAssistant || null,
+      resolvedPrompt: resolvedExecutionContext?.resolvedPrompt || finalScriptResult.resolvedPrompt || null,
+      executionContextSummary: resolvedExecutionContextSummary,
+      executionContext: resolvedExecutionContext,
       resolvedModel: scriptResult.modelRuntime?.resolvedModel || finalScriptResult.resolvedModel || null,
       audience: normalizedInput.audience || '',
       taskPhase: normalizedInput.taskPhase || '',
@@ -995,8 +1517,8 @@ const persistComposeTraceCompat = ({
     sourceModule: 'script',
     currentStage: readNonEmptyString(normalizedInput.taskPhase, 'drafting'),
     currentGoal: normalizedInput.goal || 'compose_document',
-    assistantId: scriptResult.activeAssistantId || finalScriptResult.assistantId || '',
-    executionContextSummary: executionContext?.summary || finalScriptResult.executionContextSummary || null,
+    assistantId: resolvedAssistantId,
+    executionContextSummary: resolvedExecutionContextSummary,
     databaseSummary: databaseRelationSummary,
     title: title || session.title,
   });
@@ -1113,6 +1635,18 @@ const processJudgeTask = async (req, res, { applyAnalyzeRuleEngine = false } = {
       setSpanNumberAttribute(span, 'mock.resources.count', analyzeResourceCount);
       setSpanNumberAttribute(span, 'mock.llm.duration_ms', analyzeLlmDurationMs);
       setSpanStringAttribute(span, 'mock.model.source', analyzeResult.modelRuntime?.reason || '');
+      recordWorkflowModelCall({
+        appId: readNonEmptyString(
+          normalizedInput.appId,
+          normalizedInput.app_id,
+          rawInput.appId,
+          rawInput.app_id,
+        ),
+        modelRuntime: analyzeResult.modelRuntime,
+        latencyMs: analyzeLlmDurationMs,
+        inputText: normalizedInput.taskInput || normalizedInput.taskSubject || '',
+        outputText: analyzeResult.finalAnalyzeData?.summary || '',
+      });
 
       appendTestRecord({
         module: '判断分析',
@@ -1130,12 +1664,18 @@ const processJudgeTask = async (req, res, { applyAnalyzeRuleEngine = false } = {
           : '',
       });
 
+      const analyzeAssistantArtifacts = resolveRuntimeAssistantArtifacts({
+        assistantId: analyzeResult.activeAssistantId || '',
+        executionContext: analyzeResult.executionContext,
+        fallbackAssistantId: normalizedInput.assistantId || '',
+      });
       const analyzeGovernanceSummary = buildGovernanceSummary({
-        assistantId: analyzeResult.activeAssistantId,
+        assistantId: analyzeAssistantArtifacts.assistantId,
         promptId: analyzeResult.promptId || '',
         promptVersion: analyzeResult.promptVersion || '',
         strategy: analyzeResult.strategy || null,
-        executionContext: analyzeResult.executionContext,
+        executionContext: analyzeAssistantArtifacts.executionContext,
+        executionContextSummary: analyzeAssistantArtifacts.executionContextSummary,
         source: analyzeResult.source || null,
         fallbackReason: analyzeResult.fallbackReason || null,
       });
@@ -1144,11 +1684,35 @@ const processJudgeTask = async (req, res, { applyAnalyzeRuleEngine = false } = {
         sessionId: analyzeResult.sessionId,
         stepId: analyzeResult.stepId,
         fromModule: 'analyze',
-        assistantId: analyzeResult.activeAssistantId,
-        executionContext: analyzeResult.executionContext,
+        assistantId: analyzeAssistantArtifacts.assistantId,
+        executionContext: analyzeAssistantArtifacts.executionContext,
+        executionContextSummary: analyzeAssistantArtifacts.executionContextSummary,
       });
 
       const resolvedSessionId = analyzeResult.sessionId || sessionId;
+      const matchedRuleCount = Array.isArray(analyzeResult.matchedRules)
+        ? analyzeResult.matchedRules.length
+        : Array.isArray(analyzeRuleEngineResult?.matchedRules)
+          ? analyzeRuleEngineResult.matchedRules.length
+          : analyzeResult.matchedRule
+            ? 1
+            : 0;
+
+      if (matchedRuleCount === 0) {
+        safeRecordGap(
+          resolvedSessionId,
+          readNonEmptyString(normalizedInput.appId, normalizedInput.app_id, rawInput.appId, rawInput.app_id),
+          readNonEmptyString(
+            analyzeResult.sanitizedAnalyzeInput?.sanitizedText,
+            normalizedInput.taskInput,
+            normalizedInput.customerText,
+            normalizedInput.taskSubject,
+            normalizedInput.productDirection,
+          ),
+          matchedRuleCount,
+        );
+      }
+
       if (resolvedSessionId && shouldUseManagedSession(req, sessionId)) {
         await saveContext(resolvedSessionId, {
           sessionId: resolvedSessionId,
@@ -1178,7 +1742,7 @@ const processJudgeTask = async (req, res, { applyAnalyzeRuleEngine = false } = {
           ...analyzeResult.finalAnalyzeData,
           sessionId: analyzeResult.sessionId,
           stepId: analyzeResult.stepId,
-          assistantId: analyzeResult.activeAssistantId,
+          assistantId: analyzeAssistantArtifacts.assistantId,
           promptId: analyzeResult.promptId || '',
           promptVersion: analyzeResult.promptVersion || '',
           strategy: analyzeResult.strategy || null,
@@ -1187,10 +1751,10 @@ const processJudgeTask = async (req, res, { applyAnalyzeRuleEngine = false } = {
           governanceSummary: analyzeGovernanceSummary,
           taskModel: normalizedRequest.taskModel,
           assistantContext: analyzeResult.assistantContext,
-          executionContext: analyzeResult.executionContext,
-          executionContextSummary: analyzeResult.executionContext?.summary || null,
-          resolvedAssistant: analyzeResult.executionContext?.resolvedAssistant || null,
-          resolvedPrompt: analyzeResult.executionContext?.resolvedPrompt || null,
+          executionContext: analyzeAssistantArtifacts.executionContext,
+          executionContextSummary: analyzeAssistantArtifacts.executionContextSummary,
+          resolvedAssistant: analyzeAssistantArtifacts.executionContext?.resolvedAssistant || null,
+          resolvedPrompt: analyzeAssistantArtifacts.executionContext?.resolvedPrompt || null,
           modelRuntime: analyzeResult.modelRuntime,
           resolvedModel: analyzeResult.modelRuntime?.resolvedModel || null,
           modelSource:
@@ -1199,6 +1763,10 @@ const processJudgeTask = async (req, res, { applyAnalyzeRuleEngine = false } = {
             '',
           modelRuntimeSummary: analyzeModelRuntimeSummary,
           databaseRelationSummary,
+          matchedRule: analyzeResult.matchedRule || null,
+          matchedRules: analyzeResult.matchedRules || [],
+          matchedProducts: analyzeResult.matchedProducts || [],
+          ruleEngine: analyzeResult.ruleEngine || null,
           analysisRoute: analyzeResult.analysisRoute,
           analyzeStrategy: analyzeResult.analyzeStrategy,
           analyzeExecutionStrategy: analyzeResult.analyzeExecutionStrategy,
@@ -1227,10 +1795,11 @@ const processJudgeTask = async (req, res, { applyAnalyzeRuleEngine = false } = {
           governanceSummary: analyzeGovernanceSummary,
           modelRuntimeSummary: analyzeModelRuntimeSummary,
           taskModel: buildTaskModelMeta(normalizedRequest.taskModel),
-          executionContext: analyzeResult.executionContext,
+          executionContext: analyzeAssistantArtifacts.executionContext,
           modelRuntime: analyzeResult.modelRuntime,
           databaseRelationSummary,
           continuePayload: analyzeContinuePayload,
+          executionContextSummary: analyzeAssistantArtifacts.executionContextSummary,
           platformContract: buildPlatformContractSummary(),
           pluginRuntimeSummary: analyzePluginExecution.plugin,
           pluginTrace: analyzePluginExecution.trace,
@@ -1278,6 +1847,12 @@ const processRetrieveMaterials = async (req, res, { applySearchRuleEngine = fals
         sessionId = '',
         pluginId = '',
       } = normalizedRequest.payload;
+      const searchAppId = readNonEmptyString(
+        normalizedInput.appId,
+        normalizedInput.app_id,
+        rawInput.appId,
+        rawInput.app_id,
+      );
 
       const settings = readSettings();
 
@@ -1296,6 +1871,18 @@ const processRetrieveMaterials = async (req, res, { applySearchRuleEngine = fals
       const databaseRelationSummary = buildDatabaseRelationSummary(settings.database || {}, {
         relationType: 'default-database',
       });
+      const searchRuleEnginePreflightResult = applySearchRuleEngine
+        ? await runSearchRuleEngine(
+            buildSearchRuleEngineContext({
+              rawInput,
+              normalizedInput,
+              settings,
+              executionContext: null,
+            }),
+          )
+        : null;
+      const shouldUseSearchEmptyStateGuard =
+        !applySearchRuleEngine || !hasSearchRuleEngineHit(searchRuleEnginePreflightResult);
 
       const searchPluginExecution = await withChildSpan(
         'mock-server.agent.search-references.plugin',
@@ -1304,22 +1891,33 @@ const processRetrieveMaterials = async (req, res, { applySearchRuleEngine = fals
           'mock.plugin.route': 'search-documents',
         },
         async (pluginSpan) => {
-          const result = await executeManifestPlugin({
-            kind: 'search',
-            route: 'search-documents',
-            requestedPluginId: pluginId,
-            requestPayload: {
+          const result = await withSearchEmptyStateTimeout(
+            executeManifestPlugin({
+              kind: 'search',
+              route: 'search-documents',
+              requestedPluginId: pluginId,
+              requestPayload: {
+                keyword,
+                docType,
+                industryType,
+                onlyExternalAvailable,
+                enableExternalSupplement,
+                sessionId,
+                appId: searchAppId,
+              },
+              context: {
+                settings,
+              },
+            }),
+            {
               keyword,
-              docType,
-              industryType,
-              onlyExternalAvailable,
-              enableExternalSupplement,
-              sessionId,
+              sessionId: readNonEmptyString(sessionId, managedSessionId),
+              appId: searchAppId,
             },
-            context: {
-              settings,
+            {
+              enabled: shouldUseSearchEmptyStateGuard,
             },
-          });
+          );
 
           setSpanStringAttribute(
             pluginSpan,
@@ -1342,14 +1940,16 @@ const processRetrieveMaterials = async (req, res, { applySearchRuleEngine = fals
               'mock.rule_engine.name': 'search',
             },
             async (ruleSpan) => {
-              const result = await runSearchRuleEngine(
-                buildSearchRuleEngineContext({
-                  rawInput,
-                  normalizedInput,
-                  settings,
-                  executionContext: searchPluginExecution.output?.executionContext,
-                }),
-              );
+              const result =
+                searchRuleEnginePreflightResult ||
+                (await runSearchRuleEngine(
+                  buildSearchRuleEngineContext({
+                    rawInput,
+                    normalizedInput,
+                    settings,
+                    executionContext: searchPluginExecution.output?.executionContext,
+                  }),
+                ));
 
               setSpanStringAttribute(ruleSpan, 'mock.rule.name', result?.matchedRule?.name || '');
               setSpanNumberAttribute(
@@ -1368,12 +1968,54 @@ const processRetrieveMaterials = async (req, res, { applySearchRuleEngine = fals
             ruleEngineResult: searchRuleEngineResult,
           })
         : searchPluginExecution.output || {};
-      const searchEvidenceItems = Array.isArray(searchResult.evidenceItems)
+      let searchEvidenceItems = Array.isArray(searchResult.evidenceItems)
         ? searchResult.evidenceItems
         : [];
       const matchedProducts = Array.isArray(searchResult.matchedProducts)
         ? searchResult.matchedProducts
         : [];
+      const searchMatchedRuleCount = Array.isArray(searchResult.matchedSearchRules)
+        ? searchResult.matchedSearchRules.length
+        : searchResult.matchedRule
+          ? 1
+          : 0;
+      const shouldFilterGenericEvidence =
+        searchMatchedRuleCount === 0 && matchedProducts.length === 0 && searchEvidenceItems.length > 0;
+
+      if (shouldFilterGenericEvidence) {
+        const relevantEvidenceItems = searchEvidenceItems.filter((item) =>
+          isRelevantEvidenceForKeyword(item, keyword || normalizedInput.taskInput || ''),
+        );
+
+        if (relevantEvidenceItems.length === 0) {
+          const noHitSummary = `未找到与“${keyword || normalizedInput.taskInput || '当前关键词'}”直接匹配的资料，已记录知识缺口，请补充更明确的产品名、工序名或场景关键词。`;
+          searchEvidenceItems = [];
+          searchResult.evidenceItems = [];
+          searchResult.primaryEvidenceIds = [];
+          searchResult.sourceSummary = {};
+          searchResult.searchSummary = noHitSummary;
+          searchResult.referenceSummary = noHitSummary;
+          searchResult.searchRoute = 'search-empty-no-hit';
+          searchResult.searchReason = 'no relevant evidence matched keyword';
+        } else {
+          searchEvidenceItems = relevantEvidenceItems;
+          searchResult.evidenceItems = relevantEvidenceItems;
+        }
+      }
+      const searchKnowledgeGap =
+        searchEvidenceItems.length === 0
+          ? safeRecordGap(
+              readNonEmptyString(searchResult.sessionId, sessionId, managedSessionId),
+              searchAppId,
+              readNonEmptyString(
+                searchResult.searchSanitizationResult?.sanitizedText,
+                keyword,
+                normalizedInput.taskInput,
+                normalizedInput.taskSubject,
+              ),
+              searchMatchedRuleCount,
+            )
+          : null;
       const searchLlmDurationMs = resolveLlmDurationMs(
         searchResult?.summaryModelTrace?.durationMs,
         searchResult?.summaryModelTrace?.latencyMs,
@@ -1391,6 +2033,18 @@ const processRetrieveMaterials = async (req, res, { applySearchRuleEngine = fals
         'mock.external_search.used',
         Boolean(searchResult.externalResults?.length),
       );
+      recordWorkflowModelCall({
+        appId: readNonEmptyString(
+          normalizedInput.appId,
+          normalizedInput.app_id,
+          rawInput.appId,
+          rawInput.app_id,
+        ),
+        modelRuntime: searchResult.modelRuntime,
+        latencyMs: searchLlmDurationMs,
+        inputText: keyword || normalizedInput.taskInput || '',
+        outputText: searchResult.searchSummary || '',
+      });
 
       appendTestRecord({
         module: '资料整理',
@@ -1406,12 +2060,18 @@ const processRetrieveMaterials = async (req, res, { applySearchRuleEngine = fals
           : '',
       });
 
+      const searchAssistantArtifacts = resolveRuntimeAssistantArtifacts({
+        assistantId: searchResult.activeAssistantId || '',
+        executionContext: searchResult.executionContext,
+        fallbackAssistantId: normalizedInput.assistantId || '',
+      });
       const searchGovernanceSummary = buildGovernanceSummary({
-        assistantId: searchResult.activeAssistantId,
+        assistantId: searchAssistantArtifacts.assistantId,
         promptId: searchResult.promptId || '',
         promptVersion: searchResult.promptVersion || '',
         strategy: searchResult.strategy || null,
-        executionContext: searchResult.executionContext,
+        executionContext: searchAssistantArtifacts.executionContext,
+        executionContextSummary: searchAssistantArtifacts.executionContextSummary,
         source: searchResult.source || null,
         fallbackReason: searchResult.fallbackReason || null,
       });
@@ -1420,9 +2080,15 @@ const processRetrieveMaterials = async (req, res, { applySearchRuleEngine = fals
         sessionId: searchResult.sessionId,
         stepId: searchResult.stepId,
         fromModule: 'search',
-        assistantId: searchResult.activeAssistantId,
-        executionContext: searchResult.executionContext,
+        assistantId: searchAssistantArtifacts.assistantId,
+        executionContext: searchAssistantArtifacts.executionContext,
+        executionContextSummary: searchAssistantArtifacts.executionContextSummary,
       });
+      const hydratedReferenceSummary = readNonEmptyString(
+        normalizedInput.referenceSummary,
+        normalizedInput.context,
+        searchResult.referenceSummary,
+      );
 
       const resolvedSessionId = searchResult.sessionId || sessionId;
       if (resolvedSessionId && shouldUseManagedSession(req, managedSessionId)) {
@@ -1438,7 +2104,7 @@ const processRetrieveMaterials = async (req, res, { applySearchRuleEngine = fals
         await appendToHistory(resolvedSessionId, 'search', {
           keyword,
           taskSubject: normalizedInput.taskSubject || keyword,
-          referenceSummary: searchResult.referenceSummary || '',
+          referenceSummary: hydratedReferenceSummary,
           stepId: searchResult.stepId || '',
           evidenceCount: searchEvidenceItems.length,
         });
@@ -1455,6 +2121,14 @@ const processRetrieveMaterials = async (req, res, { applySearchRuleEngine = fals
         message: '检索成功',
         data: {
           evidenceItems: searchEvidenceItems,
+          referencePackId: searchResult.referencePackId || '',
+          referencePack: searchResult.referencePack || null,
+          governedEvidenceItems: searchResult.governedEvidenceItems || [],
+          referencePackLibrary: searchResult.referencePackLibrary || null,
+          referencePackCacheCleanup: searchResult.referencePackCacheCleanup || null,
+          referencePackError: searchResult.referencePackError || null,
+          externalProviderStates: searchResult.externalProviderStates || [],
+          knowledgeGap: searchKnowledgeGap,
           databaseRelationSummary,
           taskModel: normalizedRequest.taskModel,
           continuePayload: searchContinuePayload,
@@ -1481,10 +2155,10 @@ const processRetrieveMaterials = async (req, res, { applySearchRuleEngine = fals
           modelRuntimeSummary: searchModelRuntimeSummary,
           taskModel: buildTaskModelMeta(normalizedRequest.taskModel),
           assistantContext: searchResult.assistantContext,
-          executionContext: searchResult.executionContext,
+          executionContext: searchAssistantArtifacts.executionContext,
           modelRuntime: searchResult.modelRuntime,
           databaseRelationSummary,
-          executionContextSummary: searchResult.executionContext?.summary || null,
+          executionContextSummary: searchAssistantArtifacts.executionContextSummary,
           searchStrategy: searchResult.searchStrategy,
           searchExecutionStrategy: searchResult.searchExecutionStrategy,
           enableExternalSupplement: searchResult.enableExternalSupplement,
@@ -1493,6 +2167,8 @@ const processRetrieveMaterials = async (req, res, { applySearchRuleEngine = fals
           externalProvider: searchResult.externalProvider,
           searchRoute: searchResult.searchRoute,
           searchReason: searchResult.searchReason,
+          emptyState: searchEvidenceItems.length === 0,
+          knowledgeGap: searchKnowledgeGap,
           searchSummary: searchResult.searchSummary,
           sourceSummary: searchResult.sourceSummary,
           sanitizedKeyword: searchResult.searchSanitizationResult?.sanitizedText || '',
@@ -1501,8 +2177,16 @@ const processRetrieveMaterials = async (req, res, { applySearchRuleEngine = fals
             searchResult.searchTraceSummary?.outboundReason ||
             searchResult.searchSanitizationResult?.outboundReason ||
             'searchDocuments-outbound-not-used',
-          referenceSummary: searchResult.referenceSummary,
+          referenceSummary: hydratedReferenceSummary,
           primaryEvidenceIds: searchResult.primaryEvidenceIds,
+          sourceScopeSelection: searchResult.sourceScopeSelection,
+          referencePackId: searchResult.referencePackId || '',
+          referencePack: searchResult.referencePack || null,
+          governedEvidenceItems: searchResult.governedEvidenceItems || [],
+          referencePackLibrary: searchResult.referencePackLibrary || null,
+          referencePackCacheCleanup: searchResult.referencePackCacheCleanup || null,
+          referencePackError: searchResult.referencePackError || null,
+          externalProviderStates: searchResult.externalProviderStates || [],
           matchedProducts,
           searchModelConfig: searchResult.searchModelConfig,
           externalResults: searchResult.externalResults,
@@ -1523,6 +2207,25 @@ const handleRetrieveMaterials = async (req, res) => {
   return processRetrieveMaterials(req, res);
 };
 
+const handleRetrieveMaterialCategories = async (req, res) => {
+  const appId = readNonEmptyString(req.query?.appId, req.query?.app_id);
+  const categories = listResourceCategories({
+    appId,
+  });
+
+  return sendSuccess(res, {
+    message: '资料分类加载成功',
+    data: {
+      categories,
+      source: 'knowledge_resources',
+      appId,
+    },
+    meta: {
+      count: categories.length,
+    },
+  });
+};
+
 const handleSearchReferences = async (req, res) => {
   return processRetrieveMaterials(req, res, {
     applySearchRuleEngine: true,
@@ -1531,6 +2234,7 @@ const handleSearchReferences = async (req, res) => {
 
 router.post('/search-documents', asyncWrapper(handleRetrieveMaterials));
 router.post('/retrieve-materials', asyncWrapper(handleRetrieveMaterials));
+router.get('/retrieve-materials/categories', asyncWrapper(handleRetrieveMaterialCategories));
 
 const handleComposeDocument = async (req, res) => {
   return withChildSpan(
@@ -1545,10 +2249,155 @@ const handleComposeDocument = async (req, res) => {
         'compose',
       );
       const normalizedRequest = normalizeCapabilityRequest(rawInput, 'compose');
-      const normalizedInput = normalizedRequest.payload;
+      let normalizedInput = normalizedRequest.payload;
       const pluginId = rawInput.pluginId || '';
+      const requestedReferencePackId = readNonEmptyString(
+        normalizedInput.referencePackId,
+        rawInput.referencePackId,
+      );
+      const referencePackInput = requestedReferencePackId
+        ? getReferencePackScriptInput(requestedReferencePackId)
+        : null;
+
+      if (referencePackInput) {
+        const referencePackSummary = buildReferencePackSummaryText(referencePackInput);
+        normalizedInput = {
+          ...normalizedInput,
+          referencePackId: referencePackInput.referencePackId,
+          referenceSummary: referencePackSummary || normalizedInput.referenceSummary || '',
+          context: normalizedInput.context || referencePackSummary || '',
+          sourceDocId: referencePackInput.referencePackId,
+          sourceDocName: referencePackInput.title,
+          sourceDocType: 'reference_pack',
+          sourceApplicableScene: 'governed_reference_pack',
+          sourceExternalAvailable: false,
+        };
+      }
       const normalizedSessionId = normalizedInput.sessionId || '';
       const settings = readSettings();
+      const appId = readNonEmptyString(
+        normalizedInput.appId,
+        normalizedInput.app_id,
+        rawInput.appId,
+        rawInput.app_id,
+      );
+      const appSystemPrompt = appId ? getPromptByAppId(appId) || '' : '';
+      const appTemplate = resolveGenerationTemplateForUsage({
+        goalScene: normalizedInput.goalScene || normalizedInput.communicationGoal || '',
+        toneStyle: normalizedInput.toneStyle || 'formal',
+        appId,
+      });
+      const composePluginInput = {
+        ...normalizedInput,
+        appId,
+        app_id: appId,
+        appSystemPrompt: appSystemPrompt || normalizedInput.appSystemPrompt || '',
+        selectedTemplateId: appTemplate?.id || normalizedInput.selectedTemplateId || '',
+        selectedTemplate:
+          appTemplate?.templateContent ||
+          appTemplate?.template_content ||
+          normalizedInput.selectedTemplate ||
+          '',
+        generationTemplate: appTemplate || normalizedInput.generationTemplate || null,
+      };
+      const directTemplateStartedAt = Date.now();
+      const directTemplateContent =
+        appTemplate?.templateContent ||
+        appTemplate?.template_content ||
+        normalizedInput.selectedTemplate ||
+        normalizedInput.templateContent ||
+        normalizedInput.template_content ||
+        '';
+      const directTemplateContext = buildDirectTemplateContext(normalizedInput);
+      const outputStyle = readNonEmptyString(normalizedInput.outputStyle, normalizedInput.output_style).toLowerCase();
+      const canUseDirectTemplate =
+        outputStyle === 'standard' &&
+        directTemplateContent &&
+        allVariablesAvailable(directTemplateContent, directTemplateContext);
+
+      if (canUseDirectTemplate) {
+        const guidanceNotesText = readNonEmptyString(directTemplateContext.guidance_notes);
+        const renderedContent = renderTemplate(directTemplateContent, directTemplateContext);
+        const finalContent = guidanceNotesText
+          ? `${renderedContent}\n\n注意事项：\n${guidanceNotesText}`
+          : renderedContent;
+        const directDurationMs = Math.max(0, Date.now() - directTemplateStartedAt);
+        const directModelRuntime = buildDirectTemplateModelRuntime(directDurationMs);
+        const selectedTemplateId = appTemplate?.id || normalizedInput.selectedTemplateId || '';
+
+        if (selectedTemplateId) {
+          incrementUsage(selectedTemplateId);
+        }
+
+        safeRecordCall({
+          appId,
+          model: 'rule_only',
+          success: true,
+          latencyMs: directDurationMs,
+          tokensUsed: 0,
+        });
+
+        appendTestRecord({
+          module: '参考写作',
+          input:
+            normalizedInput.taskInput ||
+            normalizedInput.referenceSummary ||
+            normalizedInput.taskSubject ||
+            '',
+          actualResult: finalContent,
+          matchedRule: 'rule_only',
+          matchedData: directTemplateContent,
+        });
+
+        setSpanStringAttribute(span, 'mock.llm.route', 'rule_only');
+        setSpanNumberAttribute(span, 'mock.llm.duration_ms', directDurationMs);
+
+        return sendSuccess(res, {
+          message: '写作成功',
+          data: {
+            formalVersion: finalContent,
+            conciseVersion: finalContent,
+            spokenVersion: finalContent,
+            llmVersion: finalContent,
+            content: finalContent,
+            llmRoute: 'rule_only',
+            generationRoute: 'rule_only',
+            templateRender: {
+              rendered: true,
+              outputStyle,
+              missingVariables: [],
+            },
+            modelRuntime: directModelRuntime,
+            resolvedModel: directModelRuntime.resolvedModel,
+            modelRuntimeSummary: buildModelRuntimeSummary(directModelRuntime),
+            selectedTemplateId,
+            referencePackId: referencePackInput?.referencePackId || '',
+            referencePack: referencePackInput,
+            facts: referencePackInput?.facts || [],
+            background: referencePackInput?.background || [],
+            riskNotes: referencePackInput?.riskNotes || [],
+            conflicts: referencePackInput?.conflicts || [],
+            doNotUse: referencePackInput?.doNotUse || [],
+            referenceSummary: normalizedInput.referenceSummary || '',
+            sessionId: readNonEmptyString(normalizedSessionId, managedSessionId),
+            traceId: req.traceId || '',
+            tokensUsed: 0,
+            tokens_used: 0,
+            databaseRelationSummary: buildDatabaseRelationSummary(readSettings().database || {}, {
+              relationType: 'default-database',
+            }),
+          },
+          meta: {
+            sessionId: readNonEmptyString(normalizedSessionId, managedSessionId),
+            llmRoute: 'rule_only',
+            generationRoute: 'rule_only',
+            modelRuntimeSummary: buildModelRuntimeSummary(directModelRuntime),
+            selectedTemplateId,
+            referencePackId: referencePackInput?.referencePackId || '',
+            platformContract: buildPlatformContractSummary(),
+          },
+        });
+      }
 
       setSpanStringAttribute(span, 'mock.request.trace_id', req.traceId || '');
       setSpanStringAttribute(
@@ -1577,7 +2426,7 @@ const handleComposeDocument = async (req, res) => {
             kind: 'output',
             route: 'generate-script',
             requestedPluginId: pluginId,
-            requestPayload: normalizedInput,
+            requestPayload: composePluginInput,
             context: {
               settings,
             },
@@ -1599,6 +2448,11 @@ const handleComposeDocument = async (req, res) => {
       );
       const scriptResult = outputPluginExecution.output || {};
       const finalScriptResult = scriptResult.finalResult || {};
+      const selectedGenerationTemplateId = recordGenerationTemplateUsage({
+        normalizedInput,
+        scriptResult,
+        finalScriptResult,
+      });
       const composeResourceCount = resolveComposeResourceCount(
         contextRecord,
         normalizedInput,
@@ -1618,6 +2472,23 @@ const handleComposeDocument = async (req, res) => {
       setSpanNumberAttribute(span, 'mock.resources.count', composeResourceCount);
       setSpanNumberAttribute(span, 'mock.llm.duration_ms', composeLlmDurationMs);
       setSpanStringAttribute(span, 'mock.llm.route', finalScriptResult.llmRoute || '');
+      recordWorkflowModelCall({
+        appId: readNonEmptyString(
+          normalizedInput.appId,
+          normalizedInput.app_id,
+          rawInput.appId,
+          rawInput.app_id,
+        ),
+        modelRuntime: scriptResult.modelRuntime || finalScriptResult.modelRuntime,
+        latencyMs: composeLlmDurationMs,
+        tokensUsed: finalScriptResult.generationRoute === 'rule_only' ? 0 : null,
+        inputText:
+          normalizedInput.taskInput ||
+          normalizedInput.referenceSummary ||
+          normalizedInput.taskSubject ||
+          '',
+        outputText: finalScriptResult.llmVersion || finalScriptResult.formalVersion || '',
+      });
 
       appendTestRecord({
         module: '参考写作',
@@ -1632,13 +2503,20 @@ const handleComposeDocument = async (req, res) => {
         matchedData: scriptResult.selectedTemplate || '',
       });
 
-      const scriptGovernanceSummary = buildGovernanceSummary({
+      const scriptAssistantArtifacts = resolveRuntimeAssistantArtifacts({
         assistantId: scriptResult.activeAssistantId || finalScriptResult.assistantId || '',
+        executionContext:
+          scriptResult.executionContext || finalScriptResult.executionContext || null,
+        executionContextSummary: finalScriptResult.executionContextSummary || null,
+        fallbackAssistantId: normalizedInput.assistantId || '',
+      });
+      const scriptGovernanceSummary = buildGovernanceSummary({
+        assistantId: scriptAssistantArtifacts.assistantId,
         promptId: scriptResult.promptId || finalScriptResult.promptId || '',
         promptVersion: scriptResult.promptVersion || finalScriptResult.promptVersion || '',
         strategy: scriptResult.strategy || finalScriptResult.strategy || null,
-        executionContext:
-          scriptResult.executionContext || finalScriptResult.executionContext || null,
+        executionContext: scriptAssistantArtifacts.executionContext,
+        executionContextSummary: scriptAssistantArtifacts.executionContextSummary,
         source: scriptResult.source || finalScriptResult.source || null,
         fallbackReason:
           scriptResult.fallbackReason || finalScriptResult.fallbackReason || null,
@@ -1649,14 +2527,14 @@ const handleComposeDocument = async (req, res) => {
         stepId: scriptResult.stepId,
         evidenceId: finalScriptResult.evidenceId || normalizedInput.evidenceId || '',
         fromModule: 'script',
-        assistantId: scriptResult.activeAssistantId || finalScriptResult.assistantId || '',
-        executionContext:
-          scriptResult.executionContext || finalScriptResult.executionContext || null,
-        executionContextSummary: finalScriptResult.executionContextSummary || null,
+        assistantId: scriptAssistantArtifacts.assistantId,
+        executionContext: scriptAssistantArtifacts.executionContext,
+        executionContextSummary: scriptAssistantArtifacts.executionContextSummary,
       });
 
       console.log('[response] generate-script data:', {
         ...finalScriptResult,
+        selectedTemplateId: selectedGenerationTemplateId || finalScriptResult.selectedTemplateId || '',
         sessionId: scriptResult.sessionId || normalizedSessionId,
         source: scriptResult.source || finalScriptResult.source || null,
         fallbackReason:
@@ -1674,6 +2552,7 @@ const handleComposeDocument = async (req, res) => {
       if (resolvedSessionId && shouldUseManagedSession(req, managedSessionId)) {
         await saveContext(resolvedSessionId, {
           sessionId: resolvedSessionId,
+          appId: normalizedInput.appId || normalizedInput.app_id || '',
           content: buildContentContextSnapshot({
             normalizedInput,
             finalScriptResult,
@@ -1682,10 +2561,12 @@ const handleComposeDocument = async (req, res) => {
           lastStep: 'script',
         });
         await appendToHistory(resolvedSessionId, 'script', {
+          appId: normalizedInput.appId || normalizedInput.app_id || '',
           taskSubject: normalizedInput.taskSubject || normalizedInput.productDirection || '',
           referenceSummary:
             normalizedInput.referenceSummary || finalScriptResult.referenceSummary || '',
           evidenceId: finalScriptResult.evidenceId || normalizedInput.evidenceId || '',
+          referencePackId: finalScriptResult.referencePackId || normalizedInput.referencePackId || '',
           stepId: scriptResult.stepId || '',
           llmRoute: finalScriptResult.llmRoute || '',
         });
@@ -1704,7 +2585,7 @@ const handleComposeDocument = async (req, res) => {
           ...finalScriptResult,
           sessionId: scriptResult.sessionId || normalizedSessionId,
           stepId: scriptResult.stepId,
-          assistantId: scriptResult.activeAssistantId || finalScriptResult.assistantId || '',
+          assistantId: scriptAssistantArtifacts.assistantId,
           promptId: scriptResult.promptId || finalScriptResult.promptId || '',
           promptVersion: scriptResult.promptVersion || finalScriptResult.promptVersion || '',
           strategy: scriptResult.strategy || finalScriptResult.strategy || null,
@@ -1713,20 +2594,10 @@ const handleComposeDocument = async (req, res) => {
             scriptResult.fallbackReason || finalScriptResult.fallbackReason || null,
           governanceSummary: scriptGovernanceSummary,
           taskModel: normalizedRequest.taskModel,
-          executionContext:
-            scriptResult.executionContext || finalScriptResult.executionContext || null,
-          executionContextSummary:
-            scriptResult.executionContext?.summary ||
-            finalScriptResult.executionContextSummary ||
-            null,
-          resolvedAssistant:
-            scriptResult.executionContext?.resolvedAssistant ||
-            finalScriptResult.resolvedAssistant ||
-            null,
-          resolvedPrompt:
-            scriptResult.executionContext?.resolvedPrompt ||
-            finalScriptResult.resolvedPrompt ||
-            null,
+          executionContext: scriptAssistantArtifacts.executionContext,
+          executionContextSummary: scriptAssistantArtifacts.executionContextSummary,
+          resolvedAssistant: scriptAssistantArtifacts.executionContext?.resolvedAssistant || null,
+          resolvedPrompt: scriptAssistantArtifacts.executionContext?.resolvedPrompt || null,
           modelRuntime: scriptResult.modelRuntime,
           resolvedModel: scriptResult.modelRuntime?.resolvedModel || null,
           modelSource:
@@ -1734,6 +2605,7 @@ const handleComposeDocument = async (req, res) => {
             scriptResult.modelRuntime?.reason ||
             '',
           modelRuntimeSummary: scriptModelRuntimeSummary,
+          selectedTemplateId: selectedGenerationTemplateId || finalScriptResult.selectedTemplateId || '',
           databaseRelationSummary,
           continuePayload: scriptContinuePayload,
         },
@@ -1758,14 +2630,10 @@ const handleComposeDocument = async (req, res) => {
           governanceSummary: scriptGovernanceSummary,
           modelRuntimeSummary: scriptModelRuntimeSummary,
           taskModel: buildTaskModelMeta(normalizedRequest.taskModel),
-          executionContext:
-            scriptResult.executionContext || finalScriptResult.executionContext || null,
+          executionContext: scriptAssistantArtifacts.executionContext,
           modelRuntime: scriptResult.modelRuntime,
           databaseRelationSummary,
-          executionContextSummary:
-            scriptResult.executionContext?.summary ||
-            finalScriptResult.executionContextSummary ||
-            null,
+          executionContextSummary: scriptAssistantArtifacts.executionContextSummary,
           continuePayload: scriptContinuePayload,
           scriptStrategy: finalScriptResult.scriptStrategy || '',
           scriptExecutionStrategy: finalScriptResult.scriptExecutionStrategy || '',

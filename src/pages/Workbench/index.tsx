@@ -154,17 +154,45 @@ export default function WorkbenchPage() {
       return;
     }
 
+    const taskInput = form.getFieldValue('taskInput')?.trim();
+    const contextNote = form.getFieldValue('contextNote')?.trim();
+    const expectedDeliverable = form.getFieldValue('expectedDeliverable')?.trim();
+    const carriedTaskSubject =
+      result.routeRecommendation.carryPayload?.taskSubject ||
+      expectedDeliverable ||
+      taskInput;
+    const carryPayload = {
+      ...(result.routeRecommendation.carryPayload || {}),
+      taskInput: result.routeRecommendation.carryPayload?.taskInput || taskInput,
+      taskSubject: carriedTaskSubject,
+      productDirection:
+        result.routeRecommendation.carryPayload?.productDirection || carriedTaskSubject,
+      industryType:
+        result.routeRecommendation.carryPayload?.industryType || result.assistant.industryType,
+      context:
+        result.routeRecommendation.carryPayload?.context || contextNote || expectedDeliverable,
+      referenceSummary:
+        result.routeRecommendation.carryPayload?.referenceSummary ||
+        contextNote ||
+        expectedDeliverable,
+      goal:
+        result.routeRecommendation.carryPayload?.goal ||
+        expectedDeliverable ||
+        result.recognizedTask.intentLabel,
+      deliverable:
+        result.routeRecommendation.carryPayload?.deliverable || expectedDeliverable,
+    };
+
     const continueContext = buildContinueContext({
       ...(result.continuePayload || {}),
       ...(result.routeRecommendation.continuePayload || {}),
-      sessionId: crypto.randomUUID(),
       fromModule: 'workbench',
     });
 
     navigate(result.routeRecommendation.path, {
       state: buildContinueNavigationState({
         continueContext,
-        carryPayload: result.routeRecommendation.carryPayload || {},
+        carryPayload,
       }),
     });
   };
@@ -212,7 +240,18 @@ export default function WorkbenchPage() {
                 <Form.Item
                   name="taskInput"
                   label="任务输入"
-                  rules={[{ required: true, message: '请输入任务内容' }]}
+                  rules={[
+                    { required: true, message: '请输入任务内容' },
+                    {
+                      validator: async (_, value) => {
+                        if (typeof value === 'string' && value.trim().length >= 2) {
+                          return;
+                        }
+
+                        throw new Error('请至少输入 2 个字符，方便平台识别任务');
+                      },
+                    },
+                  ]}
                 >
                   <Input.TextArea
                     rows={7}

@@ -2,6 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { fileURLToPath } from 'url';
+import {
+  appendMessage as appendSqliteMessage,
+  createSession as createSqliteSession,
+} from '../data/models/session.js';
+import { getDbPath } from '../data/database.js';
+import { nowLocalIso } from '../utils/localTime.js';
 
 // =========================
 // 上下文缓存层
@@ -15,8 +21,16 @@ const SESSION_CONTEXT_REDIS_PREFIX = 'mock-server:session-context:';
 
 const contextMemoryStore = new Map();
 let contextStorePromise = null;
+const contextStoreState = {
+  activeStore: 'unknown',
+  initializedAt: '',
+  fallbackActive: false,
+  fallbackReason: '',
+  redisUrl: '',
+};
 
-const nowTimestamp = () => new Date().toISOString();
+const nowTimestamp = nowLocalIso;
+const normalizeText = (value = '') => String(value || '').trim();
 
 const cloneValue = (value) => {
   if (value === undefined) {
@@ -74,6 +88,7 @@ const initializeContextStore = async () => {
     process.env.REDIS_URL || process.env.MOCK_SERVER_REDIS_URL || 'redis://127.0.0.1:6379',
   ).trim();
   let client = null;
+  contextStoreState.redisUrl = redisUrl;
 
   try {
     const redisModule = await import('redis');
@@ -92,6 +107,10 @@ const initializeContextStore = async () => {
     await client.connect();
 
     console.log('[sessionService] using redis context store:', redisUrl);
+    contextStoreState.activeStore = 'redis';
+    contextStoreState.initializedAt = nowTimestamp();
+    contextStoreState.fallbackActive = false;
+    contextStoreState.fallbackReason = '';
 
     return {
       type: 'redis',
@@ -107,6 +126,10 @@ const initializeContextStore = async () => {
       '[sessionService] redis unavailable, falling back to memory context store:',
       error.message,
     );
+    contextStoreState.activeStore = 'memory';
+    contextStoreState.initializedAt = nowTimestamp();
+    contextStoreState.fallbackActive = true;
+    contextStoreState.fallbackReason = normalizeText(error?.message || 'redis-unavailable');
 
     return {
       type: 'memory',
@@ -125,6 +148,12 @@ const getContextStore = async () => {
       console.warn(
         '[sessionService] context store initialization failed, using memory fallback:',
         error.message,
+      );
+      contextStoreState.activeStore = 'memory';
+      contextStoreState.initializedAt = nowTimestamp();
+      contextStoreState.fallbackActive = true;
+      contextStoreState.fallbackReason = normalizeText(
+        error?.message || 'context-store-initialization-failed',
       );
       return {
         type: 'memory',
@@ -173,6 +202,9 @@ const readContextRecord = async (sessionId = '') => {
         type: 'memory',
         client: null,
       });
+      contextStoreState.activeStore = 'memory';
+      contextStoreState.fallbackActive = true;
+      contextStoreState.fallbackReason = normalizeText(error?.message || 'redis-read-failed');
       return null;
     }
   }
@@ -205,6 +237,9 @@ const writeContextRecord = async (sessionId = '', record = {}) => {
         type: 'memory',
         client: null,
       });
+      contextStoreState.activeStore = 'memory';
+      contextStoreState.fallbackActive = true;
+      contextStoreState.fallbackReason = normalizeText(error?.message || 'redis-write-failed');
     }
   }
 
@@ -212,12 +247,46 @@ const writeContextRecord = async (sessionId = '', record = {}) => {
   return normalizedRecord;
 };
 
+const writeSqliteSessionSafely = ({
+  sessionId = '',
+  userId = 'admin',
+  title = '',
+  appId = '',
+} = {}) => {
+  if (!sessionId) {
+    return null;
+  }
+
+  try {
+    return createSqliteSession(userId || 'admin', title || sessionId, {
+      id: sessionId,
+      appId,
+    });
+  } catch (error) {
+    console.warn('[sessionService] sqlite session write failed, keeping legacy flow alive:', error.message);
+    return null;
+  }
+};
+
+const appendSqliteMessageSafely = (sessionId = '', message = {}) => {
+  if (!sessionId) {
+    return null;
+  }
+
+  try {
+    return appendSqliteMessage(sessionId, message);
+  } catch (error) {
+    console.warn('[sessionService] sqlite message write failed, keeping legacy flow alive:', error.message);
+    return null;
+  }
+};
+
 export const saveContext = async (sessionId, contextData = {}) => {
   if (!sessionId) {
     return null;
   }
 
-  const existingRecord = (await readContextRecord(sessionId)) || {};
+  const existingRecord = (await getContext(sessionId)) || {};
   const normalizedPatch =
     contextData && typeof contextData === 'object' && !Array.isArray(contextData)
       ? cloneValue(contextData)
@@ -228,16 +297,59 @@ export const saveContext = async (sessionId, contextData = {}) => {
       ? existingRecord.history
       : [];
 
-  return writeContextRecord(sessionId, {
+  const nextRecord = normalizeContextRecord({
     ...existingRecord,
     ...normalizedPatch,
     history,
     updatedAt: nowTimestamp(),
   });
+
+  const storedRecord = await writeContextRecord(sessionId, nextRecord);
+  writeSqliteSessionSafely({
+    sessionId,
+    title: nextRecord.title || sessionId,
+    appId: nextRecord.appId || nextRecord.app_id || '',
+  });
+  appendSqliteMessageSafely(sessionId, {
+    role: 'system',
+    content: 'context:update',
+    metadata: {
+      kind: 'context',
+      context: nextRecord,
+    },
+  });
+
+  return storedRecord;
 };
 
 export const getContext = async (sessionId) => {
+  if (!sessionId) {
+    return null;
+  }
+
   return readContextRecord(sessionId);
+};
+
+export const getContextStoreSummary = async () => {
+  const store = await getContextStore();
+  const activeStore = store?.type === 'redis' ? 'redis' : 'memory';
+  const fallbackActive = activeStore !== 'redis';
+
+  return {
+    activeStore,
+    status: fallbackActive ? 'memory-fallback' : 'redis-ready',
+    fallbackActive,
+    fallbackReason: fallbackActive
+      ? contextStoreState.fallbackReason || 'redis-unavailable'
+      : '',
+    initializedAt: contextStoreState.initializedAt || '',
+    redisUrl: contextStoreState.redisUrl || '',
+    ttlSeconds: SESSION_CONTEXT_TTL_SECONDS,
+    sqlite: {
+      active: true,
+      database: getDbPath(),
+    },
+  };
 };
 
 export const appendToHistory = async (sessionId, step, data = {}) => {
@@ -245,10 +357,10 @@ export const appendToHistory = async (sessionId, step, data = {}) => {
     return null;
   }
 
-  const existingRecord = (await readContextRecord(sessionId)) || {};
+  const existingRecord = (await getContext(sessionId)) || {};
   const history = Array.isArray(existingRecord.history) ? existingRecord.history : [];
 
-  return writeContextRecord(sessionId, {
+  const nextRecord = normalizeContextRecord({
     ...existingRecord,
     history: [
       ...history,
@@ -260,6 +372,24 @@ export const appendToHistory = async (sessionId, step, data = {}) => {
     ],
     updatedAt: nowTimestamp(),
   });
+
+  const storedRecord = await writeContextRecord(sessionId, nextRecord);
+  writeSqliteSessionSafely({
+    sessionId,
+    title: sessionId,
+    appId: data.appId || data.app_id || existingRecord.appId || existingRecord.app_id || '',
+  });
+  appendSqliteMessageSafely(sessionId, {
+    role: 'system',
+    content: `history:${step}`,
+    metadata: {
+      kind: 'history',
+      step,
+      data: cloneValue(data),
+    },
+  });
+
+  return storedRecord;
 };
 
 // =========================
@@ -326,7 +456,7 @@ const writeSessionStore = (store) => {
 // 负责把运行态对象收成 session / step 可长期维护的留痕摘要。
 // =========================
 
-const now = () => new Date().toISOString();
+const now = nowLocalIso;
 
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
@@ -607,6 +737,7 @@ export const createSession = ({
   assistantId = '',
   executionContext = null,
   databaseSummary = null,
+  appId = '',
 } = {}) => {
   const store = readSessionStore();
   const timestamp = now();
@@ -645,6 +776,7 @@ export const createSession = ({
     currentGoal,
     currentStepType: currentStepType || (sourceModule !== 'manual' ? sourceModule : ''),
     tags: Array.isArray(tags) ? tags : [],
+    appId,
     assistantId,
     executionContextSummary: pickExecutionContextSummary(executionContext),
     databaseSummary: pickDatabaseSummary(databaseSummary),
@@ -654,6 +786,12 @@ export const createSession = ({
 
   store.sessions.unshift(session);
   writeSessionStore(store);
+  writeSqliteSessionSafely({
+    sessionId: session.id,
+    userId: appId || 'admin',
+    title: session.title,
+    appId,
+  });
   return session;
 };
 
@@ -724,6 +862,14 @@ export const appendSessionStep = ({
 
   const normalizedInputPayload = normalizeStepPayload(inputPayload);
   const normalizedOutputPayload = normalizeStepPayload(outputPayload);
+  const stepAppId =
+    normalizedInputPayload?.appId ||
+    normalizedInputPayload?.app_id ||
+    normalizedOutputPayload?.appId ||
+    normalizedOutputPayload?.app_id ||
+    session.appId ||
+    session.app_id ||
+    '';
   const stepSummary = buildStepSummary({ stepType, summary, outputPayload: normalizedOutputPayload });
 
   const step = {
@@ -774,6 +920,31 @@ export const appendSessionStep = ({
   };
 
   writeSessionStore(store);
+  writeSqliteSessionSafely({
+    sessionId,
+    userId: session.userId || 'admin',
+    title: session.title || sessionId,
+    appId: stepAppId,
+  });
+  appendSqliteMessageSafely(sessionId, {
+    role: 'system',
+    content: stepSummary,
+    appId: stepAppId,
+    metadata: {
+      kind: 'workflow-step',
+      stepId: step.id,
+      stepType,
+      summary,
+      route,
+      strategy,
+      executionStrategy,
+      outboundAllowed: Boolean(outboundAllowed),
+      outboundReason,
+      modelName,
+      inputPayload: normalizedInputPayload,
+      outputPayload: normalizedOutputPayload,
+    },
+  });
   return step;
 };
 

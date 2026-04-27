@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import type { AgentAdapterResponse, AgentClientType } from '../api/agent';
 
@@ -7,6 +7,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> => {
 };
 
 export const AGENT_CLIENT_TYPE_STORAGE_KEY = 'agent.debug.clientType';
+export const AGENT_CLIENT_TYPE_CHANGE_EVENT = 'agent-debug-bar:client-type-change';
 export const GLOBAL_AGENT_DEBUG_BAR_ID = 'global-agent-debug-bar';
 export const GLOBAL_AGENT_DEBUG_BAR_FLASH_EVENT = 'agent-debug-bar:flash';
 
@@ -92,31 +93,59 @@ export const focusGlobalAgentDebugBar = () => {
 };
 
 export const useRememberedAgentClientType = () => {
-  const [clientType, setClientType] = useState<AgentClientType>(() => {
+  const [clientType, setClientTypeState] = useState<AgentClientType>(() => {
     return readRememberedAgentClientType();
   });
 
-  useEffect(() => {
-    persistAgentClientType(clientType);
-  }, [clientType]);
+  const setClientType = useCallback((nextClientType?: AgentClientType) => {
+    const normalizedClientType = persistAgentClientType(nextClientType);
+
+    setClientTypeState(normalizedClientType);
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.dispatchEvent(
+      new CustomEvent(AGENT_CLIENT_TYPE_CHANGE_EVENT, {
+        detail: {
+          clientType: normalizedClientType,
+        },
+      }),
+    );
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
       return undefined;
     }
 
+    const syncRememberedClientType = () => {
+      setClientTypeState(readRememberedAgentClientType());
+    };
+
     const handleStorage = (event: StorageEvent) => {
       if (event.key !== AGENT_CLIENT_TYPE_STORAGE_KEY) {
         return;
       }
 
-      setClientType(readRememberedAgentClientType());
+      syncRememberedClientType();
+    };
+
+    const handleClientTypeChange = (event: Event) => {
+      const nextClientType = normalizeRememberedAgentClientType(
+        (event as CustomEvent<{ clientType?: AgentClientType }>).detail?.clientType,
+      );
+
+      setClientTypeState(nextClientType);
     };
 
     window.addEventListener('storage', handleStorage);
+    window.addEventListener(AGENT_CLIENT_TYPE_CHANGE_EVENT, handleClientTypeChange);
 
     return () => {
       window.removeEventListener('storage', handleStorage);
+      window.removeEventListener(AGENT_CLIENT_TYPE_CHANGE_EVENT, handleClientTypeChange);
     };
   }, []);
 

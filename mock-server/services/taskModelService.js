@@ -278,6 +278,11 @@ export const normalizeCapabilityRequest = (rawInput = {}, capability = 'judge') 
     rawInput.enableExternalSupplement,
     readVariableBoolean(variables, ['enableExternalSupplement'], false),
   );
+  const appId = firstNonEmptyString(
+    rawInput.appId,
+    rawInput.app_id,
+    readVariableString(variables, ['appId', 'app_id']),
+  );
 
   const payload = {
     ...rawInput,
@@ -300,6 +305,8 @@ export const normalizeCapabilityRequest = (rawInput = {}, capability = 'judge') 
     goalScene,
     onlyExternalAvailable,
     enableExternalSupplement,
+    appId,
+    app_id: appId,
     customerName: taskObject,
     customerType: audience,
     salesStage: taskPhase,

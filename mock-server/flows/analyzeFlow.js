@@ -25,7 +25,11 @@ import {
 } from '../services/assistantContextService.js';
 import { normalizeCapabilityRequest } from '../services/taskModelService.js';
 import { runAnalyzeRuleEngine } from '../plugins/rule-engine/index.js';
-
+import {
+  buildPerspectiveAnalyzeResult,
+  isDomainPerspective,
+  resolveAssistantPerspective,
+} from '../services/assistantPerspectiveService.js';
 
 const buildBaseAnalyzeResult = ({ matchedRule, matchedProducts }) => {
   return {
@@ -70,16 +74,24 @@ const buildSceneAdjustedAnalyzeResult = ({
   relatedDocumentNames,
   taskSubject,
   taskPhase,
+  industryType,
   text,
   baseResult,
   executionContext,
   activeAssistantId,
+  assistantProfile,
 }) => {
   const rulesScope = executionContext?.rulesScope || [];
   const isSemiconductorAssistant =
     activeAssistantId === 'semiconductor-sales-support' || rulesScope.includes('semiconductor');
   const isPcbAssistant =
     activeAssistantId === 'pcb-sales-support' || rulesScope.includes('pcb');
+  const assistantPerspective = resolveAssistantPerspective({
+    assistantId: activeAssistantId,
+    assistantProfile,
+    industryType,
+    text,
+  });
 
   const defaultPcbResponse = {
     ...baseResult,
@@ -173,7 +185,13 @@ const buildSceneAdjustedAnalyzeResult = ({
               : ['先补充基础信息', '发送基础资料', '再判断是否进入技术沟通'],
         };
 
-  if (matchedRule?.sceneType === 'h2o2') {
+  if (isDomainPerspective(assistantPerspective)) {
+    responseData = buildPerspectiveAnalyzeResult({
+      perspective: assistantPerspective,
+      baseResult,
+      taskPhase,
+    });
+  } else if (matchedRule?.sceneType === 'h2o2') {
     if (isSemiconductorAssistant) {
       responseData = {
         summary:
@@ -390,6 +408,7 @@ export const runAnalyzeCustomerFlow = async (rawInput = {}, options = {}) => {
     deliverable = '',
     variables = {},
     attachments = [],
+    appId = '',
   } = normalizedInput;
   const runtimeSettings = options.settings || readSettings() || getDefaultSettings();
   const baseAnalyzeModelConfig = getModelConfigForModule('analyze');
@@ -404,8 +423,12 @@ export const runAnalyzeCustomerFlow = async (rawInput = {}, options = {}) => {
           modelRuntime.resolvedModel.resolvedProvider || baseAnalyzeModelConfig.modelProvider,
         baseUrl: modelRuntime.resolvedModel.resolvedBaseUrl || baseAnalyzeModelConfig.baseUrl,
         modelName: modelRuntime.resolvedModel.resolvedModelName || baseAnalyzeModelConfig.modelName,
+        appId,
       }
-    : baseAnalyzeModelConfig;
+    : {
+        ...baseAnalyzeModelConfig,
+        appId,
+      };
   const assistantContext = getAssistantExecutionContext(runtimeSettings);
   const initialAssistantId =
     assistantContext.assistantId || runtimeSettings.assistant?.activeAssistantId || '';
@@ -529,10 +552,12 @@ export const runAnalyzeCustomerFlow = async (rawInput = {}, options = {}) => {
     relatedDocumentNames,
     taskSubject,
     taskPhase,
+    industryType,
     text,
     baseResult,
     executionContext,
     activeAssistantId,
+    assistantProfile: assistantContext.assistantProfile,
   });
 
   let finalAnalyzeData = sceneAdjustedResult;
@@ -541,12 +566,18 @@ export const runAnalyzeCustomerFlow = async (rawInput = {}, options = {}) => {
   if (analyzeExecutionStrategy === 'masked-api' && analyzeOutboundDecision.outboundAllowed) {
     const enhanceResult = await enhanceAnalyzeWithLLM({
       rawInput,
+      sanitizedText: sanitizedAnalyzeInput.sanitizedText,
+      safeMeta: sanitizedAnalyzeInput.safeMeta || {},
       sanitizedAnalyzeInput,
       analyzeModelConfig,
+      modelConfig: analyzeModelConfig,
       baseResult: sceneAdjustedResult,
       analyzeExecutionStrategy,
+      executionStrategy: analyzeExecutionStrategy,
+      outboundAllowed: analyzeOutboundDecision.outboundAllowed,
       salesStage: taskPhase,
       assistantId: activeAssistantId,
+      appId,
       promptId,
       promptVersion,
       promptContent: analyzePrompt?.content || '',

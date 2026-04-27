@@ -5,7 +5,10 @@ import type {
   SessionStepRecord,
 } from '../api/agent';
 
+export type ResumeMode = 'carry' | 'session';
+
 export type ResumeNavigationState = {
+  resumeMode?: ResumeMode;
   sessionId?: string;
   fromModule?: string;
   stepId?: string;
@@ -37,10 +40,15 @@ export type TaskSeed = {
   docType?: string;
   onlyExternalAvailable?: boolean;
   enableExternalSupplement?: boolean;
+  sourceScopes?: string[];
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+};
+
+const isResumeMode = (value: unknown): value is ResumeMode => {
+  return value === 'carry' || value === 'session';
 };
 
 const isMeaningfulValue = (value: unknown): boolean => {
@@ -65,6 +73,14 @@ const isMeaningfulValue = (value: unknown): boolean => {
 
 export const readString = (value: unknown): string | undefined => {
   return typeof value === 'string' && value.trim() ? value : undefined;
+};
+
+const readRecord = (value: unknown): Record<string, unknown> | null => {
+  return isRecord(value) ? value : null;
+};
+
+const readResumeMode = (value: unknown): ResumeMode | undefined => {
+  return isResumeMode(value) ? value : undefined;
 };
 
 export const readBoolean = (value: unknown): boolean | undefined => {
@@ -123,6 +139,56 @@ const unwrapContinueRecord = (value: unknown): Record<string, unknown> | null =>
   return value;
 };
 
+const readNavigationCarryPayload = (value: unknown): Record<string, unknown> | null => {
+  if (!isRecord(value) || !isRecord(value.carryPayload)) {
+    return null;
+  }
+
+  return value.carryPayload;
+};
+
+const hasContinueContextValue = (value?: ContinueContext | null): boolean => {
+  if (!value) {
+    return false;
+  }
+
+  return Object.entries(value).some(
+    ([key, item]) => key !== 'resumeMode' && isMeaningfulValue(item),
+  );
+};
+
+const inferResumeMode = ({
+  continueContext,
+  carryPayload,
+}: {
+  continueContext?: ContinueContext | null;
+  carryPayload?: Record<string, unknown> | null;
+}): ResumeMode | undefined => {
+  const explicitMode = readResumeMode(continueContext?.resumeMode);
+
+  if (explicitMode === 'session') {
+    return continueContext?.sessionId ? 'session' : undefined;
+  }
+
+  if (continueContext?.sessionId) {
+    return 'session';
+  }
+
+  if (explicitMode === 'carry') {
+    return 'carry';
+  }
+
+  if (isRecord(carryPayload) && Object.keys(carryPayload).length > 0) {
+    return 'carry';
+  }
+
+  if (hasContinueContextValue(continueContext)) {
+    return 'carry';
+  }
+
+  return undefined;
+};
+
 const readStringByAliases = (
   payload: Record<string, unknown> | null | undefined,
   aliases: string[],
@@ -167,6 +233,34 @@ const readBooleanByAliases = (
   return undefined;
 };
 
+const readStringArrayByAliases = (
+  payload: Record<string, unknown> | null | undefined,
+  aliases: string[],
+): string[] | undefined => {
+  const variables = getVariablesRecord(payload);
+
+  for (const source of [payload, variables]) {
+    if (!source) {
+      continue;
+    }
+
+    for (const alias of aliases) {
+      const value = source[alias];
+      if (Array.isArray(value)) {
+        const items = value
+          .map((item) => readString(item))
+          .filter((item): item is string => Boolean(item));
+
+        if (items.length > 0) {
+          return items;
+        }
+      }
+    }
+  }
+
+  return undefined;
+};
+
 export const buildTaskSeedFromPayload = (value: unknown): TaskSeed => {
   const payload = unwrapCarryPayloadRecord(value);
 
@@ -177,10 +271,15 @@ export const buildTaskSeedFromPayload = (value: unknown): TaskSeed => {
   return {
     taskObject: readStringByAliases(payload, ['taskObject', 'customerName']),
     audience: readStringByAliases(payload, ['audience', 'customerType']),
-    industryType: readStringByAliases(payload, ['industryType']),
+    industryType: readStringByAliases(payload, ['industryType', 'domainType']),
     taskPhase: readStringByAliases(payload, ['taskPhase', 'salesStage', 'stage', 'currentStage']),
-    taskSubject: readStringByAliases(payload, ['taskSubject', 'productDirection', 'subject']),
-    taskInput: readStringByAliases(payload, ['taskInput', 'customerText', 'keyword']),
+    taskSubject: readStringByAliases(payload, [
+      'taskSubject',
+      'productDirection',
+      'subject',
+      'topic',
+    ]),
+    taskInput: readStringByAliases(payload, ['taskInput', 'customerText', 'keyword', 'taskContent']),
     context: readStringByAliases(payload, [
       'context',
       'referenceSummary',
@@ -194,7 +293,69 @@ export const buildTaskSeedFromPayload = (value: unknown): TaskSeed => {
     docType: readStringByAliases(payload, ['docType']),
     onlyExternalAvailable: readBooleanByAliases(payload, ['onlyExternalAvailable']),
     enableExternalSupplement: readBooleanByAliases(payload, ['enableExternalSupplement']),
+    sourceScopes: readStringArrayByAliases(payload, ['sourceScopes']),
   };
+};
+
+export const readExecutionContextSummary = (
+  value: unknown,
+): Record<string, unknown> | null => {
+  const executionContext = readRecord(value);
+
+  if (!executionContext) {
+    return null;
+  }
+
+  return readRecord(executionContext.summary);
+};
+
+export const readExecutionContextAssistantId = (value: unknown): string | undefined => {
+  const executionContext = readRecord(value);
+  const summary = readExecutionContextSummary(executionContext);
+  const resolvedAssistant = readRecord(executionContext?.resolvedAssistant);
+
+  return (
+    readString(executionContext?.assistantId) ||
+    readString(resolvedAssistant?.assistantId) ||
+    readString(summary?.assistantId)
+  );
+};
+
+export const readExecutionContextPromptId = (value: unknown): string | undefined => {
+  const executionContext = readRecord(value);
+  const summary = readExecutionContextSummary(executionContext);
+  const resolvedPrompt = readRecord(executionContext?.resolvedPrompt);
+
+  return (
+    readString(executionContext?.promptId) ||
+    readString(resolvedPrompt?.promptId) ||
+    readString(summary?.promptId)
+  );
+};
+
+export const readExecutionContextPromptVersion = (value: unknown): string | undefined => {
+  const executionContext = readRecord(value);
+  const summary = readExecutionContextSummary(executionContext);
+  const resolvedPrompt = readRecord(executionContext?.resolvedPrompt);
+
+  return (
+    readString(executionContext?.promptVersion) ||
+    readString(resolvedPrompt?.promptVersion) ||
+    readString(summary?.promptVersion)
+  );
+};
+
+export const readExecutionContextStrategyId = (value: unknown): string | undefined => {
+  const executionContext = readRecord(value);
+  const summary = readExecutionContextSummary(executionContext);
+
+  return (
+    readString(executionContext?.strategyId) ||
+    readString(summary?.strategyId) ||
+    readString(executionContext?.scriptStrategy) ||
+    readString(executionContext?.searchStrategy) ||
+    readString(executionContext?.analyzeStrategy)
+  );
 };
 
 export const mergeTaskSeeds = (...seeds: Array<TaskSeed | null | undefined>): TaskSeed => {
@@ -247,19 +408,29 @@ export const parseContinueContext = (value: unknown): ContinueContext | null => 
       : null;
 
   const normalized: ContinueContext = {
+    resumeMode: readResumeMode(payload.resumeMode),
     sessionId: readString(payload.sessionId),
     fromModule: readString(payload.fromModule),
     stepId: readString(payload.stepId),
     evidenceId: readString(payload.evidenceId),
     assistantId:
       readString(payload.assistantId) ||
-      readString((executionContext as Record<string, unknown> | null)?.assistantId) ||
+      readExecutionContextAssistantId(executionContext) ||
       readString(executionContextSummary?.assistantId),
     executionContext,
     executionContextSummary,
   };
 
-  return Object.values(normalized).some((item) => isMeaningfulValue(item)) ? normalized : null;
+  const inferredResumeMode = inferResumeMode({
+    continueContext: normalized,
+    carryPayload: readNavigationCarryPayload(value),
+  });
+
+  if (inferredResumeMode) {
+    normalized.resumeMode = inferredResumeMode;
+  }
+
+  return hasContinueContextValue(normalized) || normalized.resumeMode ? normalized : null;
 };
 
 export const buildContinueContext = (
@@ -297,16 +468,30 @@ export const buildContinueNavigationState = ({
 }): ContinueNavigationState => {
   const state: ContinueNavigationState = {};
   const normalizedContinueContext = buildContinueContext(continueContext);
+  const normalizedCarryPayload =
+    isRecord(carryPayload) && Object.keys(carryPayload).length > 0 ? { ...carryPayload } : null;
+  const resumeMode = inferResumeMode({
+    continueContext: normalizedContinueContext,
+    carryPayload: normalizedCarryPayload,
+  });
 
-  if (Object.values(normalizedContinueContext).some((item) => isMeaningfulValue(item))) {
+  if (resumeMode) {
+    normalizedContinueContext.resumeMode = resumeMode;
+  }
+
+  if (hasContinueContextValue(normalizedContinueContext) || resumeMode) {
     state.continueContext = normalizedContinueContext;
   }
 
-  if (isRecord(carryPayload) && Object.keys(carryPayload).length > 0) {
-    state.carryPayload = { ...carryPayload };
+  if (normalizedCarryPayload) {
+    state.carryPayload = normalizedCarryPayload;
   }
 
   return state;
+};
+
+export const hasPersistedSession = (value?: ContinueContext | null): boolean => {
+  return inferResumeMode({ continueContext: value }) === 'session' && Boolean(value?.sessionId);
 };
 
 export const getStepInputPayload = (step?: SessionStepRecord | null): Record<string, unknown> => {
@@ -393,6 +578,45 @@ export const findEvidenceById = (
   return detail.evidences.find((item) => item.evidenceId === evidenceId) || null;
 };
 
+export const getStepEvidenceId = (step?: SessionStepRecord | null): string => {
+  const inputPayload = getStepInputPayload(step);
+  const outputPayload = getStepOutputPayload(step);
+
+  return (
+    readString(inputPayload.evidenceId) ||
+    readString(outputPayload.evidenceId) ||
+    readString(outputPayload.primaryEvidenceId) ||
+    readString(inputPayload.primaryEvidenceId) ||
+    readStringArray(outputPayload.primaryEvidenceIds)[0] ||
+    readStringArray(inputPayload.primaryEvidenceIds)[0] ||
+    ''
+  );
+};
+
+export const findPreferredEvidence = ({
+  detail,
+  evidenceId = '',
+  step = null,
+}: {
+  detail?: SessionDetailRecord | null;
+  evidenceId?: string;
+  step?: SessionStepRecord | null;
+}): SessionEvidenceRecord | null => {
+  const explicitEvidence = findEvidenceById(detail, evidenceId);
+
+  if (explicitEvidence) {
+    return explicitEvidence;
+  }
+
+  const stepEvidence = findEvidenceById(detail, getStepEvidenceId(step));
+
+  if (stepEvidence) {
+    return stepEvidence;
+  }
+
+  return detail?.evidences.find((item) => item.isPrimaryEvidence) || detail?.evidences[0] || null;
+};
+
 export const getStepExecutionContext = (
   step?: SessionStepRecord | null,
 ): Record<string, unknown> | null => {
@@ -415,7 +639,7 @@ export const getStepAssistantId = (step?: SessionStepRecord | null): string => {
   return (
     readString(inputPayload.assistantId) ||
     readString(outputPayload.assistantId) ||
-    readString(getStepExecutionContext(step)?.assistantId) ||
+    readExecutionContextAssistantId(getStepExecutionContext(step)) ||
     ''
   );
 };

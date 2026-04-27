@@ -8,11 +8,16 @@ const __dirname = path.dirname(__filename);
 // 当前文件位于项目根目录下的 config/ 目录
 const projectRoot = path.resolve(__dirname, '..');
 const configDir = path.join(projectRoot, 'config');
+const desktopUserConfigDir = process.env.AP_DESKTOP_USER_DATA_DIR
+  ? path.join(process.env.AP_DESKTOP_USER_DATA_DIR, 'config')
+  : '';
 
 const envFiles = [
+  desktopUserConfigDir ? path.join(desktopUserConfigDir, 'database.env') : '',
+  desktopUserConfigDir ? path.join(desktopUserConfigDir, 'model.env') : '',
   path.join(configDir, 'database.env'),
   path.join(configDir, 'model.env'),
-];
+].filter(Boolean);
 
 const parseEnvFile = (content) => {
   const lines = content.split('\n');

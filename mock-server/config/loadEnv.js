@@ -8,12 +8,18 @@ const __dirname = path.dirname(__filename);
 // 这里从 mock-server/config 回到项目根目录，再进入 config/
 const projectRoot = path.resolve(__dirname, '..', '..');
 const configDir = path.join(projectRoot, 'config');
+const desktopUserConfigDir = process.env.AP_DESKTOP_USER_DATA_DIR
+  ? path.join(process.env.AP_DESKTOP_USER_DATA_DIR, 'config')
+  : '';
 
 const envFiles = [
+  desktopUserConfigDir ? path.join(desktopUserConfigDir, 'database.env') : '',
+  desktopUserConfigDir ? path.join(desktopUserConfigDir, 'model.env') : '',
+  desktopUserConfigDir ? path.join(desktopUserConfigDir, 'python-runtime.env') : '',
   path.join(configDir, 'database.env'),
   path.join(configDir, 'model.env'),
   path.join(configDir, 'python-runtime.env'),
-];
+].filter(Boolean);
 
 const parseEnvFile = (content) => {
   const lines = content.split('\n');

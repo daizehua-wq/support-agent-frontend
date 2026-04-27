@@ -74,7 +74,7 @@ function SettingsSummarySection({
               <div style={{ color: '#595959', lineHeight: 1.8 }}>默认模型：{currentDefaultModelLabel}</div>
               <div style={{ color: '#595959', lineHeight: 1.8 }}>模块绑定：Analyze / Search / Script</div>
               <div style={{ color: '#8c8c8c', lineHeight: 1.8 }}>
-                Settings 当前只负责展示系统怎么串起来；模型资源、默认模型、模块绑定与 fallback 后续进入 ModelCenter 主页处理。
+                Settings 当前只负责展示系统怎么串起来；模型资源、默认模型、模块绑定与降级处理后续进入 ModelCenter 主页处理。
               </div>
               <Space wrap>
                 <Button onClick={onViewModelCenter}>查看 ModelCenter</Button>
@@ -110,18 +110,18 @@ function SettingsSummarySection({
         </Col>
       </Row>
 
-      <Card title="fallback 规则说明" style={{ marginBottom: 24, borderRadius: 12 }}>
+      <Card title="降级规则说明" style={{ marginBottom: 24, borderRadius: 12 }}>
         <Row gutter={[16, 16]}>
           <Col xs={24} md={6}>
             <Card size="small" title="触发条件" style={{ borderRadius: 12, background: '#fafafa' }}>
               <div style={{ color: '#595959', lineHeight: 1.8 }}>
-                模块绑定未命中、默认模型缺字段、目标模型不可用时，按 fallback 处理。
+                模块绑定未命中、默认模型缺字段、目标模型不可用时，按降级策略处理。
               </div>
             </Card>
           </Col>
 
           <Col xs={24} md={6}>
-            <Card size="small" title="fallback 顺序" style={{ borderRadius: 12, background: '#fafafa' }}>
+            <Card size="small" title="降级顺序" style={{ borderRadius: 12, background: '#fafafa' }}>
               <div style={{ color: '#595959', lineHeight: 1.8 }}>
                 优先模块绑定，其次默认模型；绑定失效时，按 default-local 或可用默认模型兜底。
               </div>
@@ -139,7 +139,7 @@ function SettingsSummarySection({
           <Col xs={24} md={6}>
             <Card size="small" title="trace 留痕" style={{ borderRadius: 12, background: '#fafafa' }}>
               <div style={{ color: '#595959', lineHeight: 1.8 }}>
-                fallback 原因、resolved chain 与最终生效值应进入 trace / 留痕区，供联调与 QA 查看。
+                降级原因、解析链路与最终生效值应进入 trace / 留痕区，供联调与 QA 查看。
               </div>
             </Card>
           </Col>

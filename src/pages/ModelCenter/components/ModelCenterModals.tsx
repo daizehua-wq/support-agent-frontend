@@ -85,7 +85,7 @@ function ModelCenterModals({
       </Modal>
 
       <Modal
-        title="调整 fallback"
+        title="调整降级规则"
         open={fallbackModalOpen}
         onOk={onSaveFallback}
         onCancel={onCloseFallback}
@@ -105,7 +105,7 @@ function ModelCenterModals({
           <Form.Item label="目标模型" name="fallbackModelId">
             <Select
               allowClear
-              placeholder="请选择 fallback 目标模型"
+              placeholder="请选择降级目标模型"
               options={modelList
                 .filter((item) => getModelItemId(item) !== getModelItemId(selectedModelDetail))
                 .map((item) => ({

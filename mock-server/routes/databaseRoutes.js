@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { nowLocalIso } from '../utils/localTime.js';
 import {
   buildWriteBackPayload,
   sendGovernanceSuccess,
@@ -172,15 +173,24 @@ const persistDatabaseGovernanceState = async (currentSettings = {}, nextDatabase
     databases: Array.isArray(nextDatabaseConfigs) ? nextDatabaseConfigs : [],
   };
   const settingsStoreConfig = buildSettingsStoreConfig(nextSettings);
-  const persistedSettings = await saveSettingsToDatabase(
-    nextSettings,
-    DEFAULT_SETTINGS,
-    settingsStoreConfig,
-  );
-  const mergedSettings = mergeSettingsPreserveApiKeys(persistedSettings, nextSettings);
+  let persistedSettings = nextSettings;
 
-  saveSettings(mergedSettings);
-  return mergedSettings;
+  try {
+    const savedSettings = await saveSettingsToDatabase(
+      nextSettings,
+      DEFAULT_SETTINGS,
+      settingsStoreConfig,
+    );
+    persistedSettings = mergeSettingsPreserveApiKeys(savedSettings, nextSettings);
+  } catch (error) {
+    console.warn(
+      '[database-manager] save to database failed, fallback to local only:',
+      error.message,
+    );
+  }
+
+  saveSettings(persistedSettings);
+  return persistedSettings;
 };
 
 const findDatabaseById = (databaseConfigs = [], databaseId = '') =>
@@ -403,7 +413,7 @@ router.post('/databases/create', async (req, res) => {
     const databasePayload = payload.database || payload;
     const createMode = resolveCreateMode(databasePayload);
     const { currentSettings, databaseConfigs } = await getDatabaseGovernanceState();
-    const now = new Date().toISOString();
+    const now = nowLocalIso();
     const nextDatabaseType = (databasePayload.databaseType || databasePayload.dbType || '').trim();
 
     const nextDatabaseConfig = {
@@ -633,7 +643,7 @@ router.post('/databases/:databaseId/update', async (req, res) => {
       });
     }
 
-    const now = new Date().toISOString();
+    const now = nowLocalIso();
     const nextDatabaseConfig = {
       ...currentDatabaseConfig,
       ...databasePayload,
@@ -977,7 +987,7 @@ router.post('/databases/:databaseId/health-check', async (req, res) => {
 
     const targetDatabaseConfig = databaseConfigs[index];
     const result = await testDatabaseConnection(targetDatabaseConfig);
-    const now = new Date().toISOString();
+    const now = nowLocalIso();
     const nextDatabaseConfig = {
       ...targetDatabaseConfig,
       lastCheckedAt: result.lastCheckedAt || now,
@@ -1058,7 +1068,7 @@ router.post('/accounts/:accountId/database-binding/save', async (req, res) => {
     }
 
     const currentDatabaseConfig = databaseConfigs[index];
-    const now = new Date().toISOString();
+    const now = nowLocalIso();
     const nextBindingSummary =
       payload.lightBindingSummary && typeof payload.lightBindingSummary === 'object'
         ? payload.lightBindingSummary

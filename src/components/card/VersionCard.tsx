@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, Tag } from 'antd';
+import { formatTechnicalLabel } from '../../utils/displayLabel';
 
 type VersionCardProps = {
   title: string;
@@ -24,7 +25,7 @@ function getPublishStatusTag(status?: string) {
     return <Tag color="default">已归档</Tag>;
   }
 
-  return <Tag>{status}</Tag>;
+  return <Tag>{formatTechnicalLabel(status)}</Tag>;
 }
 
 function FieldRow({

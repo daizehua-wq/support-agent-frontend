@@ -1,6 +1,7 @@
 import { Button, Card, Col, Row } from 'antd';
 
 import type { ModelCenterListItem } from '../../../api/modelCenter';
+import { formatDateTimeToLocalTime } from '../../../utils/dateTime';
 import { getProviderTag, getStatusTag } from '../helpers';
 import FieldRow from './FieldRow';
 
@@ -42,7 +43,10 @@ function ModelCenterOverviewSection({
           <FieldRow label="Provider" value={getProviderTag(defaultModel?.provider)} />
           <FieldRow label="默认状态" value={defaultModel?.defaultFlag ? '是' : '否'} />
           <FieldRow label="可用性状态" value={getStatusTag(defaultModel?.status)} />
-          <FieldRow label="更新时间" value={defaultModel?.updatedAt || defaultModel?.modifiedAt || '-'} />
+          <FieldRow
+            label="更新时间"
+            value={formatDateTimeToLocalTime(defaultModel?.updatedAt || defaultModel?.modifiedAt) || '-'}
+          />
         </Card>
       </Col>
 
@@ -58,16 +62,16 @@ function ModelCenterOverviewSection({
       </Col>
 
       <Col xs={24} md={8}>
-        <Card title="fallback 规则区" style={{ borderRadius: 12 }}>
+        <Card title="降级规则区" style={{ borderRadius: 12 }}>
           <FieldRow label="启用状态" value={fallbackSummary.enabled ? '已启用' : '未启用'} />
-          <FieldRow label="顺序" value="模块绑定 → 默认模型 → fallback 候选" />
+          <FieldRow label="顺序" value="模块绑定 → 默认模型 → 降级候选" />
           <FieldRow label="条件" value="模块绑定不可用或测试失败时触发" />
           <FieldRow
             label="目标模型"
             value={fallbackSummary.modelName || getModelName(fallbackSummary.modelId)}
           />
           <div style={{ marginTop: 12 }}>
-            <Button onClick={onOpenFallback}>调整 fallback</Button>
+            <Button onClick={onOpenFallback}>调整降级规则</Button>
           </div>
         </Card>
       </Col>

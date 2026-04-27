@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'crypto';
 import { readJsonFile, writeJsonFile } from './jsonDataService.js';
+import { nowLocalIso } from '../utils/localTime.js';
 import {
   getSettingsRbacSettings,
   getSettingsReleaseControlSettings,
@@ -24,7 +25,7 @@ const DEFAULT_ROLLBACK_SLA_MINUTES = 5;
 
 const SENSITIVE_FIELD_PATTERN = /(password|apiKey|token|secret|credential)/i;
 
-const now = () => new Date().toISOString();
+const now = nowLocalIso;
 
 const cloneValue = (value) => {
   if (value === undefined) {

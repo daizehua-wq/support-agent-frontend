@@ -13,7 +13,7 @@ type BindingCardProps = {
 
 function getOverrideTag(overrideAllowed?: boolean) {
   if (overrideAllowed === undefined) return <Tag>未说明</Tag>;
-  return overrideAllowed ? <Tag color="success">允许 override</Tag> : <Tag color="default">不允许 override</Tag>;
+  return overrideAllowed ? <Tag color="success">允许覆盖</Tag> : <Tag color="default">不允许覆盖</Tag>;
 }
 
 function FieldRow({
@@ -54,8 +54,8 @@ export default function BindingCard({
     <Card title={title} size="small" style={{ borderRadius: 12 }}>
       <FieldRow label={bindingLabel} value={bindingValue || '未设置'} />
       <FieldRow label="默认值" value={defaultValue || '未设置'} />
-      <FieldRow label="override 规则" value={getOverrideTag(overrideAllowed)} />
-      <FieldRow label="fallback 规则" value={fallbackPolicySummary || '未说明'} />
+      <FieldRow label="覆盖规则" value={getOverrideTag(overrideAllowed)} />
+      <FieldRow label="降级规则" value={fallbackPolicySummary || '未说明'} />
       <FieldRow label="影响范围" value={effectScopeNote || '未说明'} />
     </Card>
   );

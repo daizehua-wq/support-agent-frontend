@@ -33,7 +33,16 @@ import {
   updateAssistantProfile,
   updatePromptRecord,
 } from '../services/governanceRegistryService.js';
-import { readSettings, saveSettings } from '../services/settingsService.js';
+import { saveSettingsToDatabase } from '../services/databaseService.js';
+import {
+  getActiveDatabaseConfig,
+  getDefaultSettings,
+  mergeSettingsPreserveApiKeys,
+  readSettings,
+  saveSettings,
+} from '../services/settingsService.js';
+import { syncAssistantGovernanceSettings } from '../services/settingsGovernanceBridgeService.js';
+import { recordSettingsMutationVersion } from '../services/settingsGovernanceService.js';
 
 const router = Router();
 
@@ -309,13 +318,13 @@ const requirePrompt = (promptId = '') => {
   return { prompt, failure: null };
 };
 
-const activateAssistantInSettings = (assistant) => {
+const activateAssistantInSettings = async (assistant, req = null) => {
   const settings = readSettings();
   const analyzePrompt = assistant?.defaultModuleBindings?.analyze
     ? getPromptById(assistant.defaultModuleBindings.analyze)
     : null;
 
-  const nextSettings = {
+  const nextSettings = syncAssistantGovernanceSettings({
     ...settings,
     assistant: {
       ...(settings.assistant || {}),
@@ -325,10 +334,49 @@ const activateAssistantInSettings = (assistant) => {
       promptVersion: analyzePrompt?.version || null,
       executionContext: null,
     },
-  };
+  });
 
-  saveSettings(nextSettings);
-  return nextSettings;
+  let persistedSettings = nextSettings;
+  let persistedToDatabase = false;
+
+  try {
+    const savedSettings = await saveSettingsToDatabase(
+      nextSettings,
+      getDefaultSettings(),
+      getActiveDatabaseConfig(),
+    );
+    persistedSettings = syncAssistantGovernanceSettings(
+      mergeSettingsPreserveApiKeys(savedSettings, nextSettings),
+    );
+    persistedToDatabase = true;
+  } catch (error) {
+    console.warn('[assistant-center] activate save to database failed:', error.message);
+  }
+
+  saveSettings(persistedSettings);
+  recordSettingsMutationVersion({
+    settingsSnapshot: persistedSettings,
+    context: {
+      tenantId: 'default',
+      traceId: req?.traceId || '',
+      actor: {
+        id: 'assistant-center',
+        role: 'platform-owner',
+      },
+    },
+    reason: 'assistant activate',
+    metadata: {
+      route: 'assistant-center.activate',
+      nextActiveAssistantId: assistant?.id || '',
+      activeAnalyzePromptId: analyzePrompt?.id || null,
+      persistedToDatabase,
+    },
+  });
+
+  return {
+    settings: persistedSettings,
+    persistedToDatabase,
+  };
 };
 
 const sendAssistantMutationSuccess = (res, { message, action, assistant }) =>
@@ -745,7 +793,7 @@ router.post('/assistant-center/assistants/:assistantId/activate', async (req, re
       });
     }
 
-    activateAssistantInSettings(assistant);
+    const activationResult = await activateAssistantInSettings(assistant, req);
     safeRecordGovernanceAuditEntry({
       entityType: 'assistant',
       targetId: assistantId,
@@ -769,6 +817,9 @@ router.post('/assistant-center/assistants/:assistantId/activate', async (req, re
       targetId: assistantId,
       data: {
         detail: buildAssistantGovernanceDetail(assistantId),
+        settingsPersistence: {
+          persistedToDatabase: activationResult.persistedToDatabase === true,
+        },
       },
       writeBack: buildWriteBackPayload({
         writeBackStatus: 'success',

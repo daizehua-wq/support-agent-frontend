@@ -263,7 +263,7 @@ function formatDeleteBlockers(error: unknown) {
       }
 
       if (item.type === 'fallback-reference') {
-        return `${item.name || '其他模型'}的 fallback 仍指向当前模型`;
+        return `${item.name || '其他模型'}的降级候选仍指向当前模型`;
       }
 
       return item.reason || item.name || '仍存在依赖';
@@ -502,7 +502,7 @@ export default function ModelCenterPage() {
           })
           .filter(Boolean)
           .join('、');
-        message.success(`删除模型成功，已自动清理 fallback 引用：${fallbackNames}`);
+        message.success(`删除模型成功，已自动清理降级引用：${fallbackNames}`);
       } else {
         message.success('删除模型成功');
       }
@@ -608,7 +608,7 @@ export default function ModelCenterPage() {
               }
             : null,
       });
-      message.success('fallback 保存成功');
+      message.success('降级规则保存成功');
       setFallbackModalOpen(false);
       await loadList(modelId);
       await loadDetail(modelId);
@@ -618,7 +618,7 @@ export default function ModelCenterPage() {
       if (code === 'VERSION_CONFLICT') {
         message.error('版本冲突，请刷新后重试');
       } else {
-        message.error(getApiErrorMessage(error, 'fallback 保存失败'));
+        message.error(getApiErrorMessage(error, '降级规则保存失败'));
       }
     } finally {
       setSavingFallback(false);
@@ -677,7 +677,7 @@ export default function ModelCenterPage() {
           ModelCenter
         </div>
         <div style={{ fontSize: 14, color: '#64748B', lineHeight: 1.8, marginBottom: 16 }}>
-          模型治理页，只承接模型资源、默认模型、模块绑定、fallback 与模型测试反馈。
+          模型治理页，只承接模型资源、默认模型、模块绑定、降级规则与模型测试反馈。
         </div>
         <Space wrap>
           <Button type="primary" onClick={() => setCreateModalOpen(true)}>

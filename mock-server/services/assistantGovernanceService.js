@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { toLocalIso } from '../utils/localTime.js';
 import { listGovernanceAuditEntries } from './governanceAuditService.js';
 import { readSettings } from './settingsService.js';
 import {
@@ -116,7 +117,7 @@ const toNonEmptyString = (value) => (typeof value === 'string' && value.trim() ?
 
 const getSourceFileUpdatedAt = (fileName = '') => {
   try {
-    return fs.statSync(path.join(dataDir, fileName)).mtime.toISOString();
+    return toLocalIso(fs.statSync(path.join(dataDir, fileName)).mtime);
   } catch {
     return null;
   }

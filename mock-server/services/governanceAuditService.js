@@ -1,11 +1,12 @@
 import { randomUUID } from 'crypto';
 import { readJsonFile, writeJsonFile } from './jsonDataService.js';
+import { nowLocalIso } from '../utils/localTime.js';
 
 const GOVERNANCE_AUDIT_FILE = 'governanceAuditLog.json';
 const MAX_CHANGED_FIELDS = 12;
 const MAX_VALUE_LENGTH = 180;
 
-const now = () => new Date().toISOString();
+const now = nowLocalIso;
 
 const toNonEmptyString = (value) => {
   if (typeof value !== 'string') {

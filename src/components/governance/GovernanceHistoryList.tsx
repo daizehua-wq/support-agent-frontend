@@ -1,5 +1,8 @@
 import { Card, List, Space, Tag } from 'antd';
 
+import { formatDateTimeToLocalTime } from '../../utils/dateTime';
+import { formatTechnicalLabel } from '../../utils/displayLabel';
+
 type GovernanceAuditFieldChange = {
   field: string;
   before?: string;
@@ -33,7 +36,7 @@ const ACTION_COLOR_MAP = {
 function getActionTag(action = '') {
   const normalizedAction = String(action || '').trim().toLowerCase();
   const color = ACTION_COLOR_MAP[normalizedAction as keyof typeof ACTION_COLOR_MAP] || 'default';
-  const label = normalizedAction || 'unknown';
+  const label = formatTechnicalLabel(normalizedAction || 'unknown');
   return <Tag color={color}>{label}</Tag>;
 }
 
@@ -52,9 +55,9 @@ export default function GovernanceHistoryList({
             <Space direction="vertical" size={6} style={{ width: '100%' }}>
               <Space wrap>
                 {getActionTag(item.action)}
-                <Tag>{item.actor || 'assistant-center'}</Tag>
+                <Tag>{formatTechnicalLabel(item.actor || 'assistant-center')}</Tag>
                 <span style={{ color: '#64748B', fontSize: 12 }}>
-                  {item.createdAt || '未返回时间'}
+                  {formatDateTimeToLocalTime(item.createdAt) || '未返回时间'}
                 </span>
               </Space>
               <div style={{ color: '#111827', fontWeight: 600 }}>

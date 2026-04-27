@@ -1,4 +1,5 @@
 import express from 'express';
+import { nowLocalIso } from '../utils/localTime.js';
 import {
   buildWriteBackPayload,
   sendGovernanceSuccess,
@@ -471,7 +472,7 @@ router.post('/create', async (req, res) => {
     const payload = req.body || {};
     const modelPayload = payload.model || payload;
     const { localSettings, modelConfig, models } = getModelCenterState();
-    const now = new Date().toISOString();
+    const now = nowLocalIso();
     const modelId = (modelPayload.id || '').trim() || `model_${Date.now()}`;
     const draft = normalizeModelDraft({
       ...modelPayload,
@@ -597,7 +598,7 @@ router.post('/update/:modelId', async (req, res) => {
       });
     }
 
-    const now = new Date().toISOString();
+    const now = nowLocalIso();
     const nextModel = normalizeModelDraft(
       {
         ...currentModel,
@@ -786,7 +787,7 @@ router.post('/module-bindings/save/:modelId', async (req, res) => {
       });
     }
 
-    const now = new Date().toISOString();
+    const now = nowLocalIso();
     const nextModelConfig = {
       ...modelConfig,
       moduleBindings: nextBindings,
@@ -980,7 +981,7 @@ router.post('/fallback/save/:modelId', async (req, res) => {
       });
     }
 
-    const now = new Date().toISOString();
+    const now = nowLocalIso();
     const nextModel = {
       ...currentModel,
       fallbackSummary: nextFallbackSummary,
@@ -1055,7 +1056,7 @@ router.post('/test/:modelId', async (req, res) => {
     }
 
     const currentModel = models[targetIndex];
-    const now = new Date().toISOString();
+    const now = nowLocalIso();
     const testTargetConfig = {
       ...modelConfig,
       ...currentModel,
@@ -1146,7 +1147,7 @@ router.post('/set-default/:modelId', async (req, res) => {
       });
     }
 
-    const now = new Date().toISOString();
+    const now = nowLocalIso();
     const nextModels = models.map((item) =>
       item.id === modelId
         ? {
@@ -1283,7 +1284,7 @@ router.post('/delete/:modelId', async (req, res) => {
       });
     }
 
-    const now = new Date().toISOString();
+    const now = nowLocalIso();
     const fallbackCleanupWarnings = fallbackReferences.map((item) => ({
       type: 'fallback-reference-cleaned',
       targetId: item.id || '',

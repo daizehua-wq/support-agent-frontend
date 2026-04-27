@@ -23,6 +23,8 @@ import type {
   SettingsGovernanceOverviewData,
   SettingsGovernanceVersionSummary,
 } from '../../../api/settings';
+import { formatDateTimeToLocalTime } from '../../../utils/dateTime';
+import { formatTechnicalLabel } from '../../../utils/displayLabel';
 
 type SettingsGovernanceSectionProps = {
   governanceForm: FormInstance;
@@ -61,13 +63,13 @@ const resolveVersionStatusTag = (status = '') => {
   const normalizedStatus = String(status || '').trim().toLowerCase();
   const color =
     versionStatusColorMap[normalizedStatus as keyof typeof versionStatusColorMap] || 'default';
-  return <Tag color={color}>{normalizedStatus || 'unknown'}</Tag>;
+  return <Tag color={color}>{formatTechnicalLabel(normalizedStatus || 'unknown')}</Tag>;
 };
 
 const resolveActionTag = (action = '') => {
   const normalizedAction = String(action || '').trim().toLowerCase();
   const color = actionColorMap[normalizedAction as keyof typeof actionColorMap] || 'default';
-  return <Tag color={color}>{normalizedAction || 'unknown'}</Tag>;
+  return <Tag color={color}>{formatTechnicalLabel(normalizedAction || 'unknown')}</Tag>;
 };
 
 const buildVersionLabel = (version: SettingsGovernanceVersionSummary) => {
@@ -317,15 +319,16 @@ function SettingsGovernanceSection({
                     <Space direction="vertical" size={6} style={{ width: '100%' }}>
                       <Space wrap>
                         {resolveVersionStatusTag(item.versionStatus)}
-                        <Tag>{item.sourceAction || 'save'}</Tag>
+                        <Tag>{formatTechnicalLabel(item.sourceAction || 'save')}</Tag>
                         {item.releaseId ? <Tag color="green">{item.releaseId}</Tag> : null}
                       </Space>
                       <div style={{ color: '#111827', fontWeight: 600 }}>
                         {item.versionId || '未返回版本 ID'}
                       </div>
                       <div style={{ color: '#64748B', fontSize: 12 }}>
-                        {item.createdAt || '未返回时间'} / {item.createdBy?.actorId || 'unknown-actor'} /{' '}
-                        {item.createdBy?.role || 'unknown-role'}
+                        {formatDateTimeToLocalTime(item.createdAt) || '未返回时间'} /{' '}
+                        {formatTechnicalLabel(item.createdBy?.actorId || 'unknown-actor')} /{' '}
+                        {formatTechnicalLabel(item.createdBy?.role || 'unknown-role')}
                       </div>
                       <div style={{ color: '#64748B', fontSize: 12 }}>
                         变更字段数：{item.summary?.changedFieldCount || 0}
@@ -371,7 +374,7 @@ function SettingsGovernanceSection({
                         {item.summary || '配置治理变更'}
                       </div>
                       <div style={{ color: '#64748B', fontSize: 12 }}>
-                        {item.createdAt || '未返回时间'} / from: {item.fromVersionId || '-'} / to:{' '}
+                        {formatDateTimeToLocalTime(item.createdAt) || '未返回时间'} / from: {item.fromVersionId || '-'} / to:{' '}
                         {item.toVersionId || '-'}
                       </div>
                       <div style={{ color: '#64748B', fontSize: 12 }}>
@@ -425,7 +428,7 @@ function SettingsGovernanceSection({
                 {
                   key: 'createdAt',
                   label: '时间',
-                  children: diffDrawerPayload.createdAt || '-',
+                  children: formatDateTimeToLocalTime(diffDrawerPayload.createdAt) || '-',
                 },
                 {
                   key: 'actor',

@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   Button,
   Card,
   Col,
-  Descriptions,
   Form,
   Input,
   List,
@@ -16,8 +14,19 @@ import {
   Tag,
   message,
 } from 'antd';
-import PageHeader from '../../components/common/PageHeader';
-import GovernanceHistoryList from '../../components/governance/GovernanceHistoryList';
+import {
+  ApiOutlined,
+  ArrowRightOutlined,
+  BranchesOutlined,
+  CheckCircleOutlined,
+  DatabaseOutlined,
+  EditOutlined,
+  FileTextOutlined,
+  PlusOutlined,
+  RocketOutlined,
+  SafetyCertificateOutlined,
+} from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import {
   activateAssistantCenterAssistant,
   createAssistantCenterAssistant,
@@ -28,19 +37,19 @@ import {
   getAssistantCenterAssistants,
   getAssistantCenterPromptDetail,
   getAssistantCenterPrompts,
-  type GovernanceAuditEntry,
   publishAssistantCenterAssistant,
   publishAssistantCenterPrompt,
   updateAssistantCenterAssistant,
   updateAssistantCenterPrompt,
-  type AssistantCenterDetail,
   type AssistantCenterListItem,
+  type AssistantCenterDetail,
   type AssistantMutationRequest,
   type PromptCenterDetail,
   type PromptCenterListItem,
   type PromptMutationRequest,
 } from '../../api/assistantCenter';
 import { getApiErrorCode, getApiErrorMessage } from '../../utils/apiError';
+import { formatTechnicalLabel } from '../../utils/displayLabel';
 
 const industryPresetOptions = [
   { label: '通用', value: 'other' },
@@ -58,19 +67,19 @@ const moduleOptions = [
 ];
 
 const analyzeStrategyOptions = [
-  { label: 'rules-only', value: 'rules-only' },
-  { label: 'api-enhanced', value: 'api-enhanced' },
+  { label: formatTechnicalLabel('rules-only'), value: 'rules-only' },
+  { label: formatTechnicalLabel('api-enhanced'), value: 'api-enhanced' },
 ];
 
 const searchStrategyOptions = [
-  { label: 'local-only', value: 'local-only' },
-  { label: 'external-enabled', value: 'external-enabled' },
+  { label: formatTechnicalLabel('local-only'), value: 'local-only' },
+  { label: formatTechnicalLabel('external-enabled'), value: 'external-enabled' },
 ];
 
 const scriptStrategyOptions = [
-  { label: 'local-model', value: 'local-model' },
-  { label: 'api-model', value: 'api-model' },
-  { label: 'template-only', value: 'template-only' },
+  { label: formatTechnicalLabel('local-model'), value: 'local-model' },
+  { label: formatTechnicalLabel('api-model'), value: 'api-model' },
+  { label: formatTechnicalLabel('template-only'), value: 'template-only' },
 ];
 
 type AssistantModalMode = 'create' | 'edit';
@@ -78,20 +87,32 @@ type PromptModalMode = 'create' | 'edit';
 
 function getStatusTag(status?: string) {
   if (status === 'published' || status === 'active') {
-    return <Tag color="green">published</Tag>;
+    return <Tag color="green">已发布</Tag>;
   }
 
   if (status === 'archived') {
-    return <Tag color="default">archived</Tag>;
+    return <Tag color="default">已归档</Tag>;
   }
 
-  return <Tag color="gold">draft</Tag>;
+  return <Tag color="gold">草稿</Tag>;
 }
 
 function getModuleTag(module?: string) {
   if (module === 'analyze') return <Tag color="blue">判断</Tag>;
   if (module === 'search') return <Tag color="cyan">检索</Tag>;
   return <Tag color="purple">写作</Tag>;
+}
+
+function getStatusText(status?: string) {
+  if (status === 'published' || status === 'active') {
+    return '已发布';
+  }
+
+  if (status === 'archived') {
+    return '已归档';
+  }
+
+  return '草稿';
 }
 
 function getIndustryLabel(industryType?: string) {
@@ -113,33 +134,24 @@ function AssistantListCard({
   onClick: () => void;
 }) {
   return (
-    <Card
-      size="small"
-      hoverable
+    <button
+      type="button"
+      className={active ? 'ap-agent-tile ap-agent-tile--active' : 'ap-agent-tile'}
       onClick={onClick}
-      style={{
-        borderRadius: 12,
-        borderColor: active ? '#1677ff' : '#e5e7eb',
-        boxShadow: active ? '0 0 0 1px rgba(22,119,255,0.18)' : undefined,
-      }}
     >
-      <Space direction="vertical" size={6} style={{ width: '100%' }}>
-        <Space wrap>
-          <strong>{item.assistantName}</strong>
-          <Tag color={item.templateOrigin === 'builtin' ? 'geekblue' : 'default'}>
-            {item.templateOrigin === 'builtin' ? '内置模板' : '自定义模板'}
-          </Tag>
-          {getStatusTag(item.status)}
-          {item.activeFlag ? <Tag color="processing">active</Tag> : null}
-        </Space>
-        <div style={{ color: '#64748B', fontSize: 12 }}>{item.assistantId}</div>
-        <div style={{ color: '#475569', fontSize: 13 }}>{item.description || '暂无说明'}</div>
-        <Space wrap size={4}>
-          <Tag>{getIndustryLabel(item.industryType)}</Tag>
-          <Tag>v{item.currentVersion}</Tag>
-        </Space>
-      </Space>
-    </Card>
+      <span className="ap-agent-tile__orb">
+        <SafetyCertificateOutlined />
+      </span>
+      <span className="ap-agent-tile__content">
+        <span className="ap-agent-tile__name">{item.assistantName}</span>
+        <span className="ap-agent-tile__description">{item.description || '暂无说明'}</span>
+        <span className="ap-agent-tile__meta">
+          {getIndustryLabel(item.industryType)} · v{item.currentVersion}
+          {item.activeFlag ? ' · 当前使用' : ''}
+        </span>
+      </span>
+      <span className="ap-agent-tile__status">{getStatusText(item.status)}</span>
+    </button>
   );
 }
 
@@ -153,31 +165,22 @@ function PromptListCard({
   onClick: () => void;
 }) {
   return (
-    <Card
-      size="small"
-      hoverable
+    <button
+      type="button"
+      className={active ? 'ap-prompt-row ap-prompt-row--active' : 'ap-prompt-row'}
       onClick={onClick}
-      style={{
-        borderRadius: 12,
-        borderColor: active ? '#1677ff' : '#e5e7eb',
-        boxShadow: active ? '0 0 0 1px rgba(22,119,255,0.18)' : undefined,
-      }}
     >
-      <Space direction="vertical" size={6} style={{ width: '100%' }}>
-        <Space wrap>
-          {getModuleTag(item.module)}
-          {getStatusTag(item.status)}
-        </Space>
-        <strong>{item.name}</strong>
-        <div style={{ color: '#64748B', fontSize: 12 }}>
-          {item.promptId} / {item.version}
-        </div>
-        <div style={{ color: '#475569', fontSize: 13 }}>
-          {item.description || item.contentPreview || '暂无说明'}
-        </div>
-        <Tag>绑定模板：{item.assistantCount || 0}</Tag>
-      </Space>
-    </Card>
+      <span>
+        <span className="ap-prompt-row__title">{item.name}</span>
+        <span className="ap-prompt-row__meta">
+          {item.promptId} · {item.version} · 绑定 {item.assistantCount || 0}
+        </span>
+      </span>
+      <span className="ap-prompt-row__tags">
+        {getModuleTag(item.module)}
+        {getStatusTag(item.status)}
+      </span>
+    </button>
   );
 }
 
@@ -222,6 +225,7 @@ function buildPromptFormValues(detail?: PromptCenterDetail | null) {
 }
 
 export default function AssistantCenterPage() {
+  const navigate = useNavigate();
   const [assistantForm] = Form.useForm();
   const [promptForm] = Form.useForm();
 
@@ -371,13 +375,6 @@ export default function AssistantCenterPage() {
         .map((item) => ({ label: `${item.name} (${item.version})`, value: item.promptId })),
     };
   }, [prompts]);
-
-  const governanceDefinitionSummary = (selectedAssistant?.governanceDefinitionSummary ||
-    {}) as Record<string, unknown>;
-  const governancePromptDefinition =
-    (governanceDefinitionSummary.promptDefinition as Record<string, unknown> | undefined) || {};
-  const assistantHistory = (selectedAssistant?.history || []) as GovernanceAuditEntry[];
-  const promptHistory = (selectedPrompt?.history || []) as GovernanceAuditEntry[];
 
   const openCreateAssistantModal = () => {
     setAssistantModalMode('create');
@@ -577,38 +574,42 @@ export default function AssistantCenterPage() {
   };
 
   return (
-    <div>
-      <PageHeader
-        title="助手模板 / Prompt 治理台"
-        description="把岗位模板、作用域、默认策略和 Prompt 绑定统一收口到治理层；模型绑定继续留在 ModelCenter，避免平台能力被单一模板绑死。"
-      />
-
-      <Alert
-        type="info"
-        showIcon
-        style={{ marginBottom: 16 }}
-        message="当前页已改成模板治理工作台"
-        description="模板负责岗位/场景、范围、策略和 Prompt 绑定；Prompt 负责模块表达与版本迭代；ModelCenter 只负责模型路由。三者分层后，后续新增岗位、替换 Prompt、切模型都会更稳定。"
-      />
+    <div className="ap-agent-page">
+      <div className="ap-agent-page__hero">
+        <div>
+          <div className="ap-agent-page__eyebrow">
+            <RocketOutlined />
+            Agent
+          </div>
+          <h1>选择一个 Agent，然后开始工作。</h1>
+          <p>能力、规则、模板和 Prompt 已按 Agent 聚合。</p>
+        </div>
+        <Space wrap>
+          <Button shape="round" onClick={() => navigate('/home')}>
+            回到工作台
+          </Button>
+          <Button type="primary" shape="round" icon={<PlusOutlined />} onClick={openCreateAssistantModal}>
+            新建 Agent
+          </Button>
+        </Space>
+      </div>
 
       <Spin spinning={loading}>
-        <Row gutter={[16, 16]} align="top">
-          <Col xs={24} xl={7}>
-            <Card
-              title="模板列表"
-              extra={
-                <Button type="primary" onClick={openCreateAssistantModal}>
-                  新增模板
-                </Button>
-              }
-              style={{ borderRadius: 12 }}
-            >
+        <Row gutter={[18, 18]} align="top">
+          <Col xs={24} xl={10}>
+            <section className="ap-agent-library">
+              <div className="ap-agent-library__header">
+                <div>
+                  <div className="ap-agent-library__title">Agent 库</div>
+                  <div className="ap-agent-library__meta">{assistants.length} 个可用 Agent</div>
+                </div>
+              </div>
               <List
                 dataSource={assistants}
                 split={false}
-                locale={{ emptyText: '暂无模板' }}
+                locale={{ emptyText: '暂无 Agent' }}
                 renderItem={(item) => (
-                  <List.Item style={{ padding: '0 0 12px' }}>
+                  <List.Item className="ap-agent-library__item">
                     <AssistantListCard
                       item={item}
                       active={item.assistantId === selectedAssistant?.assistantId}
@@ -617,331 +618,213 @@ export default function AssistantCenterPage() {
                   </List.Item>
                 )}
               />
-            </Card>
+            </section>
           </Col>
 
-          <Col xs={24} xl={17}>
-            <Card
-              title="模板治理详情"
-              extra={
-                <Space wrap>
-                  <Button onClick={openEditAssistantModal} disabled={!selectedAssistant}>
-                    编辑配置
-                  </Button>
-                  <Button
-                    onClick={handleActivateAssistant}
-                    loading={activatingAssistant}
-                    disabled={!selectedAssistant}
-                  >
-                    激活
-                  </Button>
-                  <Button
-                    type="primary"
-                    onClick={handlePublishAssistant}
-                    loading={publishingAssistant}
-                    disabled={!selectedAssistant}
-                  >
-                    发布
-                  </Button>
-                  <Button
-                    danger
-                    onClick={handleDeleteAssistant}
-                    loading={deletingAssistant}
-                    disabled={!selectedAssistant}
-                  >
-                    删除
-                  </Button>
-                </Space>
-              }
-              style={{ borderRadius: 12, marginBottom: 16 }}
-            >
+          <Col xs={24} xl={14}>
+            <section className="ap-agent-detail">
               <Spin spinning={assistantDetailLoading}>
                 {!selectedAssistant ? (
-                    <div style={{ color: '#64748B' }}>请选择一个模板。</div>
+                  <div className="ap-agent-empty">选择一个 Agent 查看能力。</div>
                 ) : (
-                  <Space direction="vertical" size={16} style={{ width: '100%' }}>
-                    <Descriptions bordered column={2} size="small">
-                      <Descriptions.Item label="模板名称">
-                        {selectedAssistant.assistantName}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="模板 ID">
-                        {selectedAssistant.assistantId}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="状态">
-                        <Space wrap>
+                  <>
+                    <div className="ap-agent-detail__top">
+                      <div>
+                        <Space wrap size={8}>
                           {getStatusTag(selectedAssistant.status)}
-                          {selectedAssistant.activeFlag ? <Tag color="processing">active</Tag> : null}
+                          {selectedAssistant.activeFlag ? <Tag color="processing">当前使用</Tag> : null}
+                          <Tag>{getIndustryLabel(selectedAssistant.industryType)}</Tag>
                         </Space>
-                      </Descriptions.Item>
-                      <Descriptions.Item label="版本">
-                        {selectedAssistant.currentVersion}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="行业">
-                        {getIndustryLabel(selectedAssistant.industryType)}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="最近更新时间">
-                        {selectedAssistant.updatedAt || '未返回'}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="模板来源">
-                        {selectedAssistant.templateOrigin === 'builtin' ? '内置模板' : '自定义模板'}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="模板角色">
-                        {selectedAssistant.templateRole || '未返回'}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="默认任务上下文">
-                        {selectedAssistant.defaultTaskContext || '未返回'}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="默认主题提示">
-                        {selectedAssistant.defaultSubjectHint || '未返回'}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="说明" span={2}>
-                        {selectedAssistant.description || '暂无说明'}
-                      </Descriptions.Item>
-                    </Descriptions>
-
-                    <Row gutter={[16, 16]}>
-                      <Col xs={24} md={12}>
-                        <Card size="small" title="数据范围" style={{ borderRadius: 12 }}>
-                          <p>
-                            <strong>rulesScope：</strong>
-                            {(selectedAssistant.dataScopes?.rulesScope || []).join(' / ') || '未配置'}
-                          </p>
-                          <p>
-                            <strong>productScope：</strong>
-                            {(selectedAssistant.dataScopes?.productScope || []).join(' / ') || '未配置'}
-                          </p>
-                          <p style={{ marginBottom: 0 }}>
-                            <strong>docScope：</strong>
-                            {(selectedAssistant.dataScopes?.docScope || []).join(' / ') || '未配置'}
-                          </p>
-                        </Card>
-                      </Col>
-
-                      <Col xs={24} md={12}>
-                          <Card size="small" title="默认策略" style={{ borderRadius: 12 }}>
-                          <p>
-                            <strong>判断：</strong>
-                            {selectedAssistant.defaultStrategies?.analyzeStrategy || '未配置'}
-                          </p>
-                          <p>
-                            <strong>检索：</strong>
-                            {selectedAssistant.defaultStrategies?.searchStrategy || '未配置'}
-                          </p>
-                          <p style={{ marginBottom: 0 }}>
-                            <strong>写作：</strong>
-                            {selectedAssistant.defaultStrategies?.scriptStrategy || '未配置'}
-                          </p>
-                        </Card>
-                      </Col>
-                    </Row>
-
-                    <Card size="small" title="默认变量约定" style={{ borderRadius: 12 }}>
-                      {(selectedAssistant.variableSchema || []).length ? (
-                        <Space direction="vertical" size={10} style={{ width: '100%' }}>
-                          {(selectedAssistant.variableSchema || []).map((item) => (
-                            <Card key={item.key} size="small" style={{ borderRadius: 10 }}>
-                              <p style={{ marginBottom: 8 }}>
-                                <strong>{item.label || item.key}</strong>
-                                <span style={{ color: '#64748B', marginLeft: 8 }}>{item.key}</span>
-                                {item.required ? <Tag color="red" style={{ marginLeft: 8 }}>required</Tag> : null}
-                              </p>
-                              <p style={{ marginBottom: 8, color: '#475569' }}>
-                                {item.description || '暂无说明'}
-                              </p>
-                              <p style={{ marginBottom: 4 }}>
-                                <strong>默认值：</strong>
-                                {(selectedAssistant.defaultVariables || {})[item.key] || item.defaultValue || '未配置'}
-                              </p>
-                              <p style={{ marginBottom: 0 }}>
-                                <strong>示例：</strong>
-                                {item.example || '未配置'}
-                              </p>
-                            </Card>
-                          ))}
-                        </Space>
-                      ) : (
-                        <div style={{ color: '#64748B' }}>当前模板未配置默认变量约定。</div>
-                      )}
-                    </Card>
-
-                    <Card size="small" title="Prompt 绑定" style={{ borderRadius: 12 }}>
-                        <Descriptions bordered column={1} size="small">
-                        <Descriptions.Item label="判断 Prompt">
-                          {selectedAssistant.defaultModuleBindings?.analyze || '未绑定'}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="检索 Prompt">
-                          {selectedAssistant.defaultModuleBindings?.search || '未绑定'}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="写作 Prompt">
-                          {selectedAssistant.defaultModuleBindings?.script || '未绑定'}
-                        </Descriptions.Item>
-                      </Descriptions>
-                    </Card>
-
-                    <Card size="small" title="治理摘要" style={{ borderRadius: 12 }}>
-                      <Descriptions bordered column={2} size="small">
-                        <Descriptions.Item label="当前发布 Prompt">
-                          {String(
-                            selectedAssistant.currentPublishedPrompt ||
-                              governancePromptDefinition.promptName ||
-                              '未返回',
-                          )}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="当前发布 PromptVersion">
-                          {String(selectedAssistant.currentPublishedPromptVersion || '未返回')}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="当前发布策略">
-                          {String(selectedAssistant.currentPublishedStrategy || '未返回')}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="治理状态">
-                          {String(governanceDefinitionSummary.definitionStatus || selectedAssistant.status)}
-                        </Descriptions.Item>
-                      </Descriptions>
-                    </Card>
-
-                    <GovernanceHistoryList
-                      title="模板变更历史"
-                      items={assistantHistory}
-                      emptyText="当前模板暂无治理历史"
-                    />
-                  </Space>
-                )}
-              </Spin>
-            </Card>
-
-            <Card
-              title="Prompt 注册表"
-              extra={
-                <Button type="primary" onClick={openCreatePromptModal}>
-                  新增 Prompt
-                </Button>
-              }
-              style={{ borderRadius: 12 }}
-            >
-              <Row gutter={[16, 16]}>
-                <Col xs={24} xl={10}>
-                  <List
-                    dataSource={prompts}
-                    split={false}
-                    locale={{ emptyText: '暂无 Prompt' }}
-                    renderItem={(item) => (
-                      <List.Item style={{ padding: '0 0 12px' }}>
-                        <PromptListCard
-                          item={item}
-                          active={item.promptId === selectedPrompt?.promptId}
-                          onClick={() => setSelectedPromptId(item.promptId)}
-                        />
-                      </List.Item>
-                    )}
-                  />
-                </Col>
-
-                <Col xs={24} xl={14}>
-                  <Card
-                    size="small"
-                    title="Prompt 详情"
-                    extra={
-                      <Space wrap>
-                        <Button onClick={openEditPromptModal} disabled={!selectedPrompt}>
-                          编辑 Prompt
+                        <h2>{selectedAssistant.assistantName}</h2>
+                        <p>{selectedAssistant.description || '这个 Agent 暂无说明。'}</p>
+                      </div>
+                      <div className="ap-agent-detail__actions">
+                        <Button icon={<EditOutlined />} onClick={openEditAssistantModal}>
+                          编辑
                         </Button>
                         <Button
-                          onClick={handlePublishPrompt}
-                          loading={publishingPrompt}
-                          disabled={!selectedPrompt}
+                          onClick={handleActivateAssistant}
+                          loading={activatingAssistant}
+                          disabled={!selectedAssistant}
+                        >
+                          设为当前
+                        </Button>
+                        <Button
+                          type="primary"
+                          icon={<RocketOutlined />}
+                          onClick={handlePublishAssistant}
+                          loading={publishingAssistant}
+                          disabled={!selectedAssistant}
                         >
                           发布
                         </Button>
-                        <Button
-                          danger
-                          onClick={handleDeletePrompt}
-                          loading={deletingPrompt}
-                          disabled={!selectedPrompt}
-                        >
-                          删除
-                        </Button>
-                      </Space>
-                    }
-                    style={{ borderRadius: 12 }}
-                  >
-                    <Spin spinning={promptDetailLoading}>
-                      {!selectedPrompt ? (
-                        <div style={{ color: '#64748B' }}>请选择一个 Prompt。</div>
-                      ) : (
-                        <Space direction="vertical" size={16} style={{ width: '100%' }}>
-                          <Descriptions bordered column={2} size="small">
-                            <Descriptions.Item label="Prompt 名称">
-                              {selectedPrompt.name}
-                            </Descriptions.Item>
-                            <Descriptions.Item label="Prompt ID">
-                              {selectedPrompt.promptId}
-                            </Descriptions.Item>
-                            <Descriptions.Item label="模块">
-                              {getModuleTag(selectedPrompt.module)}
-                            </Descriptions.Item>
-                            <Descriptions.Item label="版本">
-                              {selectedPrompt.version}
-                            </Descriptions.Item>
-                            <Descriptions.Item label="状态">
-                              {getStatusTag(selectedPrompt.status)}
-                            </Descriptions.Item>
-                            <Descriptions.Item label="绑定模板数">
-                              {selectedPrompt.usageSummary?.assistantCount || selectedPrompt.assistantCount || 0}
-                            </Descriptions.Item>
-                            <Descriptions.Item label="行业">
-                              {getIndustryLabel(selectedPrompt.industryType)}
-                            </Descriptions.Item>
-                            <Descriptions.Item label="最近更新时间">
-                              {selectedPrompt.updatedAt || '未返回'}
-                            </Descriptions.Item>
-                            <Descriptions.Item label="说明" span={2}>
-                              {selectedPrompt.description || '暂无说明'}
-                            </Descriptions.Item>
-                          </Descriptions>
+                      </div>
+                    </div>
 
-                          <Card size="small" title="Prompt 内容" style={{ borderRadius: 12 }}>
-                            <pre
-                              style={{
-                                margin: 0,
-                                whiteSpace: 'pre-wrap',
-                                wordBreak: 'break-word',
-                                fontFamily: 'monospace',
-                                fontSize: 13,
-                                lineHeight: 1.7,
-                              }}
-                            >
-                              {selectedPrompt.content || '当前未配置 Prompt 内容。'}
-                            </pre>
-                          </Card>
+                    <div className="ap-agent-facts">
+                      <div className="ap-agent-fact">
+                        <CheckCircleOutlined />
+                        <span>版本</span>
+                        <strong>v{selectedAssistant.currentVersion}</strong>
+                      </div>
+                      <div className="ap-agent-fact">
+                        <SafetyCertificateOutlined />
+                        <span>角色</span>
+                        <strong>{selectedAssistant.templateRole || '通用'}</strong>
+                      </div>
+                      <div className="ap-agent-fact">
+                        <DatabaseOutlined />
+                        <span>范围</span>
+                        <strong>{(selectedAssistant.dataScopes?.rulesScope || [])[0] || '默认'}</strong>
+                      </div>
+                    </div>
 
-                          <Card size="small" title="绑定关系" style={{ borderRadius: 12 }}>
-                            {selectedPrompt.usageSummary?.usedBy?.length ? (
-                              <Space wrap>
-                                {selectedPrompt.usageSummary.usedBy.map((item) => (
-                                  <Tag key={`${item.assistantId}-${item.modules.join('-')}`}>
-                                    {item.assistantName} / {item.modules.join(', ')}
-                                  </Tag>
-                                ))}
-                              </Space>
-                            ) : (
-                              <div style={{ color: '#64748B' }}>当前未被模板绑定。</div>
-                            )}
-                          </Card>
+                    <Row gutter={[12, 12]} style={{ marginTop: 16 }}>
+                      <Col xs={24} md={8}>
+                        <div className="ap-agent-capability-card">
+                          <BranchesOutlined />
+                          <span>判断策略</span>
+                          <strong>
+                            {formatTechnicalLabel(selectedAssistant.defaultStrategies?.analyzeStrategy, '默认')}
+                          </strong>
+                        </div>
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <div className="ap-agent-capability-card">
+                          <DatabaseOutlined />
+                          <span>检索策略</span>
+                          <strong>
+                            {formatTechnicalLabel(selectedAssistant.defaultStrategies?.searchStrategy, '默认')}
+                          </strong>
+                        </div>
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <div className="ap-agent-capability-card">
+                          <FileTextOutlined />
+                          <span>写作策略</span>
+                          <strong>
+                            {formatTechnicalLabel(selectedAssistant.defaultStrategies?.scriptStrategy, '默认')}
+                          </strong>
+                        </div>
+                      </Col>
+                    </Row>
 
-                          <GovernanceHistoryList
-                            title="Prompt 变更历史"
-                            items={promptHistory}
-                            emptyText="当前 Prompt 暂无治理历史"
-                          />
-                        </Space>
-                      )}
-                    </Spin>
-                  </Card>
-                </Col>
-              </Row>
-            </Card>
+                    <div className="ap-agent-bindings">
+                      <div className="ap-agent-bindings__title">Prompt 绑定</div>
+                      <div className="ap-agent-binding-row">
+                        <span>判断</span>
+                        <strong>{selectedAssistant.defaultModuleBindings?.analyze || '未绑定'}</strong>
+                      </div>
+                      <div className="ap-agent-binding-row">
+                        <span>检索</span>
+                        <strong>{selectedAssistant.defaultModuleBindings?.search || '未绑定'}</strong>
+                      </div>
+                      <div className="ap-agent-binding-row">
+                        <span>写作</span>
+                        <strong>{selectedAssistant.defaultModuleBindings?.script || '未绑定'}</strong>
+                      </div>
+                    </div>
+
+                    <div className="ap-agent-danger">
+                      <Button
+                        danger
+                        type="text"
+                        onClick={handleDeleteAssistant}
+                        loading={deletingAssistant}
+                        disabled={!selectedAssistant}
+                      >
+                        删除这个 Agent
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </Spin>
+            </section>
           </Col>
         </Row>
+
+        <section className="ap-prompt-panel">
+          <div className="ap-prompt-panel__header">
+            <div>
+              <div className="ap-prompt-panel__title">Prompt 资产</div>
+              <div className="ap-prompt-panel__meta">高级配置，日常使用时无需进入。</div>
+            </div>
+            <Button shape="round" icon={<PlusOutlined />} onClick={openCreatePromptModal}>
+              新建 Prompt
+            </Button>
+          </div>
+          <Row gutter={[18, 18]}>
+            <Col xs={24} xl={10}>
+              <List
+                dataSource={prompts}
+                split={false}
+                locale={{ emptyText: '暂无 Prompt' }}
+                renderItem={(item) => (
+                  <List.Item className="ap-prompt-panel__item">
+                    <PromptListCard
+                      item={item}
+                      active={item.promptId === selectedPrompt?.promptId}
+                      onClick={() => setSelectedPromptId(item.promptId)}
+                    />
+                  </List.Item>
+                )}
+              />
+            </Col>
+            <Col xs={24} xl={14}>
+              <div className="ap-prompt-detail">
+                <Spin spinning={promptDetailLoading}>
+                  {!selectedPrompt ? (
+                    <div className="ap-agent-empty">选择一个 Prompt。</div>
+                  ) : (
+                    <>
+                      <div className="ap-prompt-detail__top">
+                        <div>
+                          <Space wrap>
+                            {getModuleTag(selectedPrompt.module)}
+                            {getStatusTag(selectedPrompt.status)}
+                          </Space>
+                          <h3>{selectedPrompt.name}</h3>
+                          <p>{selectedPrompt.description || '暂无说明'}</p>
+                        </div>
+                        <Space wrap>
+                          <Button onClick={openEditPromptModal} disabled={!selectedPrompt}>
+                            编辑
+                          </Button>
+                          <Button
+                            onClick={handlePublishPrompt}
+                            loading={publishingPrompt}
+                            disabled={!selectedPrompt}
+                          >
+                            发布
+                          </Button>
+                          <Button
+                            danger
+                            onClick={handleDeletePrompt}
+                            loading={deletingPrompt}
+                            disabled={!selectedPrompt}
+                          >
+                            删除
+                          </Button>
+                        </Space>
+                      </div>
+                      <pre className="ap-prompt-code">
+                        {selectedPrompt.content || selectedPrompt.contentPreview || '当前未配置 Prompt 内容。'}
+                      </pre>
+                      <div className="ap-prompt-used-by">
+                        <ApiOutlined />
+                        绑定 Agent：
+                        {selectedPrompt.usageSummary?.usedBy?.length
+                          ? selectedPrompt.usageSummary.usedBy.map((item) => item.assistantName).join('、')
+                          : selectedPrompt.assistantCount || 0}
+                        <ArrowRightOutlined />
+                      </div>
+                    </>
+                  )}
+                </Spin>
+              </div>
+            </Col>
+          </Row>
+        </section>
       </Spin>
 
       <Modal

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, Col, Row, Tag } from 'antd';
+import { formatTechnicalLabel, formatTechnicalValue } from '../../utils/displayLabel';
 
 type ResolvedSummaryCardProps = {
   title: string;
@@ -14,16 +15,7 @@ type ResolvedSummaryCardProps = {
 };
 
 function safeDisplayText(value: unknown) {
-  if (value === undefined || value === null || value === '') return '未返回';
-
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return '[复杂对象，暂不展开]';
-  }
+  return formatTechnicalValue(value);
 }
 
 function getSourceTag(source?: unknown) {
@@ -44,7 +36,7 @@ function getSourceTag(source?: unknown) {
     'module-binding': { text: '模块绑定', color: 'blue' },
   };
 
-  const current = sourceMap[source] || { text: source, color: 'default' };
+  const current = sourceMap[source] || { text: formatTechnicalLabel(source), color: 'default' };
   return <Tag color={current.color}>{current.text}</Tag>;
 }
 
@@ -92,7 +84,7 @@ export default function ResolvedSummaryCard({
         </Col>
 
         <Col xs={24} md={8}>
-          <SummaryItem label="策略 ID" value={strategyId || '未返回'} />
+          <SummaryItem label="策略" value={formatTechnicalLabel(strategyId)} />
         </Col>
 
         <Col xs={24} md={8}>
@@ -121,7 +113,7 @@ export default function ResolvedSummaryCard({
           }}
         >
           <div style={{ color: '#8A5A00', lineHeight: 1.8 }}>
-            <strong>fallback：</strong>
+            <strong>降级处理：</strong>
             {safeDisplayText(fallback)}
           </div>
         </Card>

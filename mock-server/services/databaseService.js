@@ -4,6 +4,7 @@ import sqlite3 from 'sqlite3';
 import mysql from 'mysql2/promise';
 import pg from 'pg';
 import { fileURLToPath } from 'url';
+import { nowLocalIso } from '../utils/localTime.js';
 
 const { Client: PgClient } = pg;
 
@@ -646,7 +647,7 @@ export const initDatabase = async (databaseConfig = {}) => {
 };
 
 export const testDatabaseConnection = async (databaseConfig = {}) => {
-  const checkedAt = new Date().toISOString();
+  const checkedAt = nowLocalIso();
   const normalizedConfig = normalizeDatabaseConfig(databaseConfig);
   let client = null;
 
@@ -1188,7 +1189,7 @@ export const saveSettingsToDatabase = async (payload, defaultSettings, databaseC
       },
     };
     const databasePayload = buildSettingsDatabasePayload(nextSettings);
-    const updatedAt = new Date().toISOString();
+    const updatedAt = nowLocalIso();
 
     if (normalizeDatabaseType(databaseConfig.dbType || databaseConfig.databaseType) === 'postgres') {
       await client.execute(

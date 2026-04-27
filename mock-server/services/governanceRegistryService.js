@@ -1,4 +1,5 @@
 import { readJsonFile, writeJsonFile } from './jsonDataService.js';
+import { nowLocalIso } from '../utils/localTime.js';
 
 const ASSISTANT_REGISTRY_FILE = 'assistantProfiles.json';
 const PROMPT_REGISTRY_FILE = 'promptRegistry.json';
@@ -12,7 +13,7 @@ const LEGACY_STRATEGY_ALIASES = {
   semiconductor_solution_first: 'local-model',
 };
 
-const now = () => new Date().toISOString();
+const now = nowLocalIso;
 
 const toNonEmptyString = (value) => {
   if (typeof value !== 'string') {

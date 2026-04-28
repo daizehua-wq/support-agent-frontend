@@ -61,6 +61,10 @@ test-results/
 mock-server/test-results/
 test-evidence/
 
+# Python cache
+__pycache__/
+*.pyc
+
 # Model files
 models/*
 !models/.gitkeep

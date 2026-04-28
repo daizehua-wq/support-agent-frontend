@@ -27,7 +27,7 @@ function PermissionDeniedModal({ open, currentRole, requiredPermission, onClose 
           当前角色：{currentRole} · 所需权限：{requiredPermission}
         </Typography.Paragraph>
         <Typography.Paragraph type="secondary" style={{ fontSize: 13 }}>
-          你当前没有访问此功能的权限。如需获取权限，请联系管理员。
+          你当前没有执行该操作的权限。如需访问，请联系系统管理员。
         </Typography.Paragraph>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

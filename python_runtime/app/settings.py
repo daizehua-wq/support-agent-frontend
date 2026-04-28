@@ -54,7 +54,7 @@ class RuntimeSettings:
     )
     litellm_local_model: str = _env_text(
         "PY_RUNTIME_LITELLM_LOCAL_MODEL",
-        "ollama/qwen2.5:7b",
+        "ollama/deepseek-r1:14b",
     )
     litellm_local_api_base: str = _env_text(
         "PY_RUNTIME_LITELLM_LOCAL_API_BASE",

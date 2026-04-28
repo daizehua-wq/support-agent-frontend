@@ -37,7 +37,7 @@ PY_RUNTIME_LITELLM_API_KEY=
 支持本地 Ollama 的 LiteLLM model 形式（示例）：
 
 ```bash
-PY_RUNTIME_LITELLM_MODEL=ollama/qwen2.5:7b
+PY_RUNTIME_LITELLM_MODEL=ollama/deepseek-r1:14b
 ```
 
 ## 本地 + 云端混合路由（推荐）
@@ -54,7 +54,7 @@ PY_RUNTIME_MODEL_ROUTE_SEARCH=local
 PY_RUNTIME_MODEL_ROUTE_SCRIPT=cloud
 
 # 本地通道（Ollama 示例）
-PY_RUNTIME_LITELLM_LOCAL_MODEL=ollama/qwen2.5:7b
+PY_RUNTIME_LITELLM_LOCAL_MODEL=ollama/deepseek-r1:14b
 PY_RUNTIME_LITELLM_LOCAL_API_BASE=http://127.0.0.1:11434
 PY_RUNTIME_LITELLM_LOCAL_API_KEY=
 

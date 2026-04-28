@@ -14,7 +14,7 @@
       "relationSource": "account-default"
     },
     "modifiedAt": "2026-04-15T10:34:26.690Z",
-    "databaseFile": "/Users/tietiedemac/sales-support-agent-frontend/data/sales_support_agent.db",
+    "databaseFile": "data/sales_support_agent.db",
     "environment": "默认环境",
     "description": "当前用于承接销售支持 Agent 配置与运行数据的数据库对象。",
     "version": 2,
@@ -295,7 +295,7 @@
               "relationSource": "account-default"
             },
             "modifiedAt": "2026-04-15T10:34:26.690Z",
-            "databaseFile": "/Users/tietiedemac/sales-support-agent-frontend/data/sales_support_agent.db",
+            "databaseFile": "data/sales_support_agent.db",
             "environment": "默认环境",
             "description": "当前用于承接销售支持 Agent 配置与运行数据的数据库对象。",
             "version": 2,
@@ -467,7 +467,7 @@
               "relationSource": "account-default"
             },
             "modifiedAt": "2026-04-15T10:34:26.690Z",
-            "databaseFile": "/Users/tietiedemac/sales-support-agent-frontend/data/sales_support_agent.db",
+            "databaseFile": "data/sales_support_agent.db",
             "environment": "默认环境",
             "description": "当前用于承接销售支持 Agent 配置与运行数据的数据库对象。",
             "version": 2,
@@ -763,7 +763,7 @@
         "relationSource": "account-default"
       },
       "modifiedAt": "2026-04-15T10:34:26.690Z",
-      "databaseFile": "/Users/tietiedemac/sales-support-agent-frontend/data/sales_support_agent.db",
+      "databaseFile": "data/sales_support_agent.db",
       "environment": "默认环境",
       "description": "当前用于承接销售支持 Agent 配置与运行数据的数据库对象。",
       "version": 2,

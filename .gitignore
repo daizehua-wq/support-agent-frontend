@@ -71,3 +71,8 @@ models/*
 *.gguf
 *.bin
 *.safetensors
+
+# local runtime json data
+data/opsRuntimeDashboard.json
+data/settingsGovernanceRegistry.json
+platform-manager/data/evolution-runs.json

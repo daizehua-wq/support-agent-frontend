@@ -1,16 +1,25 @@
+import { getConnectionApiKey } from '../data/models/externalConnection.js';
+import { getPromptByAppId } from '../data/models/appPrompt.js';
+import { estimateTokens, safeRecordCall } from '../data/models/modelCallLog.js';
+import { buildCompressedLLMMessages } from './contextCompressor.js';
+
 const API_LLM_BASE_URL = process.env.API_LLM_BASE_URL || '';
 const API_LLM_MODEL = process.env.API_LLM_MODEL || '';
 const API_LLM_API_KEY = process.env.API_LLM_API_KEY || '';
+const API_LLM_PROVIDER = process.env.API_LLM_PROVIDER || 'openai';
 const API_LLM_TIMEOUT_MS = Number(process.env.API_LLM_TIMEOUT_MS || 30000);
 const ALLOW_API_SENSITIVE_DATA = process.env.ALLOW_API_SENSITIVE_DATA === 'true';
 
 const resolveApiModelConfig = (payload = {}) => {
   const modelConfig = payload.modelConfig || payload.model || {};
+  const provider = modelConfig.provider || modelConfig.externalProvider || API_LLM_PROVIDER;
 
   return {
+    provider,
     baseUrl: modelConfig.baseUrl || API_LLM_BASE_URL,
     modelName: modelConfig.modelName || API_LLM_MODEL,
-    apiKey: modelConfig.apiKey || API_LLM_API_KEY,
+    apiKey: modelConfig.apiKey || getConnectionApiKey(provider) || API_LLM_API_KEY,
+    appId: payload.appId || payload.app_id || modelConfig.appId || modelConfig.app_id || '',
     timeout: Number(modelConfig.timeout || API_LLM_TIMEOUT_MS),
   };
 };
@@ -68,8 +77,45 @@ const cleanApiLLMOutput = (text = '') => {
     .trim();
 };
 
+const resolveSystemPrompt = (defaultPrompt = '', appId = '') => {
+  if (!appId) {
+    return defaultPrompt;
+  }
+
+  try {
+    const appPrompt = getPromptByAppId(appId);
+    return appPrompt ? `${appPrompt}\n\n【平台默认边界】\n${defaultPrompt}` : defaultPrompt;
+  } catch (error) {
+    console.warn('[apiLLMService] failed to load app prompt:', error.message);
+    return defaultPrompt;
+  }
+};
+
 const callApiLLM = async (prompt, payload = {}) => {
   const config = resolveApiModelConfig(payload);
+  const systemPrompt = resolveSystemPrompt(
+    '你是一个严谨的岗位助手，必须遵守模板和风险边界。',
+    config.appId,
+  );
+  const messageBundle = await buildCompressedLLMMessages({
+    sessionId: payload.sessionId || payload.session_id || '',
+    appId: config.appId,
+    systemPrompt,
+    userPrompt: prompt,
+  });
+  const messages = Array.isArray(messageBundle.messages) && messageBundle.messages.length
+    ? messageBundle.messages
+    : [
+        {
+          role: 'system',
+          content: systemPrompt,
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ];
+  const startedAt = Date.now();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), config.timeout);
 
@@ -89,16 +135,7 @@ const callApiLLM = async (prompt, payload = {}) => {
       body: JSON.stringify({
         model: config.modelName,
         temperature: 0.4,
-        messages: [
-          {
-            role: 'system',
-            content: '你是一个严谨的岗位助手，必须遵守模板和风险边界。',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
+        messages,
       }),
     });
 
@@ -109,7 +146,23 @@ const callApiLLM = async (prompt, payload = {}) => {
 
     const data = await response.json();
     const rawText = data?.choices?.[0]?.message?.content?.trim() || '';
+    safeRecordCall({
+      appId: config.appId,
+      model: config.modelName,
+      success: true,
+      latencyMs: Date.now() - startedAt,
+      tokensUsed: data?.usage?.total_tokens || estimateTokens(JSON.stringify(messages), rawText),
+    });
     return cleanApiLLMOutput(rawText);
+  } catch (error) {
+    safeRecordCall({
+      appId: config.appId,
+      model: config.modelName,
+      success: false,
+      latencyMs: Date.now() - startedAt,
+      tokensUsed: 0,
+    });
+    throw error;
   } finally {
     clearTimeout(timer);
   }

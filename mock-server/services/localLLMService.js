@@ -1,3 +1,7 @@
+import { estimateTokens, safeRecordCall } from '../data/models/modelCallLog.js';
+import { getPromptByAppId } from '../data/models/appPrompt.js';
+import { buildCompressedLLMMessages } from './contextCompressor.js';
+
 const LOCAL_LLM_BASE_URL = process.env.LOCAL_LLM_BASE_URL || '';
 const LOCAL_LLM_MODEL = process.env.LOCAL_LLM_MODEL || '';
 const LOCAL_LLM_API_KEY = process.env.LOCAL_LLM_API_KEY || '';
@@ -31,7 +35,45 @@ const sanitizeLocalLLMOutput = (text) => {
     .trim();
 };
 
-const callLocalLLM = async (prompt) => {
+const resolveSystemPrompt = (defaultPrompt = '', appId = '') => {
+  if (!appId) {
+    return defaultPrompt;
+  }
+
+  try {
+    const appPrompt = getPromptByAppId(appId);
+    return appPrompt ? `${appPrompt}\n\n【平台默认边界】\n${defaultPrompt}` : defaultPrompt;
+  } catch (error) {
+    console.warn('[localLLMService] failed to load app prompt:', error.message);
+    return defaultPrompt;
+  }
+};
+
+const callLocalLLM = async (prompt, payload = {}) => {
+  const appId = payload.appId || payload.app_id || '';
+  const systemPrompt = resolveSystemPrompt(
+    '你是一个严谨的本地岗位助手，必须遵守模板和风险边界。',
+    appId,
+  );
+  const messageBundle = await buildCompressedLLMMessages({
+    sessionId: payload.sessionId || payload.session_id || '',
+    appId,
+    systemPrompt,
+    userPrompt: prompt,
+  });
+  const messages = Array.isArray(messageBundle.messages) && messageBundle.messages.length
+    ? messageBundle.messages
+    : [
+        {
+          role: 'system',
+          content: systemPrompt,
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ];
+  const startedAt = Date.now();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), LOCAL_LLM_TIMEOUT_MS);
 
@@ -46,16 +88,7 @@ const callLocalLLM = async (prompt) => {
       body: JSON.stringify({
         model: LOCAL_LLM_MODEL,
         temperature: 0.4,
-        messages: [
-          {
-            role: 'system',
-            content: '你是一个严谨的本地岗位助手，必须遵守模板和风险边界。',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
+        messages,
       }),
     });
 
@@ -65,7 +98,24 @@ const callLocalLLM = async (prompt) => {
     }
 
     const data = await response.json();
-    return data?.choices?.[0]?.message?.content?.trim() || '';
+    const rawText = data?.choices?.[0]?.message?.content?.trim() || '';
+    safeRecordCall({
+      appId: payload.appId || payload.app_id || '',
+      model: LOCAL_LLM_MODEL,
+      success: true,
+      latencyMs: Date.now() - startedAt,
+      tokensUsed: data?.usage?.total_tokens || estimateTokens(JSON.stringify(messages), rawText),
+    });
+    return rawText;
+  } catch (error) {
+    safeRecordCall({
+      appId: payload.appId || payload.app_id || '',
+      model: LOCAL_LLM_MODEL,
+      success: false,
+      latencyMs: Date.now() - startedAt,
+      tokensUsed: 0,
+    });
+    throw error;
   } finally {
     clearTimeout(timer);
   }
@@ -84,7 +134,7 @@ export const generateScriptWithLocalLLM = async (payload) => {
   }
 
   try {
-    const rewrittenScript = await callLocalLLM(prompt);
+    const rewrittenScript = await callLocalLLM(prompt, payload);
     const cleanedScript = sanitizeLocalLLMOutput(rewrittenScript);
 
     return {

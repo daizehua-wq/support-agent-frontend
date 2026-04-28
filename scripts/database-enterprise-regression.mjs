@@ -1,6 +1,16 @@
 import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
+import {
+  buildFileExistsCheck,
+  buildPreflightCheck,
+  buildPreflightPayload,
+  buildRequiredValueCheck,
+  hasFailedChecks,
+  printPreflightReport,
+  probeApiHealth,
+  probeTcpEndpoint,
+} from './lib/databaseRegressionPreflight.mjs';
 
 const args = process.argv.slice(2);
 
@@ -212,7 +222,105 @@ const isDbConfigReady = (config = {}) => {
   return Boolean(config.dbHost && config.dbPort && config.dbUsername);
 };
 
-const executeDbRegression = ({ config = {}, drySkip = false }) => {
+const hasDbConfigHints = (config = {}) => {
+  return Boolean(
+    config.dbHost ||
+      config.dbUsername ||
+      config.dbPassword ||
+      config.dbAdminUsername ||
+      config.dbAdminPassword,
+  );
+};
+
+const buildTargetPreflight = async ({ config = {}, drySkip = false, apiHealthCheck = null } = {}) => {
+  if (drySkip) {
+    return {
+      dbType: config.dbType,
+      runnable: false,
+      reason: 'skipped-by-flag',
+      payload: buildPreflightPayload({
+        label: `${config.dbType}-preflight`,
+        checks: [
+          buildPreflightCheck({
+            id: `${config.dbType}-skip-flag`,
+            label: `${config.dbType} 回归开关`,
+            status: 'skipped',
+            detail: `已通过 --skip-${config.dbType} 或环境变量跳过。`,
+          }),
+        ],
+      }),
+    };
+  }
+
+  if (!hasDbConfigHints(config)) {
+    return {
+      dbType: config.dbType,
+      runnable: false,
+      reason: 'missing-runtime-credentials',
+      payload: buildPreflightPayload({
+        label: `${config.dbType}-preflight`,
+        checks: [
+          buildPreflightCheck({
+            id: `${config.dbType}-credentials`,
+            label: `${config.dbType} 运行参数`,
+            status: 'warning',
+            detail: `未检测到 ${config.dbType} 的运行参数，当前目标不会执行。`,
+            hint: `请在 ${envFilePath} 或当前环境中补充 ${config.dbType.toUpperCase()}_* 配置。`,
+          }),
+        ],
+      }),
+    };
+  }
+
+  const checks = [
+    buildRequiredValueCheck({
+      id: `${config.dbType}-host`,
+      label: `${config.dbType} 主机`,
+      value: config.dbHost,
+      reference: `${config.dbType.toUpperCase()}_HOST`,
+    }),
+    buildRequiredValueCheck({
+      id: `${config.dbType}-port`,
+      label: `${config.dbType} 端口`,
+      value: config.dbPort,
+      reference: `${config.dbType.toUpperCase()}_PORT`,
+    }),
+    buildRequiredValueCheck({
+      id: `${config.dbType}-username`,
+      label: `${config.dbType} 用户名`,
+      value: config.dbUsername,
+      reference: `${config.dbType.toUpperCase()}_USERNAME`,
+    }),
+  ];
+
+  if (apiHealthCheck) {
+    checks.push(apiHealthCheck);
+  }
+
+  if (!hasFailedChecks(checks)) {
+    checks.push(
+      await probeTcpEndpoint({
+        id: `${config.dbType}-tcp`,
+        label: `${config.dbType} 目标端口`,
+        host: config.dbHost,
+        port: config.dbPort,
+        hint: `请确认 ${config.dbType} 服务已启动，且 ${config.dbHost}:${config.dbPort} 当前可访问。`,
+      }),
+    );
+  }
+
+  return {
+    dbType: config.dbType,
+    runnable: !hasFailedChecks(checks),
+    reason: hasFailedChecks(checks) ? 'preflight-failed' : 'ready',
+    payload: buildPreflightPayload({
+      label: `${config.dbType}-preflight`,
+      checks,
+    }),
+  };
+};
+
+const executeDbRegression = ({ config = {}, drySkip = false, targetPreflight = null }) => {
   if (drySkip) {
     return {
       dbType: config.dbType,
@@ -240,6 +348,22 @@ const executeDbRegression = ({ config = {}, drySkip = false }) => {
       stdout: '',
       stderr: '',
       exitCode: 0,
+    };
+  }
+
+  if (targetPreflight && targetPreflight.runnable === false) {
+    return {
+      dbType: config.dbType,
+      status: 'preflight-failed',
+      reason: targetPreflight.reason || 'preflight-failed',
+      startedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      durationMs: 0,
+      command: [],
+      stdout: '',
+      stderr: '',
+      exitCode: 1,
+      preflight: targetPreflight.payload,
     };
   }
 
@@ -311,26 +435,56 @@ const executeDbRegression = ({ config = {}, drySkip = false }) => {
     stdout: String(commandResult.stdout || ''),
     stderr: String(commandResult.stderr || ''),
     exitCode: Number(commandResult.status ?? 1),
+    preflight: targetPreflight?.payload,
   };
 };
+
+const apiHealthCheck = await probeApiHealth({
+  label: 'Mock Server /health',
+  apiBaseUrl,
+  hint: '请先启动 mock server，并确认 API_BASE_URL 指向可访问的本地服务。',
+});
+const envFileCheck = buildFileExistsCheck({
+  id: 'enterprise-env-file',
+  label: '企业回归环境文件',
+  filePath: envFilePath,
+  missingStatus:
+    hasDbConfigHints(mysqlConfig) || hasDbConfigHints(postgresConfig) ? 'warning' : 'failed',
+  missingHint: `请基于 config/database-enterprise.env.example 创建 ${envFilePath}，或直接通过进程环境变量提供 MYSQL_* / POSTGRES_*。`,
+});
+const mysqlPreflight = await buildTargetPreflight({
+  config: mysqlConfig,
+  drySkip: skipMysql,
+  apiHealthCheck,
+});
+const postgresPreflight = await buildTargetPreflight({
+  config: postgresConfig,
+  drySkip: skipPostgres,
+  apiHealthCheck,
+});
 
 const executionResults = [];
 executionResults.push(
   executeDbRegression({
     config: mysqlConfig,
     drySkip: skipMysql,
+    targetPreflight: mysqlPreflight,
   }),
 );
 executionResults.push(
   executeDbRegression({
     config: postgresConfig,
     drySkip: skipPostgres,
+    targetPreflight: postgresPreflight,
   }),
 );
 
-const configuredCount = executionResults.filter((item) => item.reason !== 'missing-runtime-credentials' && item.reason !== 'skipped-by-flag').length;
+const configuredCount = executionResults.filter(
+  (item) => item.reason !== 'missing-runtime-credentials' && item.reason !== 'skipped-by-flag',
+).length;
 const passedCount = executionResults.filter((item) => item.status === 'passed').length;
 const failedCount = executionResults.filter((item) => item.status === 'failed').length;
+const preflightFailedCount = executionResults.filter((item) => item.status === 'preflight-failed').length;
 const skippedCount = executionResults.filter((item) => item.status === 'skipped').length;
 
 const requireAllViolation =
@@ -338,9 +492,61 @@ const requireAllViolation =
   executionResults.some((item) => item.status !== 'passed');
 
 const finalStatus =
-  failedCount > 0 || requireAllViolation || configuredCount === 0
+  failedCount > 0 || preflightFailedCount > 0 || requireAllViolation || configuredCount === 0
     ? 'failed'
     : 'passed';
+
+const enterprisePreflightPayload = buildPreflightPayload({
+  label: 'database-enterprise-regression',
+  checks: [
+    envFileCheck,
+    apiHealthCheck,
+    buildPreflightCheck({
+      id: 'mysql-target',
+      label: 'MySQL 目标状态',
+      status:
+        mysqlPreflight.reason === 'ready'
+          ? 'passed'
+          : mysqlPreflight.reason === 'skipped-by-flag'
+            ? 'skipped'
+            : mysqlPreflight.reason === 'missing-runtime-credentials'
+              ? 'warning'
+              : 'failed',
+      detail:
+        mysqlPreflight.reason === 'ready'
+          ? 'MySQL 目标已通过预检。'
+          : mysqlPreflight.reason === 'skipped-by-flag'
+            ? 'MySQL 目标已被显式跳过。'
+            : mysqlPreflight.reason === 'missing-runtime-credentials'
+              ? 'MySQL 目标未配置运行参数。'
+              : 'MySQL 目标预检失败。',
+    }),
+    buildPreflightCheck({
+      id: 'postgres-target',
+      label: 'PostgreSQL 目标状态',
+      status:
+        postgresPreflight.reason === 'ready'
+          ? 'passed'
+          : postgresPreflight.reason === 'skipped-by-flag'
+            ? 'skipped'
+            : postgresPreflight.reason === 'missing-runtime-credentials'
+              ? 'warning'
+              : 'failed',
+      detail:
+        postgresPreflight.reason === 'ready'
+          ? 'PostgreSQL 目标已通过预检。'
+          : postgresPreflight.reason === 'skipped-by-flag'
+            ? 'PostgreSQL 目标已被显式跳过。'
+            : postgresPreflight.reason === 'missing-runtime-credentials'
+              ? 'PostgreSQL 目标未配置运行参数。'
+              : 'PostgreSQL 目标预检失败。',
+    }),
+  ],
+  guidance: [
+    `优先检查 ${envFilePath} 是否存在并填好 MYSQL_* / POSTGRES_*。`,
+    '如果 mock server 未启动，先启动 3001 端口服务后再执行企业回归。',
+  ],
+});
 
 const reportPayload = {
   contractVersion: 'database-enterprise-regression/v1',
@@ -353,8 +559,10 @@ const reportPayload = {
     configuredCount,
     passedCount,
     failedCount,
+    preflightFailedCount,
     skippedCount,
   },
+  preflight: enterprisePreflightPayload,
   results: executionResults,
 };
 
@@ -373,14 +581,20 @@ if (finalStatus === 'passed') {
 console.error('[database-enterprise-regression] FAIL', {
   configuredCount,
   failedCount,
+  preflightFailedCount,
   skippedCount,
   requireAll,
   reportFile,
 });
 
+printPreflightReport({
+  label: 'database-enterprise-regression',
+  payload: enterprisePreflightPayload,
+});
+
 if (configuredCount === 0) {
   console.error(
-    '[database-enterprise-regression] no executable database target found. Please set MYSQL_* and/or POSTGRES_* in config/database-enterprise.env',
+    `[database-enterprise-regression] no executable database target found. Please set MYSQL_* and/or POSTGRES_* in ${envFilePath}`,
   );
 }
 

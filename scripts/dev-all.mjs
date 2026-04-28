@@ -4,6 +4,7 @@ import net from 'node:net';
 const root = process.cwd();
 const children = [];
 const DEFAULT_HOST = '127.0.0.1';
+const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 const isPortBusy = (port, host = DEFAULT_HOST) =>
   new Promise((resolve) => {
@@ -115,7 +116,7 @@ const start = async () => {
   }
 
   console.log('[dev:all] starting vite dev server');
-  spawnProcess('vite', process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'dev']);
+  spawnProcess('vite', npmCommand, ['run', 'dev']);
 };
 
 start().catch((error) => {

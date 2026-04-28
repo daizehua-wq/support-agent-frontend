@@ -1,5 +1,13 @@
 import fs from 'fs';
 import path from 'path';
+import {
+  buildPreflightPayload,
+  buildRequiredValueCheck,
+  hasFailedChecks,
+  printPreflightReport,
+  probeApiHealth,
+  probeTcpEndpoint,
+} from './lib/databaseRegressionPreflight.mjs';
 
 const args = process.argv.slice(2);
 
@@ -188,18 +196,6 @@ const maintenanceDatabase = String(
   }),
 ).trim();
 
-if (!['mysql', 'postgres'].includes(dbType)) {
-  console.error('`--db-type` must be `mysql` or `postgres`.');
-  printUsage();
-  process.exit(1);
-}
-
-if (!dbHost || !dbPort || !dbUsername) {
-  console.error('Missing required database connection fields.');
-  printUsage();
-  process.exit(1);
-}
-
 const reportDir = path.join(process.cwd(), 'mock-server', 'test-results');
 fs.mkdirSync(reportDir, { recursive: true });
 const reportFile = path.join(
@@ -265,6 +261,94 @@ const writeReport = (status, error = null) => {
   };
 
   fs.writeFileSync(reportFile, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+};
+
+const buildPreflightChecks = async () => {
+  const checks = [
+    buildRequiredValueCheck({
+      id: 'db-type',
+      label: '数据库类型',
+      value: dbType,
+      allowedValues: ['mysql', 'postgres'],
+      reference: '--db-type / DB_TYPE',
+    }),
+    buildRequiredValueCheck({
+      id: 'db-host',
+      label: '数据库主机',
+      value: dbHost,
+      reference: '--db-host / DB_HOST',
+    }),
+    buildRequiredValueCheck({
+      id: 'db-port',
+      label: '数据库端口',
+      value: dbPort,
+      reference: '--db-port / DB_PORT',
+    }),
+    buildRequiredValueCheck({
+      id: 'db-username',
+      label: '数据库用户名',
+      value: dbUsername,
+      reference: '--db-username / DB_USERNAME',
+    }),
+  ];
+
+  if (!hasFailedChecks(checks)) {
+    checks.push(
+      await probeApiHealth({
+        label: 'Mock Server /health',
+        apiBaseUrl,
+        hint: '请先启动 mock server，并确认 API_BASE_URL 指向可访问的本地服务。',
+      }),
+    );
+    checks.push(
+      await probeTcpEndpoint({
+        id: 'db-port-reachable',
+        label: `${dbType || 'database'} 目标端口`,
+        host: dbHost,
+        port: dbPort,
+        hint: `请确认 ${dbType || 'database'} 实例已启动，且 ${dbHost}:${dbPort} 当前可访问。`,
+      }),
+    );
+  }
+
+  return checks;
+};
+
+const runPreflightOrExit = async () => {
+  const checks = await buildPreflightChecks();
+  const guidance = [
+    '如果只是本地预检，可先启动 mock server，再补充数据库连接参数。',
+    '如果要跑完整回归，至少需要可访问的 MySQL 或 PostgreSQL 实例。',
+  ];
+  const payload = buildPreflightPayload({
+    label: 'database-api-integration',
+    checks,
+    guidance,
+  });
+
+  if (!hasFailedChecks(checks)) {
+    return;
+  }
+
+  printPreflightReport({
+    label: 'database-api-integration',
+    payload,
+  });
+
+  if (
+    checks.some(
+      (item) =>
+        item?.status === 'failed' &&
+        ['db-type', 'db-host', 'db-port', 'db-username'].includes(item.id),
+    )
+  ) {
+    printUsage();
+  }
+
+  const error = new Error('database api integration preflight failed');
+  error.payload = payload;
+  writeReport('preflight-failed', error);
+  process.exit(1);
 };
 
 const assertCondition = (condition, message, details = undefined) => {
@@ -403,6 +487,8 @@ const cleanup = async () => {
 };
 
 const main = async () => {
+  await runPreflightOrExit();
+
   log(`Running ${dbType} API integration against ${apiBaseUrl}`);
   log(`Target database: ${dbName}`);
 

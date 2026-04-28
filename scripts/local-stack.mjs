@@ -17,6 +17,10 @@ const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const defaultJaegerUrl = normalizeUrl(process.env.JAEGER_UI_URL || 'http://127.0.0.1:16686');
 const mockBaseUrl = normalizeUrl(process.env.LOCAL_STACK_MOCK_BASE_URL || 'http://127.0.0.1:3001');
 const pythonBaseUrl = normalizeUrl(process.env.LOCAL_STACK_PYTHON_BASE_URL || 'http://127.0.0.1:8008');
+const gatewayBaseUrl = normalizeUrl(process.env.LOCAL_STACK_GATEWAY_BASE_URL || 'http://127.0.0.1:3000');
+const platformManagerBaseUrl = normalizeUrl(
+  process.env.LOCAL_STACK_PLATFORM_MANAGER_BASE_URL || 'http://127.0.0.1:3003',
+);
 const viteBaseUrl = normalizeUrl(process.env.LOCAL_STACK_VITE_BASE_URL || 'http://127.0.0.1:5173');
 const expectedServiceName = process.env.OTEL_SERVICE_NAME || 'mock-server';
 const shouldCheckJaeger =
@@ -56,6 +60,39 @@ const services = [
       args: ['mock-server/server.js'],
     }),
     wait: () => waitForJson(`${mockBaseUrl}/health`, isHealthyResponse, 30000),
+  },
+  {
+    id: 'api-gateway',
+    label: 'api gateway',
+    port: 3000,
+    logFile: path.join(artifactsDir, 'api-gateway.log'),
+    start: () => ({
+      command: process.execPath,
+      args: ['api-gateway/src/index.js'],
+      env: {
+        ...process.env,
+        PORT: '3000',
+        MOCK_SERVER_URL: mockBaseUrl,
+      },
+    }),
+    wait: () => waitForJson(`${gatewayBaseUrl}/health`, isHealthyResponse, 30000),
+  },
+  {
+    id: 'platform-manager',
+    label: 'platform manager',
+    port: 3003,
+    logFile: path.join(artifactsDir, 'platform-manager.log'),
+    start: () => ({
+      command: process.execPath,
+      args: ['platform-manager/src/index.js'],
+      env: {
+        ...process.env,
+        PORT: '3003',
+        MOCK_SERVER_URL: mockBaseUrl,
+        API_GATEWAY_URL: gatewayBaseUrl,
+      },
+    }),
+    wait: () => waitForJson(`${platformManagerBaseUrl}/health`, isHealthyResponse, 30000),
   },
   {
     id: 'vite',
@@ -382,6 +419,14 @@ async function verifyLocalStack() {
   console.log('[local-stack] running health checks and regression verification');
 
   await waitForJson(`${mockBaseUrl}/health`, isHealthyResponse, 20000);
+  await waitForJson(`${gatewayBaseUrl}/health`, isHealthyResponse, 20000);
+  await waitForJson(`${platformManagerBaseUrl}/health`, isHealthyResponse, 20000);
+  await waitForJson(
+    `${mockBaseUrl}/internal/data/external-connections`,
+    isDataEnvelopeResponse,
+    20000,
+    { internal: true },
+  );
   await waitForJson(`${pythonBaseUrl}/health`, isHealthyResponse, 20000);
   await waitForText(
     viteBaseUrl,
@@ -605,6 +650,32 @@ function runTypeCheck() {
   if (result.status !== 0) {
     throw new Error(`type-check failed with exit code ${result.status ?? 1}`);
   }
+
+  const gatewayCheck = spawnSync(npmCommand, ['--prefix', 'api-gateway', 'run', 'check'], {
+    cwd: root,
+    stdio: 'inherit',
+    env: process.env,
+  });
+
+  if (gatewayCheck.status !== 0) {
+    throw new Error(`api-gateway check failed with exit code ${gatewayCheck.status ?? 1}`);
+  }
+
+  const platformManagerCheck = spawnSync(
+    npmCommand,
+    ['--prefix', 'platform-manager', 'run', 'check'],
+    {
+      cwd: root,
+      stdio: 'inherit',
+      env: process.env,
+    },
+  );
+
+  if (platformManagerCheck.status !== 0) {
+    throw new Error(
+      `platform-manager check failed with exit code ${platformManagerCheck.status ?? 1}`,
+    );
+  }
 }
 
 async function stopLocalStack() {
@@ -699,9 +770,31 @@ function isHealthyResponse(payload = {}) {
   return false;
 }
 
+function isDataEnvelopeResponse(payload = {}) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return false;
+  }
+
+  const envelope = unwrapEnvelope(payload);
+  return envelope.success === true && Array.isArray(envelope.data);
+}
+
 function unwrapEnvelope(payload = {}) {
   const outerCode = typeof payload?.code === 'number' ? payload.code : 200;
   const outerTraceId = typeof payload?.traceId === 'string' ? payload.traceId : '';
+
+  if (payload && typeof payload === 'object' && !Array.isArray(payload) && 'success' in payload) {
+    return {
+      code: outerCode,
+      traceId: outerTraceId,
+      success: payload.success !== false,
+      message: payload.message || '',
+      data: payload.data || {},
+      meta: payload.meta || {},
+      raw: payload,
+    };
+  }
+
   const outerData = Object.prototype.hasOwnProperty.call(payload, 'data') ? payload.data : payload;
 
   if (outerData && typeof outerData === 'object' && !Array.isArray(outerData) && 'success' in outerData) {
@@ -727,6 +820,8 @@ function unwrapEnvelope(payload = {}) {
   };
 }
 
+const POST_JSON_TIMEOUT_MS = 120000;
+
 async function postJson(url, payload) {
   const response = await fetch(url, {
     method: 'POST',
@@ -735,7 +830,7 @@ async function postJson(url, payload) {
       'x-client-type': 'web',
     },
     body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(45000),
+    signal: AbortSignal.timeout(POST_JSON_TIMEOUT_MS),
   });
 
   const data = await response.json().catch(() => ({}));
@@ -747,8 +842,14 @@ async function postJson(url, payload) {
   return data;
 }
 
-async function fetchJson(url) {
+async function fetchJson(url, options = {}) {
+  const headers = options.internal
+    ? {
+        'X-Internal-Call': 'true',
+      }
+    : undefined;
   const response = await fetch(url, {
+    headers,
     signal: AbortSignal.timeout(10000),
   });
 
@@ -761,13 +862,13 @@ async function fetchJson(url) {
   return data;
 }
 
-async function waitForJson(url, matcher, timeoutMs = 20000) {
+async function waitForJson(url, matcher, timeoutMs = 20000, options = {}) {
   const startedAt = Date.now();
   let lastError = null;
 
   while (Date.now() - startedAt < timeoutMs) {
     try {
-      const payload = await fetchJson(url);
+      const payload = await fetchJson(url, options);
       if (matcher(payload)) {
         return payload;
       }

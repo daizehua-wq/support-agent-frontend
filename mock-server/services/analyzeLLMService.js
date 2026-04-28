@@ -1,6 +1,11 @@
+import { getConnectionApiKey } from '../data/models/externalConnection.js';
+import { getPromptByAppId } from '../data/models/appPrompt.js';
+import { estimateTokens, safeRecordCall } from '../data/models/modelCallLog.js';
+
 const ANALYZE_LLM_BASE_URL = process.env.ANALYZE_LLM_BASE_URL || process.env.LOCAL_LLM_BASE_URL || '';
 const ANALYZE_LLM_MODEL = process.env.ANALYZE_LLM_MODEL || process.env.LOCAL_LLM_MODEL || '';
 const ANALYZE_LLM_API_KEY = process.env.ANALYZE_LLM_API_KEY || process.env.LOCAL_LLM_API_KEY || 'ollama';
+const ANALYZE_EXTERNAL_PROVIDER = process.env.ANALYZE_EXTERNAL_PROVIDER || 'openai';
 const ANALYZE_LLM_TIMEOUT_MS = Number(
   process.env.ANALYZE_LLM_TIMEOUT_MS || process.env.LOCAL_LLM_TIMEOUT_MS || 180000
 );
@@ -26,12 +31,20 @@ const resolveAnalyzeModelConfig = (options = {}) => {
     executionStrategy === 'masked-api' && outboundAllowed
       ? 'api'
       : modelConfig.modelProvider || 'local';
+  const externalProvider =
+    modelConfig.provider || modelConfig.externalProvider || ANALYZE_EXTERNAL_PROVIDER;
+  const apiKey =
+    provider === 'api'
+      ? modelConfig.apiKey || getConnectionApiKey(externalProvider) || ANALYZE_LLM_API_KEY
+      : modelConfig.apiKey || ANALYZE_LLM_API_KEY;
 
   return {
     provider,
+    externalProvider,
     baseUrl: modelConfig.baseUrl || ANALYZE_LLM_BASE_URL,
     modelName: modelConfig.modelName || ANALYZE_LLM_MODEL,
-    apiKey: modelConfig.apiKey || ANALYZE_LLM_API_KEY,
+    apiKey,
+    appId: options.appId || options.app_id || modelConfig.appId || modelConfig.app_id || '',
     timeout: Number(modelConfig.timeout || ANALYZE_LLM_TIMEOUT_MS),
   };
 };
@@ -100,6 +113,20 @@ const extractJsonBlock = (text = '') => {
   return JSON.parse(match[0]);
 };
 
+const resolveSystemPrompt = (defaultPrompt = '', appId = '') => {
+  if (!appId) {
+    return defaultPrompt;
+  }
+
+  try {
+    const appPrompt = getPromptByAppId(appId);
+    return appPrompt ? `${appPrompt}\n\n【平台默认边界】\n${defaultPrompt}` : defaultPrompt;
+  } catch (error) {
+    console.warn('[analyzeLLMService] failed to load app prompt:', error.message);
+    return defaultPrompt;
+  }
+};
+
 const normalizeEnhancedResult = (parsed = {}, baseResult = {}) => {
   const next = {
     ...baseResult,
@@ -126,6 +153,11 @@ const callAnalyzeLLM = async (prompt, options = {}) => {
     throw new Error('Analyze LLM 未配置');
   }
 
+  const startedAt = Date.now();
+  const systemPrompt = resolveSystemPrompt(
+    '你是一个严格遵守占位符和 JSON 输出格式的客户分析增强助手。',
+    config.appId,
+  );
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.timeout);
 
@@ -147,7 +179,7 @@ const callAnalyzeLLM = async (prompt, options = {}) => {
         messages: [
           {
             role: 'system',
-            content: '你是一个严格遵守占位符和 JSON 输出格式的客户分析增强助手。',
+            content: systemPrompt,
           },
           {
             role: 'user',
@@ -164,7 +196,23 @@ const callAnalyzeLLM = async (prompt, options = {}) => {
 
     const data = await response.json();
     const rawText = data?.choices?.[0]?.message?.content || '';
+    safeRecordCall({
+      appId: config.appId,
+      model: config.modelName,
+      success: true,
+      latencyMs: Date.now() - startedAt,
+      tokensUsed: data?.usage?.total_tokens || estimateTokens(prompt, rawText),
+    });
     return cleanAnalyzeLLMOutput(rawText);
+  } catch (error) {
+    safeRecordCall({
+      appId: config.appId,
+      model: config.modelName,
+      success: false,
+      latencyMs: Date.now() - startedAt,
+      tokensUsed: 0,
+    });
+    throw error;
   } finally {
     clearTimeout(timeout);
   }

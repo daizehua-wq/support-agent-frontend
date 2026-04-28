@@ -1542,3 +1542,116 @@ body {
     transform: translateY(0);
   }
 }
+
+/* ===== FE-4: Output Page ===== */
+.ap-output-page {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 28px 4px 48px;
+}
+
+.ap-output-target {
+  margin-bottom: 24px;
+}
+
+.ap-output-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 22px;
+}
+
+.ap-output-main {
+  min-width: 0;
+}
+
+.ap-output-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ap-output-tabs {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 30px;
+  overflow: hidden;
+}
+
+.ap-output-tabs__header {
+  padding: 8px 20px 0;
+}
+
+.ap-output-tabs__body {
+  padding: 22px;
+  min-height: 420px;
+}
+
+.ap-output-actions {
+  margin-top: 22px;
+}
+
+.ap-output-version-list {
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 28px;
+}
+
+.ap-evidence-card {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 28px;
+}
+
+.ap-evidence-card__item {
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.72);
+  margin-bottom: 8px;
+}
+
+.ap-risk-panel {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 28px;
+}
+
+.ap-risk-panel__item {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.72);
+}
+
+@media (max-width: 1024px) {
+  .ap-output-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .ap-output-aside {
+    order: 2;
+  }
+}
+
+@media (max-width: 640px) {
+  .ap-output-tabs__body {
+    padding: 14px;
+  }
+
+  .ap-output-actions .ant-space {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .ap-output-actions .ant-btn {
+    width: 100%;
+  }
+}

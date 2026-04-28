@@ -115,7 +115,7 @@
         "modelProvider": "api",
         "modelName": "deepseek-reasoner",
         "baseUrl": "https://api.deepseek.com/v1",
-        "apiKey": "sk-831433364f5f4067bc1b2bfa7012c0f0",
+        "apiKey": "secret://redacted/api-key",
         "timeout": "180000",
         "id": "model_1776251156612",
         "enabled": true,
@@ -140,7 +140,7 @@
         "baseUrl": "https://api.deepseek.com/v1",
         "modelName": "deepseek-chat",
         "timeout": "180000",
-        "apiKey": "sk-685e796bba0b49f0acf412cf914b022a"
+        "apiKey": "secret://redacted/api-key"
       }
     ],
     "moduleBindings": {
@@ -150,7 +150,7 @@
     },
     "modelProvider": "api",
     "baseUrl": "https://api.deepseek.com/v1",
-    "apiKey": "sk-831433364f5f4067bc1b2bfa7012c0f0",
+    "apiKey": "secret://redacted/api-key",
     "modelName": "deepseek-reasoner",
     "timeout": "180000"
   },

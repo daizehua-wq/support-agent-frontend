@@ -1,10 +1,13 @@
-import { Card, Typography } from 'antd';
-import { ThunderboltOutlined } from '@ant-design/icons';
+import { Card, Typography, Button, message } from 'antd';
+import { ThunderboltOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { useState } from 'react';
+import ModelTestResultDrawer from '../../components/settings/ModelTestResultDrawer';
 import PlannerModelCard from '../../components/settings/PlannerModelCard';
 import SettingsModuleShell from '../../components/settings/SettingsModuleShell';
 import ModelCenterPage from '../ModelCenter';
 
 function SettingsModelsPage() {
+  const [showTest, setShowTest] = useState(false);
   return (
     <SettingsModuleShell
       title="大模型管理"
@@ -33,8 +36,20 @@ function SettingsModelsPage() {
       </Card>
 
       <div style={{ marginTop: 18 }}>
+        <Button icon={<CheckCircleOutlined />} onClick={() => setShowTest(true)} style={{ marginBottom: 12 }}>测试模型连接</Button>
         <ModelCenterPage />
       </div>
+
+      <ModelTestResultDrawer
+        open={showTest}
+        modelName="gpt-4o-mini"
+        status="success"
+        responseTime={342}
+        fallbackTriggered={false}
+        outputPreview="模型已成功返回结构化响应：识别为销售跟进场景..."
+        onReTest={() => message.info('已发起重新测试')}
+        onClose={() => setShowTest(false)}
+      />
     </SettingsModuleShell>
   );
 }

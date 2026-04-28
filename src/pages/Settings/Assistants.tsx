@@ -1,8 +1,12 @@
-import { Card, Typography } from 'antd';
+import { Card, Typography, Button } from 'antd';
+import { CheckCircleOutlined } from '@ant-design/icons';
+import { useState } from 'react';
+import AssistantPublishConfirmModal from '../../components/settings/AssistantPublishConfirmModal';
 import SettingsModuleShell from '../../components/settings/SettingsModuleShell';
 import AssistantCenterPage from '../AssistantCenter';
 
 function SettingsAssistantsPage() {
+  const [showPublish, setShowPublish] = useState(false);
   return (
     <SettingsModuleShell
       title="Assistant / Prompt"
@@ -17,6 +21,19 @@ function SettingsAssistantsPage() {
           这些配置会影响 Workbench 的任务规划、Analysis Step 和 Output 生成。
         </Typography.Text>
       </Card>
+
+      <div style={{ marginBottom: 18 }}>
+        <Button type="primary" icon={<CheckCircleOutlined />} onClick={() => setShowPublish(true)}>发布 Assistant 示例</Button>
+        <AssistantPublishConfirmModal
+          open={showPublish}
+          assistantName="销售支持助手"
+          currentVersion="v3"
+          newVersion="v4"
+          affectedModules={['workbench', 'output']}
+          onPublish={() => setShowPublish(false)}
+          onCancel={() => setShowPublish(false)}
+        />
+      </div>
 
       <AssistantCenterPage />
     </SettingsModuleShell>

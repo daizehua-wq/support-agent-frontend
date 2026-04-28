@@ -1,12 +1,20 @@
 import { Card, Tag, Typography } from 'antd';
 import { LockOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import { useState } from 'react';
+import DataSourceHealthCheckDrawer from '../../../components/settings/DataSourceHealthCheckDrawer';
+import SettingsSecretReferenceDrawer from '../../../components/settings/SettingsSecretReferenceDrawer';
+import PermissionDeniedModal from '../../../components/settings/PermissionDeniedModal';
 import RuntimeStatusCard from '../../../components/settings/RuntimeStatusCard';
 import SettingsModuleShell from '../../../components/settings/SettingsModuleShell';
 import { MOCK_RUNTIME } from '../../../utils/mockSettingsModules';
 
 function SettingsRuntimePage() {
   const rt = MOCK_RUNTIME;
+  const [showHealth, setShowHealth] = useState(false);
+  const [showSecretRef, setShowSecretRef] = useState(false);
+  const [showPermDenied, setShowPermDenied] = useState(false);
   return (
+    <>
     <SettingsModuleShell
       title="运行状态与安全"
       description="查看服务健康、Runtime、Secret Vault、API Gateway、Webhook 安全边界、Rate Limit 和安全提示。"
@@ -71,6 +79,39 @@ function SettingsRuntimePage() {
         ))}
       </Card>
     </SettingsModuleShell>
+      <DataSourceHealthCheckDrawer
+        open={showHealth}
+        sourceName="外部资料源"
+        overallStatus="degraded"
+        lastCheckTime="2026-04-28 15:00"
+        providers={[
+          { name: 'internal-kb-provider', status: 'healthy' },
+          { name: 'reference-pack-provider', status: 'ready' },
+          { name: 'external-company-provider', status: 'degraded', detail: '企查查连接中断' },
+        ]}
+        degradedReason="外部资料源 API 超时，已降级为内部检索。"
+        onRecheck={() => setShowHealth(false)}
+        onViewSecretRef={() => { setShowHealth(false); setShowSecretRef(true); }}
+        onClose={() => setShowHealth(false)}
+      />
+
+      <SettingsSecretReferenceDrawer
+        open={showSecretRef}
+        references={[
+          { envKey: 'QICHACHA_API_KEY', secretRef: 'secret://providers/qichacha/default', binding: '外部资料源 · 企查查', lastRotation: '2026-04-28 08:00', status: 'active' },
+          { envKey: 'OPENAI_API_KEY', secretRef: 'secret://providers/openai/default', binding: '大模型 · API', lastRotation: '2026-04-27 16:00', status: 'active' },
+        ]}
+        onClose={() => setShowSecretRef(false)}
+        onRequestRotation={() => {}}
+      />
+
+      <PermissionDeniedModal
+        open={showPermDenied}
+        currentRole="普通用户"
+        requiredPermission="系统管理员"
+        onClose={() => setShowPermDenied(false)}
+      />
+    </>
   );
 }
 

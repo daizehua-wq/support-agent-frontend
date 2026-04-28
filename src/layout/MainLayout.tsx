@@ -11,27 +11,30 @@ function MainLayout() {
   const location = useLocation();
 
   const items: MenuProps['items'] = [
-    { key: '/home', label: '工作台' },
-    { key: '/agent', label: '智能体' },
-    { key: '/manage', label: '管理' },
+    { key: '/', label: '首页' },
+    { key: '/workbench', label: '工作台' },
+    { key: '/tasks', label: '历史任务' },
+    { key: '/settings/overview', label: '设置管理中心' },
   ];
 
   const resolveSelectedKey = () => {
-    if (location.pathname.startsWith('/agent') || location.pathname.startsWith('/assistant-center')) {
-      return '/agent';
+    if (location.pathname === '/') {
+      return '/';
     }
 
-    if (
-      location.pathname.startsWith('/manage') ||
-      location.pathname.startsWith('/model-center') ||
-      location.pathname.startsWith('/database-manager') ||
-      location.pathname.startsWith('/apps') ||
-      location.pathname.startsWith('/settings')
-    ) {
-      return '/manage';
+    if (location.pathname.startsWith('/workbench')) {
+      return '/workbench';
     }
 
-    return '/home';
+    if (location.pathname.startsWith('/tasks')) {
+      return '/tasks';
+    }
+
+    if (location.pathname.startsWith('/settings')) {
+      return '/settings/overview';
+    }
+
+    return '/';
   };
 
   return (

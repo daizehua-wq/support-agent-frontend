@@ -20,7 +20,7 @@ import TaskInputBox from '../../components/workbench/TaskInputBox';
 import TaskPlanCard from '../../components/workbench/TaskPlanCard';
 import TaskStepTimeline from '../../components/workbench/TaskStepTimeline';
 import { useTaskExecution } from '../../hooks/useTaskExecution';
-import { generateTaskPlan } from '../../utils/mockTaskPlanner';
+import { generateTaskPlan } from '../../utils/taskApiAdapter';
 import type { TaskPlan } from '../../types/taskPlan';
 
 type WorkbenchState = 'empty' | 'planning' | 'plan_confirm' | 'needs_info' | 'running' | 'failed' | 'degraded' | 'done' | 'cancelled';
@@ -57,17 +57,20 @@ function WorkbenchPage() {
     if (execStatus === 'cancelled') setWbState('cancelled');
   }, [execStatus, wbState, execution]);
 
-  const handleGeneratePlan = useCallback(() => {
+  const handleGeneratePlan = useCallback(async () => {
     if (!taskInput.trim()) return;
     setPlanning(true);
     setWbState('planning');
-    setTimeout(() => {
-      const generatedPlan = generateTaskPlan(taskInput);
+    try {
+      const generatedPlan = await generateTaskPlan(taskInput);
       setPlan(generatedPlan);
       setPlanning(false);
       const hasRequiredMissing = generatedPlan.missingInfo.some((i) => i.level === 'required');
       setWbState(hasRequiredMissing ? 'needs_info' : 'plan_confirm');
-    }, 1200);
+    } catch (_err) {
+      setPlanning(false);
+      setWbState('empty');
+    }
   }, [taskInput]);
 
   const handleMissingInfoChange = useCallback((field: string, value: string) => {

@@ -78,7 +78,7 @@ export type TaskExecutionStatus = 'idle' | 'running' | 'failed' | 'degraded' | '
 
 export type TaskStepExecutionStatus = 'pending' | 'running' | 'done' | 'failed' | 'degraded' | 'skipped';
 
-export type StepFailureKind = 'external_source' | 'internal_knowledge' | 'analysis' | 'output' | 'save';
+export type StepFailureKind = 'external_source' | 'external_dependency_high_risk' | 'internal_knowledge' | 'analysis' | 'output' | 'save';
 
 export interface TaskStepExecution {
   stepId: string;

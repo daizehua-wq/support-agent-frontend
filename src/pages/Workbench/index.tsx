@@ -7,12 +7,15 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import ConfirmExecutionBar from '../../components/workbench/ConfirmExecutionBar';
+import EditTaskPlanModal from '../../components/workbench/EditTaskPlanModal';
 import ExecutionContextCard from '../../components/workbench/ExecutionContextCard';
+import MissingInfoDrawer from '../../components/workbench/MissingInfoDrawer';
 import MissingInfoPanel from '../../components/workbench/MissingInfoPanel';
 import OutputPreviewCard from '../../components/workbench/OutputPreviewCard';
 import StepFailureModal from '../../components/workbench/StepFailureModal';
 import StepResultCard from '../../components/workbench/StepResultCard';
 import StopTaskModal from '../../components/workbench/StopTaskModal';
+import ExternalSourceDegradedModal from '../../components/output/ExternalSourceDegradedModal';
 import TaskInputBox from '../../components/workbench/TaskInputBox';
 import TaskPlanCard from '../../components/workbench/TaskPlanCard';
 import TaskStepTimeline from '../../components/workbench/TaskStepTimeline';
@@ -34,6 +37,9 @@ function WorkbenchPage() {
   const [stopping, setStopping] = useState(false);
   const [showStopModal, setShowStopModal] = useState(false);
   const [showFailureModal, setShowFailureModal] = useState(false);
+  const [showEditPlanModal, setShowEditPlanModal] = useState(false);
+  const [showMissingDrawer, setShowMissingDrawer] = useState(false);
+  const [showDegradedModal, setShowDegradedModal] = useState(false);
 
   const { execution, execStatus, start, stop, retryStep, skipEvidenceAndContinue, reset } = useTaskExecution();
 
@@ -119,6 +125,30 @@ function WorkbenchPage() {
   const handleKeepProgress = () => {
     setShowFailureModal(false);
     stop();
+  };
+
+  const handleContinueLimited = () => {
+    setShowFailureModal(false);
+    skipEvidenceAndContinue();
+  };
+
+  const handleEditPlanSave = (_values: Record<string, string>) => {
+    setShowEditPlanModal(false);
+    message.info('任务计划已更新。');
+  };
+
+  const handleMissingInfoSave = (_values: Record<string, string>) => {
+    setShowMissingDrawer(false);
+    message.info('补充信息已保存，可继续确认执行。');
+  };
+
+  const handleMissingInfoContinue = () => {
+    setShowMissingDrawer(false);
+    handleConfirmExecution();
+  };
+
+  const handleContinueDegraded = () => {
+    setShowDegradedModal(false);
   };
 
   const handleContinueFromCancelled = () => {
@@ -262,14 +292,42 @@ function WorkbenchPage() {
       {wbState === 'failed' && renderFailed()}
       {wbState === 'cancelled' && renderCancelled()}
 
-      <StopTaskModal open={showStopModal} onConfirm={handleStopConfirm} onCancel={handleStopCancel} loading={stopping} />
+      <StopTaskModal open={showStopModal} mode="workbench" onConfirm={handleStopConfirm} onCancel={handleStopCancel} loading={stopping} />
       <StepFailureModal
         open={showFailureModal}
         failedStep={failedStep}
         onRetry={handleRetry}
         onSkipExternal={handleSkipExternal}
+        onContinueLimited={handleContinueLimited}
         onBackToPlan={handleBackToPlan}
         onKeepProgress={handleKeepProgress}
+      />
+
+      <EditTaskPlanModal
+        open={showEditPlanModal}
+        taskTitle={plan?.taskTitle || ''}
+        outputTarget=""
+        tone="formal"
+        contextNote=""
+        source="workbench"
+        onSave={(values) => handleEditPlanSave(values)}
+        onCancel={() => setShowEditPlanModal(false)}
+      />
+
+      <MissingInfoDrawer
+        open={showMissingDrawer}
+        fields={(plan?.missingInfo || []).map((item) => ({ key: item.field, label: item.label, level: item.level, value: '' }))}
+        onSave={handleMissingInfoSave}
+        onContinueLimited={handleMissingInfoContinue}
+        onClose={() => setShowMissingDrawer(false)}
+      />
+
+      <ExternalSourceDegradedModal
+        open={showDegradedModal}
+        role="user"
+        degradedSources={[{ name: '企查查', status: 'degraded', reason: '外部资料源当前不可用。' }]}
+        onContinue={handleContinueDegraded}
+        onClose={() => setShowDegradedModal(false)}
       />
     </div>
   );

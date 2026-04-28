@@ -17,6 +17,10 @@ import OutputTabs from '../../components/output/OutputTabs';
 import OutputVersionList from '../../components/output/OutputVersionList';
 import RiskPanel from '../../components/output/RiskPanel';
 import VersionSwitch from '../../components/output/VersionSwitch';
+import RegenerateOutputModal from '../../components/output/RegenerateOutputModal';
+import ExternalSourceDegradedModal from '../../components/output/ExternalSourceDegradedModal';
+import StopTaskModal from '../../components/workbench/StopTaskModal';
+import MissingInfoDrawer from '../../components/workbench/MissingInfoDrawer';
 import type { OutputDetail, OutputTabKey } from '../../types/output';
 
 function OutputPage() {
@@ -27,6 +31,10 @@ function OutputPage() {
   const [activeTab, setActiveTab] = useState<OutputTabKey>('formal');
   const [viewVersionId, setViewVersionId] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
+  const [showRegenerateModal, setShowRegenerateModal] = useState(false);
+  const [showStopModal, setShowStopModal] = useState(false);
+  const [showDegradedModal, setShowDegradedModal] = useState(false);
+  const [showMissingDrawer, setShowMissingDrawer] = useState(false);
 
   useEffect(() => {
     if (!taskId) {
@@ -80,6 +88,19 @@ function OutputPage() {
   }, []);
 
   const handleRegenerate = () => {
+    setShowRegenerateModal(true);
+  };
+
+  const handleRegenerateConfirm = (mode: string) => {
+    setShowRegenerateModal(false);
+    if (mode === 'edit-goal') {
+      navigate('/workbench', { state: { mode: 'edit-goal', taskId: output?.taskId } });
+      return;
+    }
+    if (mode === 'supplement') {
+      setShowMissingDrawer(true);
+      return;
+    }
     setRegenerating(true);
     setTimeout(() => {
       setRegenerating(false);
@@ -92,7 +113,7 @@ function OutputPage() {
           label: `v${prev.versions.length + 1}`,
           status: 'success' as const,
           isCurrent: true,
-          reason: getRegenReason(prev.taskId),
+          reason: getRegenReason(prev.taskId, mode),
           createdAt: new Date().toLocaleString('zh-CN', { hour12: false }),
           formalVersion: currentVersion?.formalVersion,
           conciseVersion: currentVersion?.conciseVersion,
@@ -102,10 +123,7 @@ function OutputPage() {
           ...prev,
           status: 'success' as const,
           currentVersionId: newVersionId,
-          versions: [
-            ...prev.versions.map((v) => ({ ...v, isCurrent: false })),
-            newVersion,
-          ],
+          versions: [...prev.versions.map((v) => ({ ...v, isCurrent: false })), newVersion],
         };
       });
       message.success('新版本已生成');
@@ -133,12 +151,17 @@ function OutputPage() {
   };
 
   const handleStopGenerating = () => {
+    setShowStopModal(true);
+  };
+
+  const handleStopConfirm = () => {
+    setShowStopModal(false);
     setRegenerating(false);
     setOutput((prev) => {
       if (!prev) return prev;
       return { ...prev, status: 'success' as const };
     });
-    message.info('已停止生成');
+    message.info('已停止生成新版本');
   };
 
   if (loading) {
@@ -326,13 +349,46 @@ function OutputPage() {
           <RiskPanel risks={risks} />
         </div>
       </div>
+
+      <RegenerateOutputModal
+        open={showRegenerateModal}
+        onConfirm={handleRegenerateConfirm}
+        onCancel={() => setShowRegenerateModal(false)}
+      />
+
+      <StopTaskModal
+        open={showStopModal}
+        mode="output"
+        onConfirm={handleStopConfirm}
+        onCancel={() => setShowStopModal(false)}
+      />
+
+      <ExternalSourceDegradedModal
+        open={showDegradedModal}
+        role="user"
+        degradedSources={[{ name: '企查查', status: 'degraded', reason: '外部资料源当前不可用。' }]}
+        onContinue={() => { setShowDegradedModal(false); }}
+        onClose={() => setShowDegradedModal(false)}
+      />
+
+      <MissingInfoDrawer
+        open={showMissingDrawer}
+        fields={[
+          { key: 'companyName', label: '客户公司全称', level: 'recommended', value: '' },
+          { key: 'outputTarget', label: '输出对象', level: 'recommended', value: '' },
+          { key: 'toneStyle', label: '语气偏好', level: 'optional', value: '' },
+        ]}
+        onSave={() => { setShowMissingDrawer(false); message.info('已保存补充信息。'); }}
+        onContinueLimited={() => { setShowMissingDrawer(false); }}
+        onClose={() => setShowMissingDrawer(false)}
+      />
     </div>
   );
 }
 
-function getRegenReason(taskId: string): string {
-  if (taskId.includes('degraded')) return '重试外部源后重新生成';
-  if (taskId.includes('insufficient')) return '补充资料后重新生成';
+function getRegenReason(_taskId: string, mode: string): string {
+  if (mode === 'tone') return '调整语气后重新生成';
+  if (mode === 'supplement') return '补充资料后重新生成';
   return '重新生成';
 }
 

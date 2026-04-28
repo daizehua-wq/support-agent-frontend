@@ -1852,3 +1852,83 @@ body {
   border-radius: 28px;
   padding: 20px;
 }
+
+/* ===== FE-9: Design System & Responsive Polish ===== */
+
+/* --- 1024 narrow screen --- */
+@media (max-width: 1024px) {
+  .ap-home-sections {
+    grid-template-columns: 1fr;
+  }
+
+  .ap-main-layout--nav-collapsed .ap-shell__menu .ant-menu-item {
+    padding-inline: 12px;
+    font-size: 13px;
+  }
+
+  .ap-workbench-plan {
+    padding: 0 8px;
+  }
+
+  .ap-task-detail {
+    padding: 20px 8px 40px;
+  }
+
+  .ap-task-table .ant-table-thead > tr > th:nth-child(5),
+  .ap-task-table .ant-table-tbody > tr > td:nth-child(5) {
+    display: none;
+  }
+}
+
+/* --- 1280 desktop narrow --- */
+@media (max-width: 1280px) {
+  .ap-output-layout {
+    gap: 14px;
+  }
+
+  .ap-tasks-page {
+    padding: 24px 12px 40px;
+  }
+
+  .ap-settings-center {
+    gap: 14px;
+  }
+
+  .ap-home-dashboard {
+    padding: 0 12px 40px;
+  }
+}
+
+/* --- Global state consistency --- */
+.ap-state-empty,
+.ap-state-loading,
+.ap-state-failed {
+  display: grid;
+  place-items: center;
+  min-height: 300px;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.ap-state-empty__icon,
+.ap-state-failed__icon {
+  font-size: 48px;
+  color: #94a3b8;
+  margin-bottom: 16px;
+}
+
+.ap-state-failed__description {
+  max-width: 400px;
+  margin: 0 auto 20px;
+}
+
+/* --- Prevent overflow on embedded legacy pages --- */
+.ap-settings-embedded-panel--legacy .ant-card,
+.ap-settings-embedded-panel--legacy .ant-table {
+  overflow-x: auto;
+}
+
+.ap-settings-embedded-panel--legacy img,
+.ap-settings-embedded-panel--legacy pre {
+  max-width: 100%;
+}

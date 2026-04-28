@@ -1,0 +1,5 @@
+{
+  "port": 3000,
+  "defaultRateLimitPerMin": 60,
+  "mockServerUrl": "http://localhost:3001"
+}

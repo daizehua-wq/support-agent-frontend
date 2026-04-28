@@ -5,6 +5,7 @@ import {
   formatAgentAdapterResponse,
   getAgentClientTypeLabel,
 } from '../../utils/agentClientDebug';
+import { formatTechnicalLabel } from '../../utils/displayLabel';
 import ResultCard from './ResultCard';
 
 type ClientAdapterPreviewCardProps = {
@@ -37,7 +38,7 @@ function ClientAdapterPreviewCard({
       extra={
         <Space wrap>
           <Tag color="blue">{getAgentClientTypeLabel(clientType)}</Tag>
-          <Tag color="processing">{String(response.msg_type || 'raw-response')}</Tag>
+          <Tag color="processing">{formatTechnicalLabel(response.msg_type || 'raw-response')}</Tag>
         </Space>
       }
     >

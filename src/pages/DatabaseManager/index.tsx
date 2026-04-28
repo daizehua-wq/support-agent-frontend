@@ -187,10 +187,11 @@ function normalizeDatabaseItem(value: unknown): DatabaseItem {
             ? 'warning'
             : 'offline',
     lastCheckedAt:
-      readString(record.lastCheckedAt) ||
-      readString(record.lastCheckTime) ||
-      readString(record.updatedAt) ||
-      '未返回',
+      formatDateTimeToLocalTime(
+        readString(record.lastCheckedAt) ||
+          readString(record.lastCheckTime) ||
+          readString(record.updatedAt),
+      ) || '未返回',
     healthMessage:
       readString(record.healthMessage) ||
       readString(record.message) ||
@@ -283,7 +284,7 @@ const mockDatabases: DatabaseItem[] = [
     version: 0,
     available: true,
     healthStatus: 'healthy',
-    lastCheckedAt: '2026-04-12 10:30',
+    lastCheckedAt: formatDateTimeToLocalTime('2026-04-12 10:30'),
     healthMessage: '连接正常',
     defaultAssociatedDatabase: 'db_semicon_prod',
     visibleDatabases: ['db_semicon_prod', 'db_sales_support'],
@@ -302,7 +303,7 @@ const mockDatabases: DatabaseItem[] = [
     version: 0,
     available: true,
     healthStatus: 'warning',
-    lastCheckedAt: '2026-04-12 09:45',
+    lastCheckedAt: formatDateTimeToLocalTime('2026-04-12 09:45'),
     healthMessage: '连接可用，但存在轻微告警',
     defaultAssociatedDatabase: 'db_sales_support',
     visibleDatabases: ['db_sales_support'],
@@ -320,7 +321,7 @@ const mockDatabases: DatabaseItem[] = [
     version: 0,
     available: false,
     healthStatus: 'offline',
-    lastCheckedAt: '2026-04-11 21:00',
+    lastCheckedAt: formatDateTimeToLocalTime('2026-04-11 21:00'),
     healthMessage: '当前未连接',
     defaultAssociatedDatabase: '',
     visibleDatabases: ['db_archive_01'],

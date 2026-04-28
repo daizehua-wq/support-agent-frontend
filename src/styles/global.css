@@ -1810,3 +1810,17 @@ body {
     position: static;
   }
 }
+
+/* ===== FE-7c: Rules Card ===== */
+.ap-rule-card {
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.72);
+  margin-bottom: 8px;
+}
+
+@media (max-width: 640px) {
+  .ap-settings-center .ap-settings-overview > div > div[style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+}

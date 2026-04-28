@@ -56,10 +56,10 @@ function AppRouter() {
           <Route path="assistants" element={renderLazyPage(<SettingsAssistantsPage />)} />
           <Route path="data-sources" element={renderLazyPage(<SettingsDataSourcesPage />)} />
           <Route path="apps" element={renderLazyPage(<SettingsAppsPage />)} />
+          <Route path="rules" element={renderLazyPage(<SettingsRulesPage />)} />
+          <Route path="runtime" element={renderLazyPage(<SettingsRuntimePage />)} />
+          <Route path="governance" element={renderLazyPage(<SettingsGovernancePage />)} />
         </Route>
-        <Route path="settings/rules" element={renderLazyPage(<SettingsRulesPage />)} />
-        <Route path="settings/runtime" element={renderLazyPage(<SettingsRuntimePage />)} />
-        <Route path="settings/governance" element={renderLazyPage(<SettingsGovernancePage />)} />
 
         <Route path="home" element={<Navigate to="/" replace />} />
         <Route path="settings" element={<Navigate to="/settings/overview" replace />} />

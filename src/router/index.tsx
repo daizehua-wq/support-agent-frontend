@@ -6,11 +6,11 @@ import HomePage from '../pages/Home';
 import LegacyRouteUpgradeNotice from '../components/common/LegacyRouteUpgradeNotice';
 import SettingsLayout from '../pages/Settings/SettingsLayout';
 
-const AppsPage = lazy(() => import('../pages/Apps'));
-const DatabaseManagerPage = lazy(() => import('../pages/DatabaseManager'));
 const SettingsPage = lazy(() => import('../pages/Settings'));
 const SettingsModelsPage = lazy(() => import('../pages/Settings/Models'));
 const SettingsAssistantsPage = lazy(() => import('../pages/Settings/Assistants'));
+const SettingsDataSourcesPage = lazy(() => import('../pages/Settings/DataSources'));
+const SettingsAppsPage = lazy(() => import('../pages/Settings/Apps'));
 const TaskDetailPage = lazy(() => import('../pages/Tasks/Detail'));
 const TaskOutputPage = lazy(() => import('../pages/Tasks/Output'));
 const TasksPage = lazy(() => import('../pages/Tasks'));
@@ -54,9 +54,9 @@ function AppRouter() {
         <Route path="settings" element={<SettingsLayout />}>
           <Route path="models" element={renderLazyPage(<SettingsModelsPage />)} />
           <Route path="assistants" element={renderLazyPage(<SettingsAssistantsPage />)} />
+          <Route path="data-sources" element={renderLazyPage(<SettingsDataSourcesPage />)} />
+          <Route path="apps" element={renderLazyPage(<SettingsAppsPage />)} />
         </Route>
-        <Route path="settings/data-sources" element={renderLazyPage(<DatabaseManagerPage />)} />
-        <Route path="settings/apps" element={renderLazyPage(<AppsPage />)} />
         <Route path="settings/rules" element={renderLazyPage(<SettingsRulesPage />)} />
         <Route path="settings/runtime" element={renderLazyPage(<SettingsRuntimePage />)} />
         <Route path="settings/governance" element={renderLazyPage(<SettingsGovernancePage />)} />

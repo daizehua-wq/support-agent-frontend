@@ -2,6 +2,13 @@
 
 前端使用 `React + TypeScript + Vite`，后端联调依赖本仓库内的 `mock-server`、`python_runtime`、`Redis` 和可选的 `Jaeger`。
 
+## 架构文档
+
+项目正式按 `P0 安全与规则层 + P1 协调层 + P2 模块能力层 + P2.5 数据访问层 + P3 界面层 + 监控层` 管理工程边界。
+
+- [ARCHITECTURE.md](ARCHITECTURE.md)：正式工程架构边界，包含每层允许做什么和不允许做什么。
+- [代码分类与功能说明.md](代码分类与功能说明.md)：日常开发时的文件归类速查。
+
 ## 快速开始
 
 安装依赖：
@@ -23,12 +30,13 @@ npm run type-check
 
 - 前端 `Vite`: `http://127.0.0.1:5173`
 - Express `mock-server`: `http://127.0.0.1:3001`
+- 内部数据层: mock-server 进程内 `mock-server/data/sqlite.db`，该文件是本地运行态数据库，不进入 Git 提交。
 - Python runtime: `http://127.0.0.1:8008`
 - Jaeger UI: `http://127.0.0.1:16686`
 
 ## 一键本地联调
 
-项目已经内置一套本地启动和回归验证脚本，入口在 [scripts/local-stack.mjs](/Users/tietiedemac/support-agent-frontend/scripts/local-stack.mjs)。
+项目已经内置一套本地启动和回归验证脚本，入口在 [scripts/local-stack.mjs](scripts/local-stack.mjs)。
 
 推荐直接使用：
 
@@ -64,6 +72,7 @@ npm run stack:down
 `stack:verify` 和 `stack:run` 默认会校验：
 
 - `mock-server /health`
+- `mock-server /internal/data/external-connections`
 - `python_runtime /health`
 - `Vite` 首页可访问
 - 通过前端代理完成：
@@ -79,7 +88,7 @@ npm run stack:down
 mock-server/test-results/local-stack/
 ```
 
-日志也会按服务分别落盘到同一目录。
+日志也会按服务分别落盘到同一目录。`mock-server/test-results/`、`test-results/` 和 `test-evidence/` 都是本地测试证据目录，默认不进入 Git 提交。
 
 ## 常用参数
 
@@ -111,8 +120,18 @@ JAEGER_UI_URL=http://127.0.0.1:16686
 - 本地 Redis
 - 可选的 Jaeger all-in-one
 
-Redis 仅用于会话上下文持久化增强；如果 Redis 不可用，后端会退回到内存存储模式。
+mock-server 会在进程内初始化 `mock-server/data/sqlite.db` 作为 P2.5 内部数据层，同时继续保留 Redis 或内存上下文存储。Redis 不可用时，后端会退回到内存存储模式；SQLite 写入失败也不会阻断原有 `/api/agent/*` 回复。
+
+P2.5 是内部数据库层，不作为前端或外部系统的公开 API。它只保存外部连接的接口密钥引用和历史对话数据；本地大模型、云模型连接、当前启用模型和模型路由仍属于 P2 模块插件。内部验证可使用本机请求，例如 `curl http://127.0.0.1:3001/internal/data/sessions`。
+
+## 安全与部署边界
+
+- 本地运行态文件不进入 Git：`data/*.db`、`mock-server/data/*.db`、`*.jsonl`、`data/secretVault.json`、`mock-server/test-results/`、`test-results/`、`test-evidence/`。
+- 文档、样例和 `.env.example` 只能保留环境变量名、`replace-with-local-secret`、`secret://...` 等占位内容，不能写入真实接口密钥、认证令牌或主密钥。
+- `admin-ui` 只能作为受信内部管理台使用，生产部署必须放在受保护网络或网关鉴权后。
+- `api-gateway` 的渠道 webhook 当前不建议直接公网暴露；公网接入前必须补齐平台签名校验和边界鉴权。
+- `platform-manager/.env.example` 中的 `ADMIN_TOKEN=change-me` 仅是占位符，不可作为生产 token 使用。
 
 ## 说明
 
-前端开发服务的 `/api` 请求会通过 [vite.config.ts](/Users/tietiedemac/support-agent-frontend/vite.config.ts) 代理到 `http://127.0.0.1:3001`，因此页面联调时默认走的是本地 `mock-server`。
+前端开发服务的 `/api` 请求会通过 [vite.config.ts](vite.config.ts) 代理到 `http://127.0.0.1:3001`，因此页面联调时默认走的是本地 `mock-server`。

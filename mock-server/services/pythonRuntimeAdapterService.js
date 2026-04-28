@@ -1,4 +1,5 @@
 import { recordPythonRuntimeHealthProbe } from './opsObservabilityService.js';
+import { nowLocalIso, toLocalIso } from '../utils/localTime.js';
 
 const normalizeText = (value = '') => String(value || '').trim();
 
@@ -14,7 +15,7 @@ const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && 
 const DEFAULT_PY_RUNTIME_BASE_URL = 'http://127.0.0.1:8008';
 const DEFAULT_PY_HEALTH_GATE_SETTINGS = Object.freeze({
   enabled: true,
-  strictGate: true,
+  strictGate: false,
   checkPath: '/health',
   timeoutMs: 1500,
   cacheTtlMs: 5000,
@@ -277,7 +278,7 @@ const probePythonRuntimeHealthInternal = async ({ runtimeSettings = {}, force = 
       healthy: true,
       status: 'skipped',
       reason: 'health-gate-disabled',
-      checkedAt: new Date(now).toISOString(),
+      checkedAt: toLocalIso(new Date(now)),
       latencyMs: 0,
       strictGate: healthGate.strictGate,
       baseUrl,
@@ -315,7 +316,7 @@ const probePythonRuntimeHealthInternal = async ({ runtimeSettings = {}, force = 
       healthy: false,
       status: 'cooldown',
       reason: cooldownMessage,
-      checkedAt: new Date(now).toISOString(),
+      checkedAt: toLocalIso(new Date(now)),
       latencyMs: 0,
       strictGate: healthGate.strictGate,
       baseUrl,
@@ -354,7 +355,7 @@ const probePythonRuntimeHealthInternal = async ({ runtimeSettings = {}, force = 
 
     pythonRuntimeHealthState.healthy = healthy;
     pythonRuntimeHealthState.status = healthy ? 'healthy' : 'unhealthy';
-    pythonRuntimeHealthState.checkedAt = new Date().toISOString();
+    pythonRuntimeHealthState.checkedAt = nowLocalIso();
     pythonRuntimeHealthState.latencyMs = latencyMs;
     pythonRuntimeHealthState.message = message;
     pythonRuntimeHealthState.baseUrl = baseUrl;
@@ -400,7 +401,7 @@ const probePythonRuntimeHealthInternal = async ({ runtimeSettings = {}, force = 
 
     pythonRuntimeHealthState.healthy = false;
     pythonRuntimeHealthState.status = 'unhealthy';
-    pythonRuntimeHealthState.checkedAt = new Date().toISOString();
+    pythonRuntimeHealthState.checkedAt = nowLocalIso();
     pythonRuntimeHealthState.latencyMs = latencyMs;
     pythonRuntimeHealthState.message = message;
     pythonRuntimeHealthState.baseUrl = baseUrl;
@@ -450,7 +451,7 @@ export const getPythonRuntimeHealthSnapshot = () => {
     message: pythonRuntimeHealthState.message,
     consecutiveFailures: pythonRuntimeHealthState.consecutiveFailures,
     cooldownUntil: pythonRuntimeHealthState.cooldownUntil
-      ? new Date(pythonRuntimeHealthState.cooldownUntil).toISOString()
+      ? toLocalIso(new Date(pythonRuntimeHealthState.cooldownUntil))
       : '',
     baseUrl: pythonRuntimeHealthState.baseUrl,
   };
@@ -624,16 +625,21 @@ export const handlePythonRuntimeFallback = ({
   error = null,
   nodeType = '',
   runtimeSettings = {},
+  fallbackTarget = 'node-local',
 } = {}) => {
-  const message = normalizeText(error?.message || 'python-runtime failed');
+  const summary = buildPythonRuntimeFallbackSummary({
+    error,
+    nodeType,
+    runtimeSettings,
+    fallbackTarget,
+  });
+  const message = summary.message;
   console.warn(`[python-runtime] ${nodeType} fallback to node implementation: ${message}`);
 
-  const strictMode = resolvePythonRuntimeStrictMode(runtimeSettings);
-  const fallbackEnabled = resolvePythonRuntimeFallbackEnabled(runtimeSettings);
-  const healthGateSettings = resolvePythonRuntimeHealthGateSettings(runtimeSettings);
-  const isHealthGateFailure =
-    normalizeText(error?.code) === 'PY_RUNTIME_HEALTH_GATE_FAILED' ||
-    message.includes('health gate blocked');
+  const strictMode = summary.strictMode;
+  const fallbackEnabled = summary.fallbackEnabled;
+  const healthGateSettings = summary.healthGate;
+  const isHealthGateFailure = summary.status === 'health-gate-blocked';
 
   if (
     !fallbackEnabled ||
@@ -642,4 +648,6 @@ export const handlePythonRuntimeFallback = ({
   ) {
     throw error;
   }
+
+  return summary;
 };

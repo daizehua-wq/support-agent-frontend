@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { readJsonFile, resolveMockDataPath, writeJsonFile } from './jsonDataService.js';
+import { nowLocalIso } from '../utils/localTime.js';
 
 const OPS_OBSERVABILITY_CONTRACT_VERSION = 'ops-observability/v1';
 const OPS_OBSERVABILITY_FILE = 'opsRuntimeDashboard.json';
@@ -37,7 +38,7 @@ const toPositiveInt = (value, fallback = 0) => {
   return parsed >= 0 ? parsed : fallback;
 };
 
-const nowIso = () => new Date().toISOString();
+const nowIso = nowLocalIso;
 
 const resolveAlertPolicy = () => {
   return {

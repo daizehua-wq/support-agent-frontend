@@ -4,6 +4,7 @@ import type { FormInstance } from 'antd';
 type SettingsPythonRuntimeSectionProps = {
   pythonRuntimeForm: FormInstance;
   defaultPythonRuntimeValues: Record<string, unknown>;
+  localModelOptions: Array<{ label: string; value: string }>;
   localApiKeyConfigured: boolean;
   cloudApiKeyConfigured: boolean;
   onSavePythonRuntimeSettings: () => void;
@@ -11,13 +12,14 @@ type SettingsPythonRuntimeSectionProps = {
 };
 
 const routeOptions = [
-  { label: '本地模型 (local)', value: 'local' },
-  { label: '云端 API (cloud)', value: 'cloud' },
+  { label: '本地模型', value: 'local' },
+  { label: '云端 API', value: 'cloud' },
 ];
 
 function SettingsPythonRuntimeSection({
   pythonRuntimeForm,
   defaultPythonRuntimeValues,
+  localModelOptions,
   localApiKeyConfigured,
   cloudApiKeyConfigured,
   onSavePythonRuntimeSettings,
@@ -131,7 +133,15 @@ function SettingsPythonRuntimeSection({
           <Col xs={24} md={12}>
             <Card size="small" title="Local 通道（Ollama / 本地）" style={{ borderRadius: 12, background: '#fafafa' }}>
               <Form.Item label="模型名" name={['channels', 'local', 'model']}>
-                <Input placeholder="ollama/qwen2.5:7b" />
+                <Select
+                  disabled={localModelOptions.length === 0}
+                  options={localModelOptions}
+                  placeholder={
+                    localModelOptions.length > 0
+                      ? '选择本机 Ollama 已存在模型'
+                      : '未发现本地模型，请先在模型中心配置/测试'
+                  }
+                />
               </Form.Item>
               <Form.Item label="API Base" name={['channels', 'local', 'apiBase']}>
                 <Input placeholder="http://127.0.0.1:11434" />

@@ -244,6 +244,33 @@ export type WorkflowReleaseSettings = {
   routes?: Record<string, WorkflowReleaseRouteConfig>;
 };
 
+export type EmbeddedModelSettings = {
+  enabled?: boolean;
+  provider?: string;
+  modelId?: string;
+  modelName?: string;
+  modelPath?: string;
+  status?: string;
+  modelPresent?: boolean;
+  source?: string;
+  updatedAt?: string;
+  preloadOnStart?: boolean;
+  contextSize?: number;
+  temperature?: number;
+  classificationMaxTokens?: number;
+  jsonMaxTokens?: number;
+  routeDecisionTimeoutMs?: number;
+  fieldExtractionTimeoutMs?: number;
+  structuredTransformTimeoutMs?: number;
+  defaultTimeoutMs?: number;
+  fallback?: {
+    onLoadFailed?: string;
+    onTimeout?: string;
+    onInvalidJson?: string;
+    onLowConfidence?: string;
+  };
+};
+
 export type WorkflowManifestGovernanceSettings = {
   contractVersion?: string;
   enabled?: boolean;
@@ -445,6 +472,7 @@ export type SystemSettings = {
   search?: SearchSettings;
   pythonRuntime?: PythonRuntimeSettings;
   workflowRelease?: WorkflowReleaseSettings;
+  embeddedModel?: EmbeddedModelSettings;
   governance?: SettingsGovernancePolicySettings;
 };
 

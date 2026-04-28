@@ -14,6 +14,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
 const settingsFilePath = path.join(projectRoot, 'data', 'system-settings.json');
+const rootSettingsFilePath = path.resolve(projectRoot, '..', 'data', 'system-settings.json');
 
 const WORKFLOW_RELEASE_SETTINGS_CONTRACT_VERSION = 'workflow-release-settings/v1';
 const SETTINGS_GOVERNANCE_CONTRACT_VERSION = 'settings-governance/v1';
@@ -230,7 +231,7 @@ export const DEFAULT_SETTINGS = {
         modelProvider: 'local',
         baseUrl: 'http://127.0.0.1:11434/v1',
         apiKey: '',
-        modelName: 'qwen2.5:7b',
+        modelName: 'deepseek-r1:14b',
         timeout: '180000',
       },
     ],
@@ -242,7 +243,7 @@ export const DEFAULT_SETTINGS = {
     modelProvider: 'local',
     baseUrl: 'http://127.0.0.1:11434/v1',
     apiKey: '',
-    modelName: 'qwen2.5:7b',
+    modelName: 'deepseek-r1:14b',
     timeout: '180000',
   },
   strategy: {
@@ -313,7 +314,7 @@ export const DEFAULT_SETTINGS = {
     baseUrl: 'http://127.0.0.1:8008',
     healthGate: {
       enabled: true,
-      strictGate: true,
+      strictGate: false,
       checkPath: '/health',
       timeoutMs: 1500,
       cacheTtlMs: 5000,
@@ -331,7 +332,7 @@ export const DEFAULT_SETTINGS = {
     },
     channels: {
       local: {
-        model: 'ollama/qwen2.5:7b',
+        model: 'ollama/deepseek-r1:14b',
         apiBase: 'http://127.0.0.1:11434',
         apiKey: '',
       },
@@ -411,7 +412,74 @@ const normalizePythonRuntimeChannel = (channelInput = {}, fallback = {}) => {
   };
 };
 
-export const normalizePythonRuntimeSettings = (pythonRuntimeSettings = {}) => {
+const stripOllamaModelPrefix = (value = '') => {
+  return String(value || '').trim().replace(/^ollama\//i, '');
+};
+
+const toOllamaRuntimeModelRef = (value = '') => {
+  const modelName = stripOllamaModelPrefix(value);
+  return modelName ? `ollama/${modelName}` : '';
+};
+
+const getConfiguredLocalModelNames = (modelSettings = {}) => {
+  const models = Array.isArray(modelSettings.models) ? modelSettings.models : [];
+
+  return models
+    .filter((model) => {
+      const provider = String(model?.modelProvider || model?.provider || '').trim().toLowerCase();
+      return model?.enabled !== false && ['local', 'ollama'].includes(provider);
+    })
+    .map((model) => stripOllamaModelPrefix(model.modelName || model.model || ''))
+    .filter(Boolean);
+};
+
+const resolvePythonRuntimeLocalModel = (currentModel = '', modelSettings = {}) => {
+  const localModelNames = getConfiguredLocalModelNames(modelSettings);
+  const currentModelName = stripOllamaModelPrefix(currentModel);
+
+  if (currentModelName && localModelNames.includes(currentModelName)) {
+    return toOllamaRuntimeModelRef(currentModelName);
+  }
+
+  const activeModel = Array.isArray(modelSettings.models)
+    ? modelSettings.models.find((model) => model?.id === modelSettings.activeModelId)
+    : null;
+  const activeProvider = String(activeModel?.modelProvider || activeModel?.provider || '').toLowerCase();
+  const activeLocalModelName =
+    activeModel?.enabled !== false && ['local', 'ollama'].includes(activeProvider)
+      ? stripOllamaModelPrefix(activeModel.modelName || activeModel.model || '')
+      : '';
+
+  return toOllamaRuntimeModelRef(
+    activeLocalModelName ||
+      localModelNames[0] ||
+      DEFAULT_SETTINGS.model.modelName,
+  );
+};
+
+const syncPythonRuntimeLocalChannelWithModels = (pythonRuntimeSettings = {}, modelSettings = null) => {
+  if (!isPlainObject(modelSettings)) {
+    return pythonRuntimeSettings;
+  }
+
+  const channels = isPlainObject(pythonRuntimeSettings.channels)
+    ? pythonRuntimeSettings.channels
+    : {};
+  const localChannel = isPlainObject(channels.local) ? channels.local : {};
+
+  return {
+    ...pythonRuntimeSettings,
+    channels: {
+      ...channels,
+      local: {
+        ...localChannel,
+        model: resolvePythonRuntimeLocalModel(localChannel.model, modelSettings),
+      },
+    },
+  };
+};
+
+export const normalizePythonRuntimeSettings = (pythonRuntimeSettings = {}, options = {}) => {
   const normalizedInput = isPlainObject(pythonRuntimeSettings) ? pythonRuntimeSettings : {};
   const routingInput = isPlainObject(normalizedInput.modelRouting)
     ? normalizedInput.modelRouting
@@ -430,7 +498,7 @@ export const normalizePythonRuntimeSettings = (pythonRuntimeSettings = {}) => {
   const defaultModuleRoutes = defaultRouting.moduleRoutes || {};
   const defaultChannels = defaultSettings.channels || {};
 
-  return {
+  const normalized = {
     contractVersion:
       String(normalizedInput.contractVersion || '').trim() ||
       PYTHON_RUNTIME_SETTINGS_CONTRACT_VERSION,
@@ -514,6 +582,8 @@ export const normalizePythonRuntimeSettings = (pythonRuntimeSettings = {}) => {
       ),
     },
   };
+
+  return syncPythonRuntimeLocalChannelWithModels(normalized, options.modelSettings);
 };
 
 const normalizeDatabaseType = (databaseType = 'sqlite') => {
@@ -2122,30 +2192,33 @@ export const readSettings = () => {
     settings: parsedSettings,
   });
   const databases = normalizeDatabaseSettingsList(savedSettings.databases, savedSettings.database);
+  const modelSettings = {
+    ...DEFAULT_SETTINGS.model,
+    ...(savedSettings.model || {}),
+    models: Array.isArray(savedSettings.model?.models)
+      ? savedSettings.model.models
+      : DEFAULT_SETTINGS.model.models,
+    moduleBindings: {
+      ...DEFAULT_SETTINGS.model.moduleBindings,
+      ...(savedSettings.model?.moduleBindings || {}),
+    },
+  };
 
   return {
     database: {
       ...DEFAULT_SETTINGS.database,
       ...(savedSettings.database || {}),
     },
-    model: {
-      ...DEFAULT_SETTINGS.model,
-      ...(savedSettings.model || {}),
-      models: Array.isArray(savedSettings.model?.models)
-        ? savedSettings.model.models
-        : DEFAULT_SETTINGS.model.models,
-      moduleBindings: {
-        ...DEFAULT_SETTINGS.model.moduleBindings,
-        ...(savedSettings.model?.moduleBindings || {}),
-      },
-    },
+    model: modelSettings,
     strategy: {
       ...DEFAULT_SETTINGS.strategy,
       ...(savedSettings.strategy || {}),
     },
     assistant: normalizeAssistantSettings(savedSettings.assistant || {}),
     search: normalizeSearchSettings(savedSettings.search || {}, databases, savedSettings.database),
-    pythonRuntime: normalizePythonRuntimeSettings(savedSettings.pythonRuntime || {}),
+    pythonRuntime: normalizePythonRuntimeSettings(savedSettings.pythonRuntime || {}, {
+      modelSettings,
+    }),
     workflowRelease: normalizeWorkflowReleaseSettings(savedSettings.workflowRelease || {}),
     governance: normalizeSettingsGovernance(savedSettings.governance || {}),
     databases,
@@ -2226,9 +2299,10 @@ export const sanitizeModelSettingsForClient = (modelSettings = {}) => {
   };
 };
 
-const sanitizePythonRuntimeSettingsForClient = (pythonRuntimeSettings = {}) => {
+const sanitizePythonRuntimeSettingsForClient = (pythonRuntimeSettings = {}, modelSettings = null) => {
   const normalized = normalizePythonRuntimeSettings(
     pythonRuntimeSettings || DEFAULT_SETTINGS.pythonRuntime,
+    isPlainObject(modelSettings) ? { modelSettings } : {},
   );
 
   return {
@@ -2268,6 +2342,7 @@ export const sanitizeSettingsForClient = (settings = {}) => {
     },
     pythonRuntime: sanitizePythonRuntimeSettingsForClient(
       settings.pythonRuntime || DEFAULT_SETTINGS.pythonRuntime,
+      settings.model || DEFAULT_SETTINGS.model,
     ),
     workflowRelease: normalizeWorkflowReleaseSettings(settings.workflowRelease || {}),
     governance: normalizeSettingsGovernance(settings.governance || {}),
@@ -2320,8 +2395,10 @@ const mergeModelSettingsPreserveApiKeys = (currentModel = {}, incomingModel = {}
 const mergePythonRuntimeSettingsPreserveApiKeys = (
   currentPythonRuntime = {},
   incomingPythonRuntime = {},
+  modelSettings = null,
 ) => {
-  const currentNormalized = normalizePythonRuntimeSettings(currentPythonRuntime);
+  const normalizeOptions = isPlainObject(modelSettings) ? { modelSettings } : {};
+  const currentNormalized = normalizePythonRuntimeSettings(currentPythonRuntime, normalizeOptions);
   const incomingNormalized = normalizePythonRuntimeSettings({
     ...currentNormalized,
     ...(isPlainObject(incomingPythonRuntime) ? incomingPythonRuntime : {}),
@@ -2373,30 +2450,33 @@ const mergePythonRuntimeSettingsPreserveApiKeys = (
         ),
       },
     },
-  });
+  }, normalizeOptions);
 
-  return normalizePythonRuntimeSettings({
-    ...incomingNormalized,
-    channels: {
-      ...incomingNormalized.channels,
-      local: {
-        ...incomingNormalized.channels.local,
-        apiKey:
-          incomingPythonRuntime?.channels?.local?.apiKey === undefined ||
-          incomingPythonRuntime?.channels?.local?.apiKey === ''
-            ? currentNormalized.channels?.local?.apiKey || ''
-            : String(incomingPythonRuntime.channels.local.apiKey || '').trim(),
-      },
-      cloud: {
-        ...incomingNormalized.channels.cloud,
-        apiKey:
-          incomingPythonRuntime?.channels?.cloud?.apiKey === undefined ||
-          incomingPythonRuntime?.channels?.cloud?.apiKey === ''
-            ? currentNormalized.channels?.cloud?.apiKey || ''
-            : String(incomingPythonRuntime.channels.cloud.apiKey || '').trim(),
+  return normalizePythonRuntimeSettings(
+    {
+      ...incomingNormalized,
+      channels: {
+        ...incomingNormalized.channels,
+        local: {
+          ...incomingNormalized.channels.local,
+          apiKey:
+            incomingPythonRuntime?.channels?.local?.apiKey === undefined ||
+            incomingPythonRuntime?.channels?.local?.apiKey === ''
+              ? currentNormalized.channels?.local?.apiKey || ''
+              : String(incomingPythonRuntime.channels.local.apiKey || '').trim(),
+        },
+        cloud: {
+          ...incomingNormalized.channels.cloud,
+          apiKey:
+            incomingPythonRuntime?.channels?.cloud?.apiKey === undefined ||
+            incomingPythonRuntime?.channels?.cloud?.apiKey === ''
+              ? currentNormalized.channels?.cloud?.apiKey || ''
+              : String(incomingPythonRuntime.channels.cloud.apiKey || '').trim(),
+        },
       },
     },
-  });
+    normalizeOptions,
+  );
 };
 
 export const mergeSettingsPreserveApiKeys = (currentSettings = {}, incomingSettings = {}) => {
@@ -2408,11 +2488,15 @@ export const mergeSettingsPreserveApiKeys = (currentSettings = {}, incomingSetti
   const databases = Array.isArray(incomingSettings.databases)
     ? normalizeDatabaseSettingsList(incomingSettings.databases)
     : normalizeDatabaseSettingsList(currentSettings.databases, mergedDatabase);
+  const mergedModel = mergeModelSettingsPreserveApiKeys(
+    currentSettings.model || {},
+    incomingSettings.model || {},
+  );
 
   return {
     database: mergedDatabase,
     databases,
-    model: mergeModelSettingsPreserveApiKeys(currentSettings.model || {}, incomingSettings.model || {}),
+    model: mergedModel,
     strategy: {
       ...DEFAULT_SETTINGS.strategy,
       ...(currentSettings.strategy || {}),
@@ -2431,6 +2515,7 @@ export const mergeSettingsPreserveApiKeys = (currentSettings = {}, incomingSetti
     pythonRuntime: mergePythonRuntimeSettingsPreserveApiKeys(
       currentSettings.pythonRuntime || DEFAULT_SETTINGS.pythonRuntime,
       incomingSettings.pythonRuntime || {},
+      mergedModel,
     ),
     workflowRelease: mergeWorkflowReleaseSettings(
       currentSettings.workflowRelease || DEFAULT_SETTINGS.workflowRelease,
@@ -2816,6 +2901,84 @@ export const getModelConfigForModule = (moduleName) => {
   };
 };
 
+const resolveEmbeddedModelPresence = (modelPath = '') => {
+  const normalizedPath = String(modelPath || '').trim();
+  if (!normalizedPath) {
+    return false;
+  }
+
+  try {
+    if (path.isAbsolute(normalizedPath)) {
+      return fs.existsSync(normalizedPath);
+    }
+
+    return (
+      fs.existsSync(path.resolve(projectRoot, '..', normalizedPath)) ||
+      fs.existsSync(path.resolve(projectRoot, normalizedPath))
+    );
+  } catch {
+    return false;
+  }
+};
+
+const buildEmbeddedModelConfigSummary = (embeddedModelInput = {}) => {
+  const embeddedModel = isPlainObject(embeddedModelInput) ? embeddedModelInput : {};
+  const hasConfig = Object.keys(embeddedModel).length > 0;
+  const enabled = hasConfig && embeddedModel.enabled === true;
+  const provider = String(embeddedModel.provider || '').trim();
+  const modelId = String(
+    embeddedModel.modelId ||
+      embeddedModel.modelName ||
+      embeddedModel.model ||
+      '',
+  ).trim();
+  const modelPresent = resolveEmbeddedModelPresence(embeddedModel.modelPath);
+  const status = !hasConfig
+    ? 'not_configured'
+    : !enabled
+      ? 'disabled'
+      : modelId && modelPresent
+        ? 'available'
+        : 'unavailable';
+
+  return {
+    enabled,
+    provider,
+    modelId,
+    modelName: modelId,
+    status,
+    modelPresent,
+    source: hasConfig ? 'settings.embeddedModel' : 'not_configured',
+    updatedAt: String(
+      embeddedModel.updatedAt ||
+        embeddedModel.checkedAt ||
+        embeddedModel.loadedAt ||
+        '',
+    ).trim(),
+  };
+};
+
+const readRootEmbeddedModelSettings = () => {
+  if (!fs.existsSync(rootSettingsFilePath)) {
+    return {};
+  }
+
+  try {
+    const parsedSettings = JSON.parse(fs.readFileSync(rootSettingsFilePath, 'utf8') || '{}');
+    return isPlainObject(parsedSettings.embeddedModel) ? parsedSettings.embeddedModel : {};
+  } catch {
+    return {};
+  }
+};
+
+const resolveEmbeddedModelSettingsForSummary = (settings = {}) => {
+  if (isPlainObject(settings.embeddedModel) && Object.keys(settings.embeddedModel).length > 0) {
+    return settings.embeddedModel;
+  }
+
+  return readRootEmbeddedModelSettings();
+};
+
 export const getSettingsConfigSummary = (settingsInput = null) => {
   const settings = settingsInput || readSettings();
   const activeAssistantId =
@@ -2870,7 +3033,9 @@ export const getSettingsConfigSummary = (settingsInput = null) => {
     search: buildSearchConnectorConfigSummary(settings),
     pythonRuntime: sanitizePythonRuntimeSettingsForClient(
       settings.pythonRuntime || DEFAULT_SETTINGS.pythonRuntime,
+      settings.model || DEFAULT_SETTINGS.model,
     ),
+    embeddedModel: buildEmbeddedModelConfigSummary(resolveEmbeddedModelSettingsForSummary(settings)),
     workflowRelease: normalizeWorkflowReleaseSettings(
       settings.workflowRelease || DEFAULT_SETTINGS.workflowRelease,
     ),

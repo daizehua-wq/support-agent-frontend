@@ -6,6 +6,8 @@ import type {
   PythonRuntimeHealthData,
   SettingsSecurityPostureData,
 } from '../../../api/settings';
+import { formatDateTimeToLocalTime } from '../../../utils/dateTime';
+import { formatTechnicalLabel } from '../../../utils/displayLabel';
 
 type SettingsOpsSectionProps = {
   opsDashboard: OpsDashboardData | null;
@@ -22,16 +24,16 @@ type SettingsOpsSectionProps = {
 const getAlertLevelTag = (level = '') => {
   const normalizedLevel = String(level || '').trim().toLowerCase();
   if (normalizedLevel === 'critical') {
-    return <Tag color="red">critical</Tag>;
+    return <Tag color="red">{formatTechnicalLabel(normalizedLevel)}</Tag>;
   }
   if (normalizedLevel === 'warning') {
-    return <Tag color="orange">warning</Tag>;
+    return <Tag color="orange">{formatTechnicalLabel(normalizedLevel)}</Tag>;
   }
   if (normalizedLevel === 'info') {
-    return <Tag color="blue">info</Tag>;
+    return <Tag color="blue">{formatTechnicalLabel(normalizedLevel)}</Tag>;
   }
 
-  return <Tag>{normalizedLevel || 'unknown'}</Tag>;
+  return <Tag>{formatTechnicalLabel(normalizedLevel || 'unknown')}</Tag>;
 };
 
 function SettingsOpsSection({
@@ -110,11 +112,11 @@ function SettingsOpsSection({
               label: 'Python Runtime 状态',
               children:
                 pythonRuntimeStatus === 'healthy' ? (
-                  <Tag color="green">healthy</Tag>
+                  <Tag color="green">{formatTechnicalLabel(pythonRuntimeStatus)}</Tag>
                 ) : pythonRuntimeStatus === 'unhealthy' ? (
-                  <Tag color="red">unhealthy</Tag>
+                  <Tag color="red">{formatTechnicalLabel(pythonRuntimeStatus)}</Tag>
                 ) : (
-                  <Tag color="default">{pythonRuntimeStatus}</Tag>
+                  <Tag color="default">{formatTechnicalLabel(pythonRuntimeStatus)}</Tag>
                 ),
             },
           ]}
@@ -141,13 +143,14 @@ function SettingsOpsSection({
                 <Space direction="vertical" size={4} style={{ width: '100%' }}>
                   <Space>
                     {getAlertLevelTag(item.level)}
-                    <Tag>{item.category || 'general'}</Tag>
-                    <Tag>{item.status || 'open'}</Tag>
+                    <Tag>{formatTechnicalLabel(item.category || 'general')}</Tag>
+                    <Tag>{formatTechnicalLabel(item.status || 'open')}</Tag>
                   </Space>
                   <div style={{ fontWeight: 600 }}>{item.title || '未命名告警'}</div>
                   <div style={{ color: '#595959' }}>{item.message || '-'}</div>
                   <div style={{ color: '#8c8c8c', fontSize: 12 }}>
-                    次数：{item.count || 1} / 最近：{item.lastSeenAt || item.updatedAt || '-'}
+                    次数：{item.count || 1} / 最近：
+                    {formatDateTimeToLocalTime(item.lastSeenAt || item.updatedAt) || '-'}
                   </div>
                 </Space>
               </List.Item>
@@ -163,7 +166,8 @@ function SettingsOpsSection({
               <List.Item key={String(item.routeKey || `${item.kind}:${item.route}`)}>
                 <Space direction="vertical" size={4} style={{ width: '100%' }}>
                   <div style={{ fontWeight: 600 }}>
-                    {item.kind || 'unknown'} / {item.route || 'unknown'} / {item.pluginId || 'unknown-plugin'}
+                    {formatTechnicalLabel(item.kind || 'unknown')} / {formatTechnicalLabel(item.route || 'unknown')} /{' '}
+                    {formatTechnicalLabel(item.pluginId || 'unknown-plugin')}
                   </div>
                   <div style={{ color: '#595959' }}>
                     成本：{Number(item.totalCostUsd || 0).toFixed(6)} USD，Tokens：
@@ -220,11 +224,10 @@ function SettingsOpsSection({
                 key: 'pythonProbe',
                 label: 'Runtime 最近探针',
                 children:
-                  String(
+                  formatDateTimeToLocalTime(
                     (pythonRuntimeHealth?.snapshot as { checkedAt?: string } | undefined)?.checkedAt ||
                       (pythonRuntimeHealth?.healthProbe as { checkedAt?: string } | undefined)
-                        ?.checkedAt ||
-                      '-',
+                        ?.checkedAt,
                   ) || '-',
               },
               {

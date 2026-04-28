@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Form, message } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import PageHeader from '../../components/common/PageHeader';
 import {
   getSettings,
   getSettingsGovernanceHistory,
@@ -31,6 +30,7 @@ import {
   type WorkflowReleaseSettings,
   type SystemSettings,
   type SettingsResponseData,
+  type EmbeddedModelSettings,
 } from '../../api/settings';
 import { getApiErrorMessage } from '../../utils/apiError';
 import SettingsAssistantSection from './components/SettingsAssistantSection';
@@ -40,6 +40,7 @@ import SettingsTransitionSection from './components/SettingsTransitionSection';
 import SettingsWorkflowReleaseSection from './components/SettingsWorkflowReleaseSection';
 import SettingsPythonRuntimeSection from './components/SettingsPythonRuntimeSection';
 import SettingsOpsSection from './components/SettingsOpsSection';
+import SettingsRulesOverviewSection from './components/SettingsRulesOverviewSection';
 
 const databaseTypeOptions = [
   { label: 'SQLite', value: 'sqlite' },
@@ -100,7 +101,7 @@ const defaultPythonRuntimeValues: PythonRuntimeSettings = {
   baseUrl: 'http://127.0.0.1:8008',
   healthGate: {
     enabled: true,
-    strictGate: true,
+    strictGate: false,
     checkPath: '/health',
     timeoutMs: 1500,
     cacheTtlMs: 5000,
@@ -118,7 +119,7 @@ const defaultPythonRuntimeValues: PythonRuntimeSettings = {
   },
   channels: {
     local: {
-      model: 'ollama/qwen2.5:7b',
+      model: 'ollama/deepseek-r1:14b',
       apiBase: 'http://127.0.0.1:11434',
       apiKey: '',
       hasApiKey: false,
@@ -402,6 +403,7 @@ function SettingsPage() {
   const [governanceForm] = Form.useForm<SettingsGovernanceFormValues>();
   const [settingsStatusSummary, setSettingsStatusSummary] = useState<SettingsStatusSummary | null>(null);
   const [settingsGovernanceSummary, setSettingsGovernanceSummary] = useState<SettingsGovernanceSummary | null>(null);
+  const [settingsConfigSnapshot, setSettingsConfigSnapshot] = useState<SettingsConfigSnapshot>({});
   const [workflowReleaseOptions, setWorkflowReleaseOptions] = useState<WorkflowReleaseRouteOption[]>([]);
   const [settingsGovernanceOverview, setSettingsGovernanceOverview] = useState<SettingsGovernanceOverviewData | null>(null);
   const [settingsGovernanceHistory, setSettingsGovernanceHistory] = useState<SettingsGovernanceHistoryData | null>(null);
@@ -442,6 +444,27 @@ function SettingsPage() {
     watchedModels.find((item: ModelItem) => item?.id === watchedActiveModelId) ||
     watchedModels[0] ||
     null;
+  const localRuntimeModelOptions = Array.from(
+    new Map(
+      watchedModels
+        .filter((item: ModelItem) => {
+          const provider = String(item?.modelProvider || '').toLowerCase();
+          return item?.enabled !== false && ['local', 'ollama'].includes(provider);
+        })
+        .map((item: ModelItem) => {
+          const modelName = String(item.modelName || '').replace(/^ollama\//i, '').trim();
+          const value = modelName ? `ollama/${modelName}` : '';
+          return [
+            value,
+            {
+              label: `${item.label || item.id || '本地模型'} / ${modelName || '未返回模型名'}`,
+              value,
+            },
+          ] as const;
+        })
+        .filter(([value]) => Boolean(value)),
+    ).values(),
+  );
 
   const getModelDisplayLabel = (model?: {
     id?: string;
@@ -489,6 +512,18 @@ function SettingsPage() {
     `${watchedAnalyzeStrategy} / ${watchedSearchStrategy} / ${watchedScriptStrategy}`;
   const databaseRelationSourceForSummary =
     databaseBindingSummary?.relationSource || 'settings.database.active-config';
+  const resolvedAssistantNameForSummary =
+    activeAssistantSummary?.assistantName ||
+    settingsGovernanceSummary?.assistantOptions?.find(
+      (item) => item.assistantId === resolvedAssistantIdForSummary,
+    )?.assistantName ||
+    '';
+  const embeddedModelConfig =
+    (settingsConfigSnapshot.embeddedModel || null) as EmbeddedModelSettings | null;
+  const workflowRouteCount = Object.keys(
+    ((settingsConfigSnapshot.workflowRelease || defaultWorkflowReleaseValues) as WorkflowReleaseSettings)
+      .routes || {},
+  ).length;
 
   const buildGovernanceRequestContext = (
     values: Partial<SettingsGovernanceFormValues> = {},
@@ -607,6 +642,7 @@ function SettingsPage() {
 
     setSettingsStatusSummary(statusSummary);
     setSettingsGovernanceSummary(settings.governanceSummary || null);
+    setSettingsConfigSnapshot(configSummary);
 
     const configPythonRuntime = (configSummary.pythonRuntime || {}) as Partial<PythonRuntimeSettings>;
     const normalizedPythonRuntime: PythonRuntimeSettings = {
@@ -1070,113 +1106,140 @@ function SettingsPage() {
   };
 
   return (
-    <div>
-      <PageHeader
-        title="系统设置"
-        description="统一配置当前工作台的基础运行设置，并预留模型层、Prompt / Assistant、数据接入与安全层的平台底座入口。"
-      />
-
-      <SettingsSummarySection
-        assistantId={resolvedAssistantIdForSummary}
-        promptId={resolvedPromptIdForSummary}
+    <div className="ap-settings-page">
+      <SettingsRulesOverviewSection
+        activeAssistantName={resolvedAssistantNameForSummary}
+        activeAssistantId={resolvedAssistantIdForSummary}
         promptVersion={resolvedPromptVersionForSummary}
-        strategyId={resolvedStrategyIdForSummary}
-        sourceSummary={currentAssistantSourceSummary}
-        versionLabel={currentDefaultModel?.id || '未返回'}
-        databaseRelationSource={databaseRelationSourceForSummary}
-        currentDefaultModelLabel={getModelDisplayLabel(currentDefaultModel)}
-        currentDatabaseName={watchedDatabaseName}
-        currentDatabaseType={watchedDatabaseType}
-        databaseBindingSummary={databaseBindingSummary}
-        onViewModelCenter={() => navigate('/model-center')}
-        onTestModelConnection={handleTestModelConnection}
-        onViewDatabaseManager={() => navigate('/database-manager')}
-        onTestDatabaseConnection={handleTestDatabaseConnection}
-      />
-
-      <SettingsOpsSection
+        strategySummary={resolvedStrategyIdForSummary}
+        modelLabel={getModelDisplayLabel(currentDefaultModel)}
+        databaseName={watchedDatabaseName}
+        databaseType={watchedDatabaseType}
+        workflowRouteCount={workflowRouteCount}
+        embeddedModel={embeddedModelConfig}
         opsDashboard={opsDashboard}
-        pythonRuntimeHealth={pythonRuntimeHealth}
         securityPosture={securityPosture}
-        refreshingOps={isOpsRefreshing}
-        refreshingSecurity={isSecurityRefreshing}
-        acknowledgingAlertId={acknowledgingAlertId}
-        onRefreshOps={handleRefreshOpsDashboard}
-        onRefreshSecurity={handleRefreshSecurityPosture}
-        onAcknowledgeAlert={handleAcknowledgeOpsAlert}
-      />
-
-      <SettingsPythonRuntimeSection
-        pythonRuntimeForm={pythonRuntimeForm}
-        defaultPythonRuntimeValues={defaultPythonRuntimeValues}
-        localApiKeyConfigured={Boolean(watchedLocalApiKeyConfigured)}
-        cloudApiKeyConfigured={Boolean(watchedCloudApiKeyConfigured)}
-        onSavePythonRuntimeSettings={handleSavePythonRuntimeSettings}
-        onResetPythonRuntimeSettings={handleResetPythonRuntimeSettings}
-      />
-
-      <SettingsWorkflowReleaseSection
-        workflowReleaseForm={workflowReleaseForm}
-        routeOptions={workflowReleaseOptions}
-        onSaveWorkflowReleaseSettings={handleSaveWorkflowReleaseSettings}
-        onResetWorkflowReleaseSettings={handleResetWorkflowReleaseSettings}
-        onRefreshWorkflowReleaseOptions={handleRefreshWorkflowReleaseOptions}
-      />
-
-      <SettingsGovernanceSection
-        governanceForm={governanceForm}
-        overview={settingsGovernanceOverview}
-        history={settingsGovernanceHistory}
-        refreshing={isGovernanceRefreshing}
-        publishing={isGovernancePublishing}
-        rollingBack={isGovernanceRollingBack}
-        onRefresh={handleRefreshGovernanceChain}
-        onPublish={handlePublishGovernanceVersion}
-        onRollback={handleRollbackGovernanceVersion}
-      />
-
-      <SettingsAssistantSection
-        assistantForm={assistantForm}
-        defaultAssistantValues={defaultAssistantValues}
-        assistantSelectOptions={assistantSelectOptions}
-        currentSessionId={currentSessionId}
-        resolvedAssistantId={resolvedAssistantIdForSummary}
-        analyzePromptId={activeAssistantSummary?.defaultModuleBindings?.analyze || '未返回'}
-        searchPromptId={activeAssistantSummary?.defaultModuleBindings?.search || '未返回'}
-        scriptPromptId={activeAssistantSummary?.defaultModuleBindings?.script || '未返回'}
-        publishedPromptId={activeAssistantSummary?.currentPublishedPrompt || '未返回'}
-        publishedPromptVersion={activeAssistantSummary?.currentPublishedPromptVersion || '未返回'}
-        analyzeStrategy={activeAssistantSummary?.defaultStrategies?.analyzeStrategy || '未返回'}
-        searchStrategy={activeAssistantSummary?.defaultStrategies?.searchStrategy || '未返回'}
-        scriptStrategy={activeAssistantSummary?.defaultStrategies?.scriptStrategy || '未返回'}
-        activeAnalyzePromptName={activeAnalyzePromptSummary?.name || '未返回'}
-        activeAnalyzePromptVersion={activeAnalyzePromptSummary?.version || '未返回'}
-        assistantHistory={assistantHistory}
-        promptHistory={promptHistory}
-        onSaveAssistantSettings={handleSaveAssistantSettings}
-      />
-
-      <SettingsTransitionSection
-        modelForm={modelForm}
-        strategyForm={strategyForm}
-        databaseForm={databaseForm}
-        defaultModelValues={defaultModelValues}
-        defaultStrategyValues={defaultStrategyValues}
-        defaultDatabaseValues={defaultDatabaseValues}
-        currentDefaultModelLabel={getModelDisplayLabel(currentDefaultModel)}
-        watchedAnalyzeStrategy={watchedAnalyzeStrategy}
-        watchedSearchStrategy={watchedSearchStrategy}
-        watchedScriptStrategy={watchedScriptStrategy}
-        watchedDatabaseName={watchedDatabaseName}
-        watchedDatabaseType={watchedDatabaseType}
-        databaseTypeOptions={databaseTypeOptions}
-        onViewModelCenter={() => navigate('/model-center')}
+        governanceOverview={settingsGovernanceOverview}
         onTestModelConnection={handleTestModelConnection}
-        onSaveStrategySettings={handleSaveStrategySettings}
-        onResetStrategySettings={handleResetStrategySettings}
-        onSaveDatabaseSettings={handleSaveDatabaseSettings}
         onTestDatabaseConnection={handleTestDatabaseConnection}
       />
+
+      <section id="settings-summary" className="ap-settings-detail-section">
+        <SettingsSummarySection
+          assistantId={resolvedAssistantIdForSummary}
+          promptId={resolvedPromptIdForSummary}
+          promptVersion={resolvedPromptVersionForSummary}
+          strategyId={resolvedStrategyIdForSummary}
+          sourceSummary={currentAssistantSourceSummary}
+          versionLabel={currentDefaultModel?.id || '未返回'}
+          databaseRelationSource={databaseRelationSourceForSummary}
+          currentDefaultModelLabel={getModelDisplayLabel(currentDefaultModel)}
+          currentDatabaseName={watchedDatabaseName}
+          currentDatabaseType={watchedDatabaseType}
+          databaseBindingSummary={databaseBindingSummary}
+          onViewModelCenter={() => navigate('/model-center')}
+          onTestModelConnection={handleTestModelConnection}
+          onViewDatabaseManager={() => navigate('/database-manager')}
+          onTestDatabaseConnection={handleTestDatabaseConnection}
+        />
+      </section>
+
+      <section id="settings-ops" className="ap-settings-detail-section">
+        <SettingsOpsSection
+          opsDashboard={opsDashboard}
+          pythonRuntimeHealth={pythonRuntimeHealth}
+          securityPosture={securityPosture}
+          refreshingOps={isOpsRefreshing}
+          refreshingSecurity={isSecurityRefreshing}
+          acknowledgingAlertId={acknowledgingAlertId}
+          onRefreshOps={handleRefreshOpsDashboard}
+          onRefreshSecurity={handleRefreshSecurityPosture}
+          onAcknowledgeAlert={handleAcknowledgeOpsAlert}
+        />
+      </section>
+
+      <section id="settings-runtime" className="ap-settings-detail-section">
+        <SettingsPythonRuntimeSection
+          pythonRuntimeForm={pythonRuntimeForm}
+          defaultPythonRuntimeValues={defaultPythonRuntimeValues}
+          localModelOptions={localRuntimeModelOptions}
+          localApiKeyConfigured={Boolean(watchedLocalApiKeyConfigured)}
+          cloudApiKeyConfigured={Boolean(watchedCloudApiKeyConfigured)}
+          onSavePythonRuntimeSettings={handleSavePythonRuntimeSettings}
+          onResetPythonRuntimeSettings={handleResetPythonRuntimeSettings}
+        />
+      </section>
+
+      <section id="settings-release" className="ap-settings-detail-section">
+        <SettingsWorkflowReleaseSection
+          workflowReleaseForm={workflowReleaseForm}
+          routeOptions={workflowReleaseOptions}
+          onSaveWorkflowReleaseSettings={handleSaveWorkflowReleaseSettings}
+          onResetWorkflowReleaseSettings={handleResetWorkflowReleaseSettings}
+          onRefreshWorkflowReleaseOptions={handleRefreshWorkflowReleaseOptions}
+        />
+      </section>
+
+      <section id="settings-governance" className="ap-settings-detail-section">
+        <SettingsGovernanceSection
+          governanceForm={governanceForm}
+          overview={settingsGovernanceOverview}
+          history={settingsGovernanceHistory}
+          refreshing={isGovernanceRefreshing}
+          publishing={isGovernancePublishing}
+          rollingBack={isGovernanceRollingBack}
+          onRefresh={handleRefreshGovernanceChain}
+          onPublish={handlePublishGovernanceVersion}
+          onRollback={handleRollbackGovernanceVersion}
+        />
+      </section>
+
+      <section id="settings-agent" className="ap-settings-detail-section">
+        <SettingsAssistantSection
+          assistantForm={assistantForm}
+          defaultAssistantValues={defaultAssistantValues}
+          assistantSelectOptions={assistantSelectOptions}
+          currentSessionId={currentSessionId}
+          resolvedAssistantId={resolvedAssistantIdForSummary}
+          analyzePromptId={activeAssistantSummary?.defaultModuleBindings?.analyze || '未返回'}
+          searchPromptId={activeAssistantSummary?.defaultModuleBindings?.search || '未返回'}
+          scriptPromptId={activeAssistantSummary?.defaultModuleBindings?.script || '未返回'}
+          publishedPromptId={activeAssistantSummary?.currentPublishedPrompt || '未返回'}
+          publishedPromptVersion={activeAssistantSummary?.currentPublishedPromptVersion || '未返回'}
+          analyzeStrategy={activeAssistantSummary?.defaultStrategies?.analyzeStrategy || '未返回'}
+          searchStrategy={activeAssistantSummary?.defaultStrategies?.searchStrategy || '未返回'}
+          scriptStrategy={activeAssistantSummary?.defaultStrategies?.scriptStrategy || '未返回'}
+          activeAnalyzePromptName={activeAnalyzePromptSummary?.name || '未返回'}
+          activeAnalyzePromptVersion={activeAnalyzePromptSummary?.version || '未返回'}
+          assistantHistory={assistantHistory}
+          promptHistory={promptHistory}
+          onSaveAssistantSettings={handleSaveAssistantSettings}
+        />
+      </section>
+
+      <section id="settings-transition" className="ap-settings-detail-section">
+        <SettingsTransitionSection
+          modelForm={modelForm}
+          strategyForm={strategyForm}
+          databaseForm={databaseForm}
+          defaultModelValues={defaultModelValues}
+          defaultStrategyValues={defaultStrategyValues}
+          defaultDatabaseValues={defaultDatabaseValues}
+          currentDefaultModelLabel={getModelDisplayLabel(currentDefaultModel)}
+          watchedAnalyzeStrategy={watchedAnalyzeStrategy}
+          watchedSearchStrategy={watchedSearchStrategy}
+          watchedScriptStrategy={watchedScriptStrategy}
+          watchedDatabaseName={watchedDatabaseName}
+          watchedDatabaseType={watchedDatabaseType}
+          databaseTypeOptions={databaseTypeOptions}
+          onViewModelCenter={() => navigate('/model-center')}
+          onTestModelConnection={handleTestModelConnection}
+          onSaveStrategySettings={handleSaveStrategySettings}
+          onResetStrategySettings={handleResetStrategySettings}
+          onSaveDatabaseSettings={handleSaveDatabaseSettings}
+          onTestDatabaseConnection={handleTestDatabaseConnection}
+        />
+      </section>
     </div>
   );
 }

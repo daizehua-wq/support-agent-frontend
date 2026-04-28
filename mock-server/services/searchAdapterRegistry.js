@@ -25,10 +25,14 @@ const SEARCH_SOURCE_TYPES = {
 const SEARCH_CONNECTOR_REGISTRY_CONTRACT_VERSION = 'search-connectors/v2';
 
 const DOC_TYPE_FILTER_MAP = {
-  spec: ['spec', '规格书'],
-  faq: ['faq', 'FAQ'],
-  case: ['case', '案例资料'],
-  project: ['project', '项目资料', '数据库记录'],
+  spec: ['spec', '规格书', '规范资料', '制度规范'],
+  faq: ['faq', 'FAQ', '常见问题', '流程 SOP', '流程SOP'],
+  case: ['case', '案例资料', '案例', '复盘材料', '复盘纪要'],
+  project: ['project', '项目资料', '项目文档', '数据库记录'],
+  制度规范: ['spec', '规格书', '规范资料', '制度规范'],
+  '流程 SOP': ['faq', 'FAQ', '常见问题', '流程 SOP', '流程SOP'],
+  复盘纪要: ['case', '案例资料', '案例', '复盘材料', '复盘纪要'],
+  项目文档: ['project', '项目资料', '项目文档', '数据库记录'],
 };
 
 const normalizeText = (value = '') => String(value || '').trim();

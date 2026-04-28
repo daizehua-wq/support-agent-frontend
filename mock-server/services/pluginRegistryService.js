@@ -19,6 +19,7 @@ import {
   shouldGuardCanaryByMetrics,
 } from './pluginRuntimeMetricsService.js';
 import { recordWorkflowObservation } from './opsObservabilityService.js';
+import { nowLocalIso, toLocalIso } from '../utils/localTime.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -42,6 +43,10 @@ const normalizePercent = (value = 0) => {
 const toNumber = (value, fallback = 0) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const isWorkflowTimeoutError = (error = null) => {
+  return /timed out after \d+ms/i.test(normalizeString(error?.message || ''));
 };
 
 const getValueByPath = (source = {}, targetPath = '') => {
@@ -144,7 +149,7 @@ const createExecutionEvent = ({
 } = {}) => ({
   eventId: randomUUID(),
   eventType,
-  occurredAt: new Date().toISOString(),
+  occurredAt: nowLocalIso(),
   pluginId: plugin?.pluginId || '',
   route: route || plugin?.route || '',
   nodeId,
@@ -273,7 +278,7 @@ export const loadPluginRegistry = () => {
   });
 
   return {
-    loadedAt: new Date().toISOString(),
+    loadedAt: nowLocalIso(),
     manifestDirectory: toRelativePath(pluginManifestDirectory),
     contract: buildPlatformContractSummary(),
     supportedNodeTypes: listSupportedWorkflowNodeTypes(),
@@ -892,8 +897,8 @@ const buildExecutionTrace = ({
   })),
   events,
   timing: {
-    startedAt: startedAt ? new Date(startedAt).toISOString() : '',
-    completedAt: completedAt ? new Date(completedAt).toISOString() : '',
+    startedAt: startedAt ? toLocalIso(new Date(startedAt)) : '',
+    completedAt: completedAt ? toLocalIso(new Date(completedAt)) : '',
     durationMs: Math.max(0, completedAt - startedAt),
     nodes: nodeExecutions.map((item) => ({
       nodeId: item.nodeId,
@@ -1012,7 +1017,7 @@ const executePluginWorkflow = async ({
       });
 
       if (!conditionDecision.matched) {
-        const skippedAt = new Date().toISOString();
+        const skippedAt = nowLocalIso();
         const skippedExecution = {
           nodeId: nodeSpec.id,
           nodeType: nodeSpec.type,
@@ -1150,6 +1155,7 @@ const executePluginWorkflow = async ({
           };
         } catch (error) {
           const nodeCompletedAt = Date.now();
+          const isTimeoutError = isWorkflowTimeoutError(error);
 
           emitEvent({
             events,
@@ -1168,7 +1174,7 @@ const executePluginWorkflow = async ({
             },
           });
 
-          if (attempt <= maxRetries) {
+          if (attempt <= maxRetries && !isTimeoutError) {
             emitEvent({
               events,
               plugin,
@@ -1190,8 +1196,8 @@ const executePluginWorkflow = async ({
             const continuedNodeExecution = {
               nodeId: nodeSpec.id,
               nodeType: nodeSpec.type,
-              startedAt: new Date(nodeStartedAt).toISOString(),
-              completedAt: new Date(nodeCompletedAt).toISOString(),
+              startedAt: toLocalIso(new Date(nodeStartedAt)),
+              completedAt: toLocalIso(new Date(nodeCompletedAt)),
               durationMs: Math.max(0, nodeCompletedAt - nodeStartedAt),
               output: previousDependencyOutput,
               continuedOnError: true,

@@ -181,22 +181,24 @@ const mergeRuleFragments = (fragments = []) => {
   };
 };
 
-const mergeAnalyzeData = (existingData = {}, ruleAnalysis = {}) => {
+const mergeAnalyzeData = (existingData = {}, ruleAnalysis = {}, options = {}) => {
+  const preferRuleAnalysis = options.preferRuleAnalysis === true;
   const mergedData = {
-    ...cloneValue(ruleAnalysis || {}),
-    ...cloneValue(existingData || {}),
+    ...(preferRuleAnalysis ? cloneValue(existingData || {}) : cloneValue(ruleAnalysis || {})),
+    ...(preferRuleAnalysis ? cloneValue(ruleAnalysis || {}) : cloneValue(existingData || {})),
   };
 
   ANALYZE_SCALAR_KEYS.forEach((key) => {
-    mergedData[key] = normalizeText(existingData?.[key]) || normalizeText(ruleAnalysis?.[key])
-      ? existingData?.[key] || ruleAnalysis?.[key]
+    mergedData[key] = preferRuleAnalysis
+      ? ruleAnalysis?.[key] || existingData?.[key]
       : existingData?.[key] || ruleAnalysis?.[key];
   });
 
   ANALYZE_ARRAY_KEYS.forEach((key) => {
     mergedData[key] =
-      preferNonEmptyArray(existingData?.[key]) ||
-      preferNonEmptyArray(ruleAnalysis?.[key]) ||
+      (preferRuleAnalysis
+        ? preferNonEmptyArray(ruleAnalysis?.[key]) || preferNonEmptyArray(existingData?.[key])
+        : preferNonEmptyArray(existingData?.[key]) || preferNonEmptyArray(ruleAnalysis?.[key])) ||
       [];
   });
 
@@ -316,7 +318,15 @@ export const mergeAnalyzeResultWithRuleEngine = ({
       existingRelatedDocumentNames.length > 0
         ? existingRelatedDocumentNames
         : ruleEngineResult.relatedDocumentNames || [],
-    finalAnalyzeData: mergeAnalyzeData(analyzeResult.finalAnalyzeData || {}, ruleEngineResult.analysis || {}),
+    finalAnalyzeData: mergeAnalyzeData(
+      analyzeResult.finalAnalyzeData || {},
+      ruleEngineResult.analysis || {},
+      {
+        preferRuleAnalysis: Boolean(
+          ruleEngineResult.matchedRule?.appId || ruleEngineResult.matchedRule?.app_id,
+        ),
+      },
+    ),
     ruleEngine: {
       configPath: ruleEngineResult.configPath,
       enabledRules: ruleEngineResult.enabledRules || [],

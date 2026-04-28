@@ -1,5 +1,6 @@
 import Rule from '../base-rule.js';
-import { readJsonFile } from '../../../services/jsonDataService.js';
+import { matchRules } from '../../../data/models/knowledgeRule.js';
+import { searchResources } from '../../../data/models/knowledgeResource.js';
 import {
   filterProductsByScope,
   filterRulesByScope,
@@ -22,6 +23,126 @@ const buildBaseAnalyzeFragment = ({ matchedRule = null, matchedProducts = [] } =
     followupQuestions: matchedRule?.followupQuestions || [],
     riskNotes: matchedRule?.riskNotes || [],
     nextActions: matchedRule?.nextActions || [],
+  };
+};
+
+const buildLegacyRule = (rule = {}) => {
+  if (rule.legacyRule) {
+    return rule.legacyRule;
+  }
+
+  const suggestions =
+    rule.suggestions && typeof rule.suggestions === 'object' && !Array.isArray(rule.suggestions)
+      ? rule.suggestions
+      : {};
+  const riskNotes = Array.isArray(rule.riskNotes)
+    ? rule.riskNotes
+    : [rule.riskNotes].filter(Boolean);
+
+  return {
+    name: rule.id,
+    appId: rule.appId || rule.app_id || '',
+    app_id: rule.appId || rule.app_id || '',
+    keywords: rule.keywords || [],
+    sceneType: rule.scenario || rule.topic || '',
+    targetCategory: suggestions.targetCategory || rule.topic || '',
+    templateGroup: suggestions.templateGroup || 'technical_reply',
+    scope: [rule.domainType || rule.domain_type || 'general'].filter(Boolean),
+    priority: Number(rule.priority || suggestions.priority || 0),
+    summaryTemplate:
+      typeof suggestions.summaryTemplate === 'string'
+        ? suggestions.summaryTemplate
+        : undefined,
+    sceneJudgement:
+      typeof suggestions.sceneJudgement === 'string'
+        ? suggestions.sceneJudgement
+        : undefined,
+    followupQuestions: suggestions.followupQuestions || [],
+    riskNotes,
+    nextActions: suggestions.nextActions || [],
+  };
+};
+
+const normalizeProductFromResource = (resource = {}) => {
+  if (resource.legacyProduct) {
+    return resource.legacyProduct;
+  }
+
+  return {
+    id: resource.id,
+    productName: resource.title,
+    category: resource.contentType || resource.content_type || '',
+    industryTypes: [resource.domainType || resource.domain_type || 'general'].filter(Boolean),
+    scope: [resource.domainType || resource.domain_type || 'general'].filter(Boolean),
+    keywords: [],
+    summary: resource.summary || '',
+    applicableScenes: resource.applicableScenarios || [],
+    externalAvailable: Boolean(resource.isShareable ?? resource.is_shareable),
+    relatedDocuments: [
+      {
+        docName: resource.title,
+        docType: resource.contentType || resource.content_type || '资料',
+        summaryText: resource.summary || '',
+        externalAvailable: Boolean(resource.isShareable ?? resource.is_shareable),
+      },
+    ],
+  };
+};
+
+const buildProductsFromResources = (resources = []) => {
+  const productMap = new Map();
+
+  for (const resource of resources || []) {
+    const product = normalizeProductFromResource(resource);
+    const existing = productMap.get(product.id) || {
+      ...product,
+      relatedDocuments: [],
+    };
+    const documents = resource.legacyDocument
+      ? [resource.legacyDocument]
+      : product.relatedDocuments || [];
+
+    for (const document of documents) {
+      const key = `${document.docName || ''}__${document.docType || ''}`;
+      const exists = (existing.relatedDocuments || []).some(
+        (item) => `${item.docName || ''}__${item.docType || ''}` === key,
+      );
+      if (!exists) {
+        existing.relatedDocuments.push(document);
+      }
+    }
+
+    productMap.set(product.id, existing);
+  }
+
+  return Array.from(productMap.values());
+};
+
+const loadKnowledgeContext = ({
+  text = '',
+  executionContext = {},
+  appId = '',
+  domainTypeHint = '',
+} = {}) => {
+  const domainType =
+    domainTypeHint || executionContext.productScope?.[0] || executionContext.rulesScope?.[0] || '';
+  const rules = matchRules({
+    appId,
+    domainType,
+    workflowStage: 'analyze',
+    keyword: text,
+  });
+  const resources = searchResources({
+    appId,
+    domainType,
+    keyword: text,
+  });
+
+  return {
+    products: buildProductsFromResources(resources),
+    rules: {
+      analyzeCustomerRules: rules.map(buildLegacyRule),
+    },
   };
 };
 
@@ -54,6 +175,12 @@ const resolveMatchedProducts = ({ matchedRule = null, products = [], text = '' }
 const resolveKeywordRuleMatch = (context = {}) => {
   const normalizedInput = isPlainObject(context.normalizedInput) ? context.normalizedInput : {};
   const executionContext = isPlainObject(context.executionContext) ? context.executionContext : {};
+  const appId = normalizeText(
+    normalizedInput.appId || normalizedInput.app_id || context.appId || context.app_id,
+  );
+  const domainTypeHint = normalizeText(
+    normalizedInput.domainType || normalizedInput.domain_type || normalizedInput.industryType,
+  );
   const taskInput = normalizeText(normalizedInput.taskInput, normalizedInput.customerText);
   const taskSubject = normalizeText(
     normalizedInput.taskSubject,
@@ -62,14 +189,26 @@ const resolveKeywordRuleMatch = (context = {}) => {
   );
   const text = normalizeText(context.text, taskInput, taskSubject);
 
+  const knowledgeContext = loadKnowledgeContext({
+    text,
+    executionContext,
+    appId,
+    domainTypeHint,
+  });
+  const effectiveProductScope = domainTypeHint
+    ? [domainTypeHint]
+    : executionContext.productScope || [];
+  const effectiveRulesScope = domainTypeHint
+    ? [domainTypeHint]
+    : executionContext.rulesScope || [];
   const allProducts = Array.isArray(context.products)
     ? context.products
-    : readJsonFile('products.json', []);
+    : knowledgeContext.products;
   const allRules = isPlainObject(context.rules)
     ? context.rules
-    : readJsonFile('rules.json', { analyzeCustomerRules: [] });
-  const products = filterProductsByScope(allProducts, executionContext.productScope || []);
-  const rules = filterRulesByScope(allRules, executionContext.rulesScope || []);
+    : knowledgeContext.rules;
+  const products = filterProductsByScope(allProducts, effectiveProductScope);
+  const rules = filterRulesByScope(allRules, effectiveRulesScope);
 
   const matchedRules = (rules.analyzeCustomerRules || [])
     .filter((rule) => (rule.keywords || []).some((item) => text.includes(item)))

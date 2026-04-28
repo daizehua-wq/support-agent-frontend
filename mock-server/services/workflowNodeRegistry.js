@@ -4,6 +4,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import { runAnalyzeCustomerFlow } from '../flows/analyzeFlow.js';
 import { runSearchDocumentsFlow } from '../flows/searchFlow.js';
 import { runGenerateScriptFlow } from '../flows/scriptFlow.js';
+import { toLocalIso } from '../utils/localTime.js';
 import {
   isPythonRuntimeEnabled,
   runPythonAnalyzeNode,
@@ -19,6 +20,57 @@ const projectRoot = path.resolve(__dirname, '..');
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 const normalizeString = (value = '') => String(value || '').trim();
+
+const MIN_TIMEOUT_BY_NODE_TYPE = Object.freeze({
+  'analyze.customer.v1': 90000,
+  'search.documents.v1': 90000,
+  'output.script.v1': 90000,
+});
+
+const attachPythonRuntimeFallbackSummary = (result = {}, fallbackSummary = null) => {
+  if (!fallbackSummary || !isPlainObject(result)) {
+    return result;
+  }
+
+  const nextResult = {
+    ...result,
+  };
+  const existingExecutionContext = isPlainObject(nextResult.executionContext)
+    ? nextResult.executionContext
+    : {};
+  const existingFallbackReason = isPlainObject(nextResult.fallbackReason)
+    ? nextResult.fallbackReason
+    : isPlainObject(existingExecutionContext.fallbackReason)
+      ? existingExecutionContext.fallbackReason
+      : {};
+  const nextFallbackReason = {
+    ...existingFallbackReason,
+    pythonRuntime: fallbackSummary.code,
+    pythonRuntimeStatus: fallbackSummary.status,
+    pythonRuntimeMessage: fallbackSummary.message,
+  };
+  const nextExecutionContext = {
+    ...existingExecutionContext,
+    fallbackReason: nextFallbackReason,
+    pythonRuntime: {
+      degraded: true,
+      ...fallbackSummary,
+    },
+    source: {
+      ...(isPlainObject(existingExecutionContext.source) ? existingExecutionContext.source : {}),
+      pythonRuntime: 'fallback.node-local',
+    },
+  };
+
+  nextResult.executionContext = nextExecutionContext;
+  nextResult.fallbackReason = nextFallbackReason;
+  nextResult.pythonRuntime = {
+    degraded: true,
+    ...fallbackSummary,
+  };
+
+  return nextResult;
+};
 
 const withTimeout = async (promise, timeoutMs = 90000, label = 'workflow node') => {
   const effectiveTimeout = Number.isFinite(Number(timeoutMs))
@@ -47,13 +99,23 @@ const withTimeout = async (promise, timeoutMs = 90000, label = 'workflow node') 
   }
 };
 
+const resolveNodeTimeoutMs = (nodeSpec = {}) => {
+  const declaredTimeout = Number(nodeSpec.timeoutMs);
+  const fallbackTimeout = 90000;
+  const baselineTimeout = Number.isFinite(declaredTimeout) ? declaredTimeout : fallbackTimeout;
+  const minimumTimeout = MIN_TIMEOUT_BY_NODE_TYPE[nodeSpec.type] || 0;
+
+  return Math.max(baselineTimeout, minimumTimeout);
+};
+
 const CORE_NODE_HANDLER_REGISTRY = {
   'analyze.customer.v1': async ({ input = {}, context = {} } = {}) => {
+    let pythonFallbackSummary = null;
     if (isPythonRuntimeEnabled(context.settings || {})) {
       try {
         return await runPythonAnalyzeNode({ input, context });
       } catch (error) {
-        handlePythonRuntimeFallback({
+        pythonFallbackSummary = handlePythonRuntimeFallback({
           error,
           nodeType: 'analyze.customer.v1',
           runtimeSettings: context.settings || {},
@@ -61,7 +123,7 @@ const CORE_NODE_HANDLER_REGISTRY = {
       }
     }
 
-    return runAnalyzeCustomerFlow(
+    const localResult = await runAnalyzeCustomerFlow(
       {
         ...(isPlainObject(input) ? input : {}),
       },
@@ -69,13 +131,16 @@ const CORE_NODE_HANDLER_REGISTRY = {
         settings: context.settings,
       },
     );
+
+    return attachPythonRuntimeFallbackSummary(localResult, pythonFallbackSummary);
   },
   'search.documents.v1': async ({ input = {}, context = {} } = {}) => {
+    let pythonFallbackSummary = null;
     if (isPythonRuntimeEnabled(context.settings || {})) {
       try {
         return await runPythonSearchNode({ input, context });
       } catch (error) {
-        handlePythonRuntimeFallback({
+        pythonFallbackSummary = handlePythonRuntimeFallback({
           error,
           nodeType: 'search.documents.v1',
           runtimeSettings: context.settings || {},
@@ -83,17 +148,20 @@ const CORE_NODE_HANDLER_REGISTRY = {
       }
     }
 
-    return runSearchDocumentsFlow({
+    const localResult = await runSearchDocumentsFlow({
       ...(isPlainObject(input) ? input : {}),
       settings: context.settings,
     });
+
+    return attachPythonRuntimeFallbackSummary(localResult, pythonFallbackSummary);
   },
   'output.script.v1': async ({ input = {}, context = {} } = {}) => {
+    let pythonFallbackSummary = null;
     if (isPythonRuntimeEnabled(context.settings || {})) {
       try {
         return await runPythonScriptNode({ input, context });
       } catch (error) {
-        handlePythonRuntimeFallback({
+        pythonFallbackSummary = handlePythonRuntimeFallback({
           error,
           nodeType: 'output.script.v1',
           runtimeSettings: context.settings || {},
@@ -101,9 +169,11 @@ const CORE_NODE_HANDLER_REGISTRY = {
       }
     }
 
-    return runGenerateScriptFlow(isPlainObject(input) ? input : {}, {
+    const localResult = await runGenerateScriptFlow(isPlainObject(input) ? input : {}, {
       settings: context.settings,
     });
+
+    return attachPythonRuntimeFallbackSummary(localResult, pythonFallbackSummary);
   },
 };
 
@@ -230,7 +300,7 @@ export const executeWorkflowNode = async ({
       context,
       nodeSpec,
     }),
-    nodeSpec.timeoutMs,
+    resolveNodeTimeoutMs(nodeSpec),
     `workflow node ${nodeSpec.id || nodeSpec.type || 'unknown'}`,
   );
   const completedAt = Date.now();
@@ -238,8 +308,8 @@ export const executeWorkflowNode = async ({
   return {
     nodeId: nodeSpec.id || '',
     nodeType: nodeSpec.type || '',
-    startedAt: new Date(startedAt).toISOString(),
-    completedAt: new Date(completedAt).toISOString(),
+    startedAt: toLocalIso(new Date(startedAt)),
+    completedAt: toLocalIso(new Date(completedAt)),
     durationMs: Math.max(0, completedAt - startedAt),
     output,
   };

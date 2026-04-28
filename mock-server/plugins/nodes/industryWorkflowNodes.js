@@ -1,3 +1,4 @@
+import { nowLocalIso } from '../../utils/localTime.js';
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 const normalizeText = (value = '') => String(value || '').trim();
@@ -65,7 +66,7 @@ export const runAnalyzeIndustryRiskTagger = async ({
       nodeType: nodeSpec.type || '',
       industryType,
       policyTag,
-      appliedAt: new Date().toISOString(),
+      appliedAt: nowLocalIso(),
     },
   };
 };
@@ -120,7 +121,7 @@ export const runSearchEvidencePrioritizer = async ({
       industryType,
       preferredDocTypes,
       reorderedCount: prioritizedItems.length,
-      appliedAt: new Date().toISOString(),
+      appliedAt: nowLocalIso(),
     },
   };
 };
@@ -155,7 +156,7 @@ export const runOutputComplianceShield = async ({
       nodeType: nodeSpec.type || '',
       industryType,
       policyTag,
-      appliedAt: new Date().toISOString(),
+      appliedAt: nowLocalIso(),
     },
   };
 };

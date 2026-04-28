@@ -1,4 +1,5 @@
 import { readJsonFile, resolveMockDataPath, writeJsonFile } from './jsonDataService.js';
+import { nowLocalIso } from '../utils/localTime.js';
 
 const DEFAULT_MAX_HISTORY = 120;
 const PLUGIN_RUNTIME_METRICS_CONTRACT_VERSION = 'plugin-runtime-metrics/v1';
@@ -65,7 +66,7 @@ const persistMetricsStore = () => {
 
   writeJsonFile(PLUGIN_RUNTIME_METRICS_FILE, {
     contractVersion: PLUGIN_RUNTIME_METRICS_CONTRACT_VERSION,
-    persistedAt: new Date().toISOString(),
+    persistedAt: nowLocalIso(),
     itemCount: items.length,
     items,
   });
@@ -143,7 +144,7 @@ export const recordPluginExecutionMetrics = ({
   bucket.totalCount += 1;
   bucket.successCount += success ? 1 : 0;
   bucket.failureCount += success ? 0 : 1;
-  bucket.updatedAt = new Date().toISOString();
+  bucket.updatedAt = nowLocalIso();
 
   if (Number.isFinite(Number(durationMs)) && Number(durationMs) >= 0) {
     bucket.durations.push(Number(durationMs));
@@ -309,6 +310,6 @@ export const getPluginExecutionMetricsPersistenceSummary = () => {
     contractVersion: PLUGIN_RUNTIME_METRICS_CONTRACT_VERSION,
     metricsFile: metricsFilePath,
     itemCount: metricsStore.size,
-    loadedAt: new Date().toISOString(),
+    loadedAt: nowLocalIso(),
   };
 };

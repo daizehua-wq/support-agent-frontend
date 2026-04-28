@@ -1,4 +1,6 @@
 import { isSearchSummaryModelAllowed } from './searchPolicyService.js';
+import { getPromptByAppId } from '../data/models/appPrompt.js';
+import { estimateTokens, safeRecordCall } from '../data/models/modelCallLog.js';
 
 const EXTERNAL_SEARCH_PROVIDER = process.env.EXTERNAL_SEARCH_PROVIDER || 'mock-external-search';
 const EXTERNAL_SEARCH_API_KEY = process.env.EXTERNAL_SEARCH_API_KEY || '';
@@ -10,6 +12,20 @@ export const isExternalProviderConfigured = () => Boolean(EXTERNAL_SEARCH_API_KE
 
 export const canUseSearchModel = (modelConfig = {}) => {
   return Boolean(modelConfig.baseUrl && modelConfig.modelName);
+};
+
+const resolveSystemPrompt = (defaultPrompt = '', appId = '') => {
+  if (!appId) {
+    return defaultPrompt;
+  }
+
+  try {
+    const appPrompt = getPromptByAppId(appId);
+    return appPrompt ? `${appPrompt}\n\n【平台默认边界】\n${defaultPrompt}` : defaultPrompt;
+  } catch (error) {
+    console.warn('[searchSummaryService] failed to load app prompt:', error.message);
+    return defaultPrompt;
+  }
 };
 
 export const runExternalProviderSearch = async ({ keyword = '' }) => {
@@ -100,6 +116,11 @@ export const runSearchModelSummary = async ({
   sanitizedKeyword = '',
   whitelistedEvidenceSummaries = [],
 }) => {
+  const startedAt = Date.now();
+  const systemPrompt = resolveSystemPrompt(
+    '你是一个资料检索整理助手。你只能使用脱敏关键词和白名单证据摘要生成简洁、可执行的检索结论，不得引用未提供的信息，也不要推断原始内部资料。',
+    modelConfig.appId || modelConfig.app_id || '',
+  );
   const controller = new AbortController();
   const headers = {
     'Content-Type': 'application/json',
@@ -109,39 +130,58 @@ export const runSearchModelSummary = async ({
     headers.Authorization = `Bearer ${modelConfig.apiKey}`;
   }
 
-  const response = await fetch(`${modelConfig.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
+  const userPrompt = `【脱敏后的检索关键词】\n${sanitizedKeyword || '未提供'}\n\n【白名单证据摘要】\n${JSON.stringify(
+    whitelistedEvidenceSummaries,
+    null,
+    2,
+  )}\n\n请输出：\n1. 一段简洁检索结论\n2. 推荐先看的 1-3 条证据\n3. 如需继续做公开资料补充，说明原因`;
+
+  try {
+    const response = await fetch(`${modelConfig.baseUrl.replace(/\/$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model: modelConfig.modelName,
+        temperature: 0.2,
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt,
+          },
+          {
+            role: 'user',
+            content: userPrompt,
+          },
+        ],
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Search model HTTP ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    const rawText = data?.choices?.[0]?.message?.content || '';
+    safeRecordCall({
+      appId: modelConfig.appId || modelConfig.app_id || '',
       model: modelConfig.modelName,
-      temperature: 0.2,
-      messages: [
-        {
-          role: 'system',
-          content:
-            '你是一个资料检索整理助手。你只能使用脱敏关键词和白名单证据摘要生成简洁、可执行的检索结论，不得引用未提供的信息，也不要推断原始内部资料。',
-        },
-        {
-          role: 'user',
-          content: `【脱敏后的检索关键词】\n${sanitizedKeyword || '未提供'}\n\n【白名单证据摘要】\n${JSON.stringify(
-            whitelistedEvidenceSummaries,
-            null,
-            2,
-          )}\n\n请输出：\n1. 一段简洁检索结论\n2. 推荐先看的 1-3 条证据\n3. 如需继续做公开资料补充，说明原因`,
-        },
-      ],
-    }),
-    signal: controller.signal,
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Search model HTTP ${response.status} ${errorText}`);
+      success: true,
+      latencyMs: Date.now() - startedAt,
+      tokensUsed: data?.usage?.total_tokens || estimateTokens(userPrompt, rawText),
+    });
+    return String(rawText || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  } catch (error) {
+    safeRecordCall({
+      appId: modelConfig.appId || modelConfig.app_id || '',
+      model: modelConfig.modelName,
+      success: false,
+      latencyMs: Date.now() - startedAt,
+      tokensUsed: 0,
+    });
+    throw error;
   }
-
-  const data = await response.json();
-  const rawText = data?.choices?.[0]?.message?.content || '';
-  return String(rawText || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 };
 
 export const generateSearchSummary = async ({

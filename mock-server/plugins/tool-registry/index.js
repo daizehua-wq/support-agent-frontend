@@ -1,3 +1,5 @@
+import qichachaCompanyTool from './builtin/qichacha.js';
+
 const toolRegistry = new Map();
 
 export const registerTool = (toolId, definition = {}) => {
@@ -24,3 +26,5 @@ export const listRegisteredTools = () => {
 export const clearRegisteredTools = () => {
   toolRegistry.clear();
 };
+
+registerTool(qichachaCompanyTool.name, qichachaCompanyTool);

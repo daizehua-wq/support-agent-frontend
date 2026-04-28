@@ -1,3 +1,4 @@
+import { nowLocalIso } from '../../utils/localTime.js';
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 const normalizeString = (value = '') => String(value || '').trim();
@@ -48,7 +49,7 @@ export const runOutputCanaryAnnotator = async ({
       pluginId: context?.pluginSummary?.pluginId || '',
       executionTag: context?.executionTag || 'primary',
       releaseTag,
-      appliedAt: new Date().toISOString(),
+      appliedAt: nowLocalIso(),
     },
   };
 };

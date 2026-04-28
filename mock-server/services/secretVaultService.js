@@ -1,5 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
 import { readJsonFile, resolveMockDataPath, writeJsonFile } from './jsonDataService.js';
+import { nowLocalIso } from '../utils/localTime.js';
 
 const SECRET_VAULT_CONTRACT_VERSION = 'secret-vault/v1';
 const SECRET_VAULT_FILE = 'secretVault.json';
@@ -61,7 +62,7 @@ const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && 
 
 const normalizeText = (value = '') => String(value || '').trim();
 
-const nowIso = () => new Date().toISOString();
+const nowIso = nowLocalIso;
 
 const cloneRecord = (value) => JSON.parse(JSON.stringify(value));
 

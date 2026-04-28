@@ -3,6 +3,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { nowLocalIso } from '../utils/localTime.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -53,7 +54,7 @@ export const appendTestRecord = (record = {}) => {
   }
 
   const payload = {
-    timestamp: new Date().toISOString(),
+    timestamp: nowLocalIso(),
     ...record,
   };
 

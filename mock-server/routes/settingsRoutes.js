@@ -69,6 +69,7 @@ import {
   probePythonRuntimeHealth,
 } from '../services/pythonRuntimeAdapterService.js';
 import { getSecretVaultSummary } from '../services/secretVaultService.js';
+import { nowLocalIso, toLocalFileStamp, toLocalIso } from '../utils/localTime.js';
 
 const router = Router();
 const DEFAULT_SETTINGS = getDefaultSettings();
@@ -421,7 +422,7 @@ const backupManifestFile = ({
     sanitizePathSegment(pluginId) ||
     sanitizePathSegment(path.basename(manifestPath, '.json')) ||
     'unknown-plugin';
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const timestamp = toLocalFileStamp();
   const backupFile = `${timestamp}__${sanitizePathSegment(action || 'upsert')}.json`;
   const pluginHistoryDirectory = path.join(historyDirectory, pluginKey);
   const backupPath = path.join(pluginHistoryDirectory, backupFile);
@@ -437,7 +438,7 @@ const backupManifestFile = ({
     backupPath,
     sourceManifestPath: manifestPath,
     action,
-    backedUpAt: new Date().toISOString(),
+    backedUpAt: nowLocalIso(),
   };
 };
 
@@ -470,7 +471,7 @@ const listManifestHistoryEntries = (pluginId = '') => {
         .map((entry) => {
           const backupPath = path.join(pluginHistoryDirectory, entry.name);
           const createdAt = fs.existsSync(backupPath)
-            ? fs.statSync(backupPath).mtime.toISOString()
+            ? toLocalIso(fs.statSync(backupPath).mtime)
             : '';
           return {
             pluginKey,
@@ -514,7 +515,7 @@ const resolveManifestGovernanceContext = ({
     .filter((item) => isPlainObject(item))
     .map((item) => ({
       approvedBy: normalizeText(item.approvedBy),
-      approvedAt: normalizeText(item.approvedAt) || new Date().toISOString(),
+      approvedAt: normalizeText(item.approvedAt) || nowLocalIso(),
       note: normalizeText(item.note),
     }))
     .filter((item) => item.approvedBy);
@@ -1745,17 +1746,24 @@ router.post('/', async (req, res) => {
     let persistedToLocal = false;
 
     if (governanceContext.tenantId === 'default') {
-      const savedSettings = await saveSettingsToDatabase(
-        governanceSyncedPayload,
-        DEFAULT_SETTINGS,
-        databaseConfig,
-      );
-      persistedSettings = syncAssistantGovernanceSettings(
-        mergeSettingsPreserveApiKeys(savedSettings, governanceSyncedPayload),
-      );
+      try {
+        const savedSettings = await saveSettingsToDatabase(
+          governanceSyncedPayload,
+          DEFAULT_SETTINGS,
+          databaseConfig,
+        );
+        persistedSettings = syncAssistantGovernanceSettings(
+          mergeSettingsPreserveApiKeys(savedSettings, governanceSyncedPayload),
+        );
+        persistedToDatabase = true;
+      } catch (saveError) {
+        console.warn(
+          '[settings] save to database failed, fallback to local only:',
+          saveError.message,
+        );
+      }
 
       saveSettings(persistedSettings);
-      persistedToDatabase = true;
       persistedToLocal = true;
     }
 

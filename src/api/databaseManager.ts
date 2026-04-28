@@ -85,6 +85,10 @@ export type SaveLightBindingRequest = {
 };
 
 export type ExternalDataSourceType =
+  | 'paid_api'
+  | 'web_search'
+  | 'official_site'
+  | 'internal_database'
   | 'paid-database'
   | 'search-api'
   | 'open-data'
@@ -93,25 +97,53 @@ export type ExternalDataSourceType =
 export type ExternalDataSourceAuthType = 'none' | 'api-key' | 'bearer' | 'basic';
 
 export type ExternalDataSourceCapability = 'search' | 'fetch-detail' | 'download';
+export type ExternalDataSourceProviderCapability =
+  | ExternalDataSourceCapability
+  | 'company_lookup'
+  | 'risk_lookup';
 
 export type ExternalDataSourceHealthStatus = 'healthy' | 'warning' | 'offline';
 
 export type ExternalDataSourceItem = {
   id: string;
   name: string;
+  provider?: string;
+  providerTemplate?: string;
+  sourceCategory?: string;
   providerName: string;
   sourceType: ExternalDataSourceType;
+  integrationMode?: string;
+  connector?: string;
+  runtimeProvider?: string | null;
   authType: ExternalDataSourceAuthType;
   enabled: boolean;
   baseUrl?: string;
   apiPath?: string;
+  method?: string;
+  queryParam?: string;
+  limitParam?: string;
+  callQuota?: number;
+  cacheTtlHours?: number;
+  cacheTtl?: number;
+  quotaLimit?: number;
+  defaultLimit?: number;
+  freshness?: string;
+  externalAvailable?: boolean;
+  allowExternalOutput?: boolean;
+  priority?: string;
+  retainRaw?: boolean;
   hasApiKey?: boolean;
+  hasSecretKey?: boolean;
+  hasToken?: boolean;
   hasUsername?: boolean;
   hasPassword?: boolean;
-  capabilities?: ExternalDataSourceCapability[];
+  capabilities?: ExternalDataSourceProviderCapability[];
   allowedDomains?: string[];
+  blockedDomains?: string[];
   publicDataOnly?: boolean;
   localDataOutboundPolicy?: 'blocked' | 'masked-only';
+  headersConfig?: string;
+  fieldMappings?: string;
   notes?: string;
   version?: number;
   healthStatus?: ExternalDataSourceHealthStatus;
@@ -128,24 +160,53 @@ export type ExternalDataSourceItem = {
     futureDownloadEndpoint?: string;
     integrationBoundary?: string;
   };
+  healthCheckResult?: {
+    status?: string;
+    userMessage?: string;
+    technicalDetails?: Record<string, unknown>;
+  };
 };
 
 export type CreateExternalDataSourceRequest = {
   id?: string;
   name: string;
   providerName?: string;
+  provider?: string;
+  providerTemplate?: string;
+  sourceCategory?: string;
   sourceType: ExternalDataSourceType;
+  integrationMode?: string;
+  connector?: string;
+  runtimeProvider?: string | null;
   authType: ExternalDataSourceAuthType;
   enabled: boolean;
   baseUrl?: string;
   apiPath?: string;
+  method?: string;
+  queryParam?: string;
+  limitParam?: string;
+  callQuota?: number;
+  cacheTtlHours?: number;
+  cacheTtl?: number;
+  quotaLimit?: number;
+  defaultLimit?: number;
+  freshness?: string;
+  externalAvailable?: boolean;
+  allowExternalOutput?: boolean;
+  priority?: string;
+  retainRaw?: boolean;
   apiKey?: string;
+  secretKey?: string;
+  token?: string;
   username?: string;
   password?: string;
-  capabilities?: ExternalDataSourceCapability[];
+  capabilities?: ExternalDataSourceProviderCapability[];
   allowedDomains?: string[];
+  blockedDomains?: string[];
   publicDataOnly?: boolean;
   localDataOutboundPolicy?: 'blocked' | 'masked-only';
+  headersConfig?: string;
+  fieldMappings?: string;
   notes?: string;
 };
 

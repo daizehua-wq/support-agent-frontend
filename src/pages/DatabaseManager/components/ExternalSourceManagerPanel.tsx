@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   Col,
+  Collapse,
   Empty,
   Input,
   InputNumber,
@@ -60,6 +61,9 @@ type ExternalSourceManagerPanelProps = {
 };
 
 const prettyJson = (value: Record<string, unknown>) => JSON.stringify(value, null, 2);
+
+const isGovernedSearchConnector = (source: ExternalDataSourceItem) =>
+  source.sourceType === 'paid_api' || source.provider === 'qichacha';
 
 const resolveResourceTargetPayload = (value: string, fallbackPath = '') => {
   const normalized = value.trim();
@@ -313,7 +317,7 @@ function ExternalSourceManagerPanel({
           fontSize: 13,
         }}
       >
-        这里既管理商业数据库、搜索 API、开放数据源的接入配置，也支持直接走 Python Runtime 试查询、试抓取、试下载。
+        这里按服务商模板管理外部数据源。权威数据库会通过 Search 资料治理链路进入 evidence / referencePack；互联网搜索类服务商用于网页资料补充。
       </div>
 
       <Row gutter={[16, 16]}>
@@ -373,7 +377,7 @@ function ExternalSourceManagerPanel({
                   <Space wrap>
                     <Button onClick={onOpenEdit}>编辑配置</Button>
                     <Button loading={checking} onClick={onHealthCheck}>
-                      检测接入位
+                      测试连接
                     </Button>
                     <Button danger loading={deleting} onClick={onDelete}>
                       删除接入位
@@ -392,9 +396,13 @@ function ExternalSourceManagerPanel({
                   label="认证方式"
                   value={getExternalAuthTypeLabel(selectedSource.authType)}
                 />
-                <FieldRow label="Base URL" value={selectedSource.baseUrl || '-'} />
-                <FieldRow label="API Path" value={selectedSource.apiPath || '-'} />
+                <FieldRow label="调用额度" value={String(selectedSource.callQuota ?? 0)} />
+                <FieldRow label="缓存时间" value={`${selectedSource.cacheTtlHours ?? 24} 小时`} />
+                <FieldRow label="优先级" value={selectedSource.priority || 'P3'} />
                 <FieldRow label="API Key" value={getCredentialStatusText(selectedSource.hasApiKey)} />
+                {selectedSource.provider === 'qichacha' || selectedSource.hasSecretKey ? (
+                  <FieldRow label="Secret Key" value={getCredentialStatusText(selectedSource.hasSecretKey)} />
+                ) : null}
                 <FieldRow
                   label="用户名"
                   value={getCredentialStatusText(selectedSource.hasUsername)}
@@ -420,28 +428,76 @@ function ExternalSourceManagerPanel({
                   }
                 />
                 <FieldRow
-                  label="仅公开数据"
-                  value={selectedSource.publicDataOnly ? '是' : '否'}
+                  label="阻止域名"
+                  value={
+                    selectedSource.blockedDomains && selectedSource.blockedDomains.length > 0
+                      ? selectedSource.blockedDomains.join(' / ')
+                      : '未配置'
+                  }
                 />
                 <FieldRow
-                  label="本地数据外发策略"
-                  value={getOutboundPolicyLabel(selectedSource.localDataOutboundPolicy)}
+                  label="允许外发"
+                  value={selectedSource.allowExternalOutput ? '是' : '否'}
+                />
+                <FieldRow
+                  label="仅公开数据"
+                  value={selectedSource.publicDataOnly ? '是' : '否'}
                 />
                 <FieldRow label="最近检测" value={selectedSource.lastCheckedAt || '-'} />
                 <FieldRow label="状态" value={getHealthStatusTag(selectedSource.healthStatus)} />
                 <FieldRow label="说明" value={selectedSource.healthMessage || selectedSource.notes || '-'} />
+                <Collapse
+                  ghost
+                  style={{ marginTop: 8 }}
+                  items={[
+                    {
+                      key: 'technical',
+                      label: '查看技术详情',
+                      children: (
+                        <>
+                          <FieldRow label="provider" value={selectedSource.provider || '-'} />
+                          <FieldRow label="Base URL" value={selectedSource.baseUrl || '-'} />
+                          <FieldRow label="API Path" value={selectedSource.apiPath || '-'} />
+                          <FieldRow label="请求方法" value={selectedSource.method || 'GET'} />
+                          <FieldRow label="查询参数名" value={selectedSource.queryParam || 'q'} />
+                          <FieldRow label="数量参数名" value={selectedSource.limitParam || 'limit'} />
+                          <FieldRow label="默认返回数量" value={String(selectedSource.defaultLimit ?? 5)} />
+                          <FieldRow label="时效范围" value={selectedSource.freshness || 'month'} />
+                          <FieldRow label="retainRaw" value={selectedSource.retainRaw ? '是' : '否'} />
+                          <FieldRow
+                            label="外部可访问"
+                            value={selectedSource.externalAvailable === false ? '否' : '是'}
+                          />
+                          <FieldRow
+                            label="本地数据外发策略"
+                            value={getOutboundPolicyLabel(selectedSource.localDataOutboundPolicy)}
+                          />
+                        </>
+                      ),
+                    },
+                  ]}
+                />
               </Card>
 
-              <ExternalSourceRuntimeTester
-                key={selectedSource.id}
-                selectedSource={selectedSource}
-                onRunQuery={onRunQuery}
-                onRunFetch={onRunFetch}
-                onRunDownload={onRunDownload}
-                runtimeAction={runtimeAction}
-                runtimeError={runtimeError}
-                runtimeResult={runtimeResult}
-              />
+              {isGovernedSearchConnector(selectedSource) ? (
+                <Alert
+                  type="info"
+                  showIcon
+                  message="该服务商通过 Search 资料治理链路调用"
+                  description="测试连接只检查服务商配置与密钥状态，不走 Python Runtime。正式检索时会进入 cache → classify → evidence → referencePack。"
+                />
+              ) : (
+                <ExternalSourceRuntimeTester
+                  key={selectedSource.id}
+                  selectedSource={selectedSource}
+                  onRunQuery={onRunQuery}
+                  onRunFetch={onRunFetch}
+                  onRunDownload={onRunDownload}
+                  runtimeAction={runtimeAction}
+                  runtimeError={runtimeError}
+                  runtimeResult={runtimeResult}
+                />
+              )}
 
               <Card size="small" title="API 契约" style={{ borderRadius: 12 }}>
                 <FieldRow

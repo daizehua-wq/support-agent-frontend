@@ -123,6 +123,50 @@ const resolvePythonRuntimeHealthGateSettings = (runtimeSettings = {}) => {
   };
 };
 
+const resolvePythonRuntimeFailureSummary = (error = null) => {
+  const rawCode = normalizeText(error?.code || '').toUpperCase();
+  const message = normalizeText(error?.message || 'python-runtime failed');
+  const normalizedMessage = message.toLowerCase();
+
+  if (rawCode === 'PY_RUNTIME_HEALTH_GATE_FAILED' || normalizedMessage.includes('health gate blocked')) {
+    return {
+      code: 'PYTHON_RUNTIME_UNHEALTHY',
+      status: 'health-gate-blocked',
+      message,
+    };
+  }
+
+  if (
+    /fetch failed|econnrefused|enotfound|connect|socket|aborted|timed out|timeout|cooldown/.test(
+      normalizedMessage,
+    )
+  ) {
+    return {
+      code: 'PYTHON_RUNTIME_UNAVAILABLE',
+      status: 'unavailable',
+      message,
+    };
+  }
+
+  if (
+    /python-runtime http 50\d|service unavailable|temporarily unavailable|bad gateway|gateway timeout/.test(
+      normalizedMessage,
+    )
+  ) {
+    return {
+      code: 'PYTHON_RUNTIME_UPSTREAM_ERROR',
+      status: 'upstream-error',
+      message,
+    };
+  }
+
+  return {
+    code: rawCode || 'PYTHON_RUNTIME_REQUEST_FAILED',
+    status: 'request-failed',
+    message,
+  };
+};
+
 const resolveModuleRouteFromSettings = (moduleName = '', runtimeSettings = {}) => {
   const pythonRuntimeSettings = getPythonRuntimeSettings(runtimeSettings);
   const modelRouting = isPlainObject(pythonRuntimeSettings.modelRouting)
@@ -546,6 +590,34 @@ export const runPythonExternalSourceDownload = async ({ input = {}, context = {}
     payload: resolveInputPayload(input, context, 'search'),
     baseUrl: resolvePythonRuntimeBaseUrl(context?.settings || {}),
   });
+};
+
+export const buildPythonRuntimeFallbackSummary = ({
+  error = null,
+  nodeType = '',
+  runtimeSettings = {},
+  fallbackTarget = 'node-local',
+} = {}) => {
+  const failureSummary = resolvePythonRuntimeFailureSummary(error);
+  const strictMode = resolvePythonRuntimeStrictMode(runtimeSettings);
+  const fallbackEnabled = resolvePythonRuntimeFallbackEnabled(runtimeSettings);
+  const healthGate = resolvePythonRuntimeHealthGateSettings(runtimeSettings);
+  const healthProbe = isPlainObject(error?.healthProbe)
+    ? error.healthProbe
+    : getPythonRuntimeHealthSnapshot();
+
+  return {
+    provider: 'python-runtime',
+    nodeType: normalizeText(nodeType),
+    fallbackTarget: normalizeText(fallbackTarget) || 'node-local',
+    code: failureSummary.code,
+    status: failureSummary.status,
+    message: failureSummary.message,
+    strictMode,
+    fallbackEnabled,
+    healthGate,
+    healthProbe,
+  };
 };
 
 export const handlePythonRuntimeFallback = ({

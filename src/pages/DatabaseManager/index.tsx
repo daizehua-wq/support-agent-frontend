@@ -25,11 +25,15 @@ import DatabaseManagerModals from './components/DatabaseManagerModals';
 import ExternalSourceManagerModal from './components/ExternalSourceManagerModal';
 import ExternalSourceManagerPanel from './components/ExternalSourceManagerPanel';
 import {
+  buildExternalProviderTemplateFormValues,
+  inferExternalProviderTemplateId,
+  inferExternalSourceCategory,
   normalizeDatabaseTypeValue,
   usesNetworkConnectionFields,
   type DatabaseItem,
 } from './helpers';
 import { getApiErrorCode, getApiErrorMessage } from '../../utils/apiError';
+import { formatDateTimeToLocalTime } from '../../utils/dateTime';
 
 function hasApiErrorFields(error: unknown) {
   if (!error || typeof error !== 'object') {
@@ -260,7 +264,10 @@ async function loadExternalSourceListData() {
     (Array.isArray(response.data as unknown) ? (response.data as unknown[]) : []) ||
     [];
 
-  return items as ExternalDataSourceItem[];
+  return (items as ExternalDataSourceItem[]).map((item) => ({
+    ...item,
+    lastCheckedAt: formatDateTimeToLocalTime(item.lastCheckedAt) || item.lastCheckedAt,
+  }));
 }
 
 const mockDatabases: DatabaseItem[] = [
@@ -407,7 +414,31 @@ function getExternalSourceRuntimeErrorMessage(error: unknown, actionLabel: strin
     return '未配置 SETTINGS_SECRET_MASTER_KEY，当前外部数据源凭据无法解密';
   }
 
-  return getApiErrorMessage(error, `外部数据源${actionLabel}失败`);
+  const rawMessage = getApiErrorMessage(error, '');
+  if (
+    rawMessage.includes('health-gate-blocked') ||
+    rawMessage.includes('python-runtime') ||
+    rawMessage.includes('fetch failed')
+  ) {
+    return `外部联调通道暂不可用，${actionLabel}未执行；Search 正式资料治理链路不受影响。`;
+  }
+
+  return rawMessage || getApiErrorMessage(error, `外部数据源${actionLabel}失败`);
+}
+
+function getExternalSourceRuntimeDegradedMessage(
+  payload: Record<string, unknown> | undefined,
+  actionLabel: string,
+) {
+  if (!payload || readBoolean(payload.degraded) !== true) {
+    return '';
+  }
+
+  const degradation = readRecord(payload.degradation);
+  return (
+    readString(degradation?.message) ||
+    `外部数据源${actionLabel}已降级返回，请检查运行结果中的原因说明`
+  );
 }
 
 type ExternalSourceRuntimeResult = {
@@ -603,39 +634,52 @@ export default function DatabaseManagerPage() {
   function buildExternalSourceFormValues(source?: ExternalDataSourceItem | null) {
     if (!source) {
       return {
-        name: undefined,
-        providerName: undefined,
-        sourceType: 'search-api',
-        authType: 'api-key',
-        enabled: true,
-        baseUrl: undefined,
-        apiPath: undefined,
+        ...buildExternalProviderTemplateFormValues('qichacha'),
         apiKey: '',
+        secretKey: '',
         username: '',
         password: '',
-        capabilities: ['search'],
-        allowedDomains: [],
-        publicDataOnly: true,
-        localDataOutboundPolicy: 'blocked',
+        headersConfig: '',
+        fieldMappings: '',
         notes: undefined,
       };
     }
 
+    const sourceCategory = inferExternalSourceCategory(source);
+    const providerTemplate = inferExternalProviderTemplateId(source);
     return {
+      sourceCategory,
+      providerTemplate,
       name: source.name,
+      provider: source.provider,
       providerName: source.providerName,
       sourceType: source.sourceType,
       authType: source.authType,
       enabled: source.enabled,
       baseUrl: source.baseUrl,
       apiPath: source.apiPath,
+      method: source.method || 'GET',
+      queryParam: source.queryParam || 'q',
+      limitParam: source.limitParam || 'limit',
+      callQuota: source.callQuota || 0,
+      cacheTtlHours: source.cacheTtlHours || 24,
+      defaultLimit: source.defaultLimit || 5,
+      freshness: source.freshness || 'month',
+      externalAvailable: source.externalAvailable !== false,
+      allowExternalOutput: source.allowExternalOutput === true,
+      priority: source.priority || 'P3',
+      retainRaw: source.retainRaw === true,
       apiKey: '',
+      secretKey: '',
       username: '',
       password: '',
       capabilities: source.capabilities || [],
       allowedDomains: source.allowedDomains || [],
+      blockedDomains: source.blockedDomains || [],
       publicDataOnly: source.publicDataOnly !== false,
       localDataOutboundPolicy: source.localDataOutboundPolicy || 'blocked',
+      headersConfig: source.headersConfig || '',
+      fieldMappings: source.fieldMappings || '',
       notes: source.notes,
     };
   }
@@ -844,19 +888,37 @@ export default function DatabaseManagerPage() {
       const values = await externalSourceForm.validateFields();
       const payload = {
         name: values.name,
+        sourceCategory: values.sourceCategory,
+        providerTemplate: values.providerTemplate,
+        provider: values.provider,
         providerName: values.providerName,
         sourceType: values.sourceType,
         authType: values.authType,
         enabled: values.enabled !== false,
         baseUrl: values.baseUrl,
         apiPath: values.apiPath,
+        method: values.method || 'GET',
+        queryParam: values.queryParam || 'q',
+        limitParam: values.limitParam || 'limit',
+        callQuota: values.callQuota || 0,
+        cacheTtlHours: values.cacheTtlHours || 24,
+        defaultLimit: values.defaultLimit || 5,
+        freshness: values.freshness || 'month',
+        externalAvailable: values.externalAvailable !== false,
+        allowExternalOutput: values.allowExternalOutput === true,
+        priority: values.priority || 'P3',
+        retainRaw: values.retainRaw === true,
         ...(values.apiKey ? { apiKey: values.apiKey } : {}),
+        ...(values.secretKey ? { secretKey: values.secretKey } : {}),
         ...(values.username ? { username: values.username } : {}),
         ...(values.password ? { password: values.password } : {}),
         capabilities: values.capabilities || [],
         allowedDomains: values.allowedDomains || [],
+        blockedDomains: values.blockedDomains || [],
         publicDataOnly: values.publicDataOnly !== false,
         localDataOutboundPolicy: values.localDataOutboundPolicy || 'blocked',
+        headersConfig: values.headersConfig,
+        fieldMappings: values.fieldMappings,
         notes: values.notes,
       };
 
@@ -931,8 +993,16 @@ export default function DatabaseManagerPage() {
 
     try {
       setCheckingExternalSourceId(selectedExternalSource.id);
-      await healthCheckExternalDataSource(selectedExternalSource.id);
-      message.success('外部数据源检测完成');
+      const response = await healthCheckExternalDataSource(selectedExternalSource.id);
+      const responseData = readRecord(response.data as unknown) || {};
+      const detail = readRecord(responseData.detail) || {};
+      const healthStatus = readString(detail.healthStatus) || '';
+      const healthMessage = readString(detail.healthMessage) || '外部数据源检测完成';
+      if (healthStatus === 'healthy') {
+        message.success(healthMessage);
+      } else {
+        message.warning(healthMessage);
+      }
       await reloadExternalSources(selectedExternalSource.id);
     } catch (error: unknown) {
       message.error(getApiErrorMessage(error, '外部数据源检测失败'));
@@ -959,10 +1029,15 @@ export default function DatabaseManagerPage() {
       const responsePayload = readRecord(response.data as unknown) || {};
       setExternalRuntimeResult({
         action: 'query',
-        executedAt: new Date().toISOString(),
+        executedAt: formatDateTimeToLocalTime(new Date()),
         payload: responsePayload,
       });
-      message.success('外部数据源试查询完成');
+      const degradedMessage = getExternalSourceRuntimeDegradedMessage(responsePayload, '试查询');
+      if (degradedMessage) {
+        message.warning(degradedMessage);
+      } else {
+        message.success('外部数据源试查询完成');
+      }
     } catch (error: unknown) {
       const nextMessage = getExternalSourceRuntimeErrorMessage(error, '试查询');
       setExternalRuntimeError(nextMessage);
@@ -989,10 +1064,15 @@ export default function DatabaseManagerPage() {
       const responsePayload = readRecord(response.data as unknown) || {};
       setExternalRuntimeResult({
         action: 'fetch',
-        executedAt: new Date().toISOString(),
+        executedAt: formatDateTimeToLocalTime(new Date()),
         payload: responsePayload,
       });
-      message.success('外部数据源试抓取完成');
+      const degradedMessage = getExternalSourceRuntimeDegradedMessage(responsePayload, '试抓取');
+      if (degradedMessage) {
+        message.warning(degradedMessage);
+      } else {
+        message.success('外部数据源试抓取完成');
+      }
     } catch (error: unknown) {
       const nextMessage = getExternalSourceRuntimeErrorMessage(error, '试抓取');
       setExternalRuntimeError(nextMessage);
@@ -1020,10 +1100,15 @@ export default function DatabaseManagerPage() {
       const responsePayload = readRecord(response.data as unknown) || {};
       setExternalRuntimeResult({
         action: 'download',
-        executedAt: new Date().toISOString(),
+        executedAt: formatDateTimeToLocalTime(new Date()),
         payload: responsePayload,
       });
-      message.success('外部数据源试下载完成');
+      const degradedMessage = getExternalSourceRuntimeDegradedMessage(responsePayload, '试下载');
+      if (degradedMessage) {
+        message.warning(degradedMessage);
+      } else {
+        message.success('外部数据源试下载完成');
+      }
     } catch (error: unknown) {
       const nextMessage = getExternalSourceRuntimeErrorMessage(error, '试下载');
       setExternalRuntimeError(nextMessage);

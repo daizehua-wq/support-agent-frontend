@@ -26,6 +26,8 @@ import {
   normalizeDatabaseType,
 } from '../services/databaseService.js';
 import {
+  assessExternalDataSourceRuntimeReadiness,
+  buildExternalDataSourceDegradation,
   buildExternalDataSourceResponseSummary,
   createExternalDataSource,
   deleteExternalDataSource,
@@ -36,10 +38,15 @@ import {
   updateExternalDataSource,
 } from '../services/externalDataSourceService.js';
 import {
+  buildPythonRuntimeFallbackSummary,
   runPythonExternalSourceDownload,
   runPythonExternalSourceFetch,
   runPythonExternalSourceQuery,
 } from '../services/pythonRuntimeAdapterService.js';
+import {
+  isQichachaPaidApiSource,
+  queryQichachaConnector,
+} from '../plugins/data-connectors/qichachaConnector.js';
 const router = Router();
 
 // =========================
@@ -1348,7 +1355,10 @@ const buildExternalSourceRuntimePayload = (sourceConfig = {}, requestBody = {}, 
 
   for (const field of blockedFields) {
     if (payload[field] !== undefined) {
-      throw new Error(`field ${field} is not allowed for external source outbound requests`);
+      const error = new Error(`field ${field} is not allowed for external source outbound requests`);
+      error.code = 'OUTBOUND_PAYLOAD_BLOCKED';
+      error.blockedField = field;
+      throw error;
     }
   }
 
@@ -1358,20 +1368,30 @@ const buildExternalSourceRuntimePayload = (sourceConfig = {}, requestBody = {}, 
 
   return {
     sessionId,
+    appId: payload.appId,
     source: {
       id: sourceConfig.id,
       name: sourceConfig.name,
       providerName: sourceConfig.providerName,
+      provider: sourceConfig.provider,
       sourceType: sourceConfig.sourceType,
+      integrationMode: sourceConfig.integrationMode,
+      connector: sourceConfig.connector,
+      runtimeProvider: sourceConfig.runtimeProvider || null,
       authType: sourceConfig.authType,
       enabled: sourceConfig.enabled !== false,
       baseUrl: sourceConfig.baseUrl,
       apiPath: sourceConfig.apiPath || fallbackPath,
       apiKey: sourceConfig.apiKey || '',
+      secretKey: sourceConfig.secretKey || '',
+      token: sourceConfig.token || '',
       username: sourceConfig.username || '',
       password: sourceConfig.password || '',
       capabilities: Array.isArray(sourceConfig.capabilities) ? sourceConfig.capabilities : [],
       allowedDomains: Array.isArray(sourceConfig.allowedDomains) ? sourceConfig.allowedDomains : [],
+      queryParam: sourceConfig.queryParam || '',
+      limitParam: sourceConfig.limitParam || '',
+      defaultLimit: sourceConfig.defaultLimit || 5,
       publicDataOnly: sourceConfig.publicDataOnly !== false,
       localDataOutboundPolicy: sourceConfig.localDataOutboundPolicy || 'blocked',
     },
@@ -1398,6 +1418,7 @@ const handleExternalSourceRuntimeAction = async ({
   runtimeRunner = async () => ({}),
 }) => {
   const sourceId = req.params?.sourceId || '';
+  let currentSettings = {};
   try {
     const sourceConfig = getExternalDataSourceRuntimeDetail(sourceId);
 
@@ -1418,7 +1439,28 @@ const handleExternalSourceRuntimeAction = async ({
       });
     }
 
-    const { currentSettings } = await getDatabaseGovernanceState();
+    const readiness = assessExternalDataSourceRuntimeReadiness(sourceConfig, actionName);
+    if (!readiness.ready) {
+      return sendSuccess(res, {
+        message: `外部数据源${actionName}已降级返回`,
+        data: buildExternalDataSourceDegradation({
+          sourceConfig,
+          actionName,
+          blockers: readiness.blockers,
+          reasonCode: readiness.blockers[0]?.code || 'EXTERNAL_SOURCE_UNAVAILABLE',
+          reasonMessage: readiness.blockers[0]?.message || readiness.summary.healthMessage,
+        }),
+        meta: {
+          degraded: true,
+          responseContract: buildDatabaseInterfaceContract([
+            `externalSource.${actionName}`,
+            'externalSource.degraded',
+          ]),
+        },
+      });
+    }
+
+    ({ currentSettings } = await getDatabaseGovernanceState());
     const runtimePayload = buildExternalSourceRuntimePayload(
       sourceConfig,
       req.body || {},
@@ -1442,6 +1484,65 @@ const handleExternalSourceRuntimeAction = async ({
       },
     });
   } catch (error) {
+    const sourceConfig = getExternalDataSourceRuntimeDetail(sourceId);
+    if (error?.code === 'OUTBOUND_PAYLOAD_BLOCKED') {
+      return sendGovernanceBlocked(res, {
+        status: 409,
+        message: `外部数据源${actionName}请求被阻断`,
+        action: actionName,
+        targetType: 'external-data-source',
+        targetId: sourceId,
+        blockers: [
+          {
+            code: 'OUTBOUND_PAYLOAD_BLOCKED',
+            field: error.blockedField || '',
+            message: error.message,
+          },
+        ],
+        error: {
+          code: 'OUTBOUND_PAYLOAD_BLOCKED',
+          message: error.message,
+        },
+        writeBack: buildWriteBackPayload({
+          writeBackStatus: 'blocked',
+        }),
+      });
+    }
+
+    const pythonRuntimeSummary = buildPythonRuntimeFallbackSummary({
+      error,
+      nodeType: `external-source.${actionName}`,
+      runtimeSettings: currentSettings,
+      fallbackTarget: 'degraded-response',
+    });
+    const shouldDegradeForPythonRuntime =
+      pythonRuntimeSummary.status === 'health-gate-blocked' ||
+      pythonRuntimeSummary.status === 'unavailable' ||
+      pythonRuntimeSummary.status === 'upstream-error';
+
+    if (sourceConfig && shouldDegradeForPythonRuntime) {
+      return sendSuccess(res, {
+        message: `外部数据源${actionName}已降级返回`,
+        data: buildExternalDataSourceDegradation({
+          sourceConfig,
+          actionName,
+          reasonCode: pythonRuntimeSummary.code,
+          reasonMessage:
+            pythonRuntimeSummary.status === 'health-gate-blocked'
+              ? 'Python Runtime 当前不可用，已返回降级说明。'
+              : 'Python Runtime 当前不可用，外部数据源请求已降级返回。',
+          runtimeSummary: pythonRuntimeSummary,
+        }),
+        meta: {
+          degraded: true,
+          responseContract: buildDatabaseInterfaceContract([
+            `externalSource.${actionName}`,
+            'externalSource.degraded',
+          ]),
+        },
+      });
+    }
+
     return sendGovernanceFailure(res, {
       status: 500,
       message: `外部数据源${actionName}失败`,
@@ -1461,7 +1562,130 @@ const handleExternalSourceRuntimeAction = async ({
   }
 };
 
+const handleQichachaExternalSourceQuery = async ({ req, res, sourceConfig = {} }) => {
+  const sourceId = req.params?.sourceId || '';
+
+  try {
+    const readiness = assessExternalDataSourceRuntimeReadiness(sourceConfig, 'query');
+    if (!readiness.ready) {
+      return sendSuccess(res, {
+        message: '企查查连接失败，已降级处理。',
+        data: buildExternalDataSourceDegradation({
+          sourceConfig,
+          actionName: 'query',
+          blockers: readiness.blockers,
+          reasonCode: readiness.blockers[0]?.code || 'QICHACHA_PROVIDER_UNAVAILABLE',
+          reasonMessage: '企查查连接失败，已降级处理。',
+        }),
+        meta: {
+          degraded: true,
+          responseContract: buildDatabaseInterfaceContract([
+            'externalSource.query',
+            'externalSource.nodeConnector',
+            'externalSource.degraded',
+          ]),
+        },
+      });
+    }
+
+    const runtimePayload = buildExternalSourceRuntimePayload(
+      sourceConfig,
+      req.body || {},
+      sourceConfig.apiPath || '',
+    );
+    const result = await queryQichachaConnector({
+      sourceConfig,
+      runtimePayload,
+    });
+    const isDegraded = result?.degraded === true || result?.status === 'failed' || result?.status === 'unavailable';
+
+    return sendSuccess(res, {
+      message: isDegraded ? '企查查连接失败，已降级处理。' : '企查查查询成功',
+      data: result,
+      meta: {
+        degraded: isDegraded,
+        responseContract: buildDatabaseInterfaceContract([
+          'externalSource.query',
+          'externalSource.nodeConnector',
+          ...(isDegraded ? ['externalSource.degraded'] : []),
+        ]),
+      },
+    });
+  } catch (error) {
+    if (error?.code === 'OUTBOUND_PAYLOAD_BLOCKED') {
+      return sendGovernanceBlocked(res, {
+        status: 409,
+        message: '企查查请求被阻断',
+        action: 'query',
+        targetType: 'external-data-source',
+        targetId: sourceId,
+        blockers: [
+          {
+            code: 'OUTBOUND_PAYLOAD_BLOCKED',
+            field: error.blockedField || '',
+            message: error.message,
+          },
+        ],
+        error: {
+          code: 'OUTBOUND_PAYLOAD_BLOCKED',
+          message: error.message,
+        },
+        writeBack: buildWriteBackPayload({
+          writeBackStatus: 'blocked',
+        }),
+      });
+    }
+
+    return sendSuccess(res, {
+      message: '企查查连接失败，已降级处理。',
+      data: {
+        action: 'query',
+        degraded: true,
+        provider: 'qichacha',
+        sourceType: 'paid_api',
+        integrationMode: 'node_connector',
+        connector: 'qichacha',
+        runtimeProvider: null,
+        status: 'failed',
+        reason: '企查查接口调用失败。',
+        resultCount: 0,
+        results: [],
+        evidenceCandidates: [],
+        error: {
+          code: 'QICHACHA_PROVIDER_FAILED',
+          message: '企查查接口调用失败。',
+        },
+        degradation: {
+          code: 'QICHACHA_PROVIDER_FAILED',
+          message: '企查查连接失败，已降级处理。',
+        },
+        technicalDetails: {
+          errorMessage: error?.message || '',
+          usesPythonRuntime: false,
+        },
+      },
+      meta: {
+        degraded: true,
+        responseContract: buildDatabaseInterfaceContract([
+          'externalSource.query',
+          'externalSource.nodeConnector',
+          'externalSource.degraded',
+        ]),
+      },
+    });
+  }
+};
+
 router.post('/external-sources/:sourceId/query', async (req, res) => {
+  const sourceConfig = getExternalDataSourceRuntimeDetail(req.params?.sourceId || '');
+  if (sourceConfig && isQichachaPaidApiSource(sourceConfig)) {
+    return handleQichachaExternalSourceQuery({
+      req,
+      res,
+      sourceConfig,
+    });
+  }
+
   return handleExternalSourceRuntimeAction({
     req,
     res,

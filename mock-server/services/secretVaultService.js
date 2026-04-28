@@ -592,6 +592,22 @@ const walkExternalDataSourceSensitiveFields = (items = [], onField = () => {}) =
     });
 
     onField({
+      pathKey: `externalDataSources.${sourceId}.secretKey`,
+      value: item.secretKey,
+      setValue: (nextValue) => {
+        item.secretKey = nextValue;
+      },
+    });
+
+    onField({
+      pathKey: `externalDataSources.${sourceId}.token`,
+      value: item.token,
+      setValue: (nextValue) => {
+        item.token = nextValue;
+      },
+    });
+
+    onField({
       pathKey: `externalDataSources.${sourceId}.username`,
       value: item.username,
       setValue: (nextValue) => {

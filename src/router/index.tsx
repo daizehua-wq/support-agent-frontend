@@ -4,12 +4,13 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import MainLayout from '../layout/MainLayout';
 import HomePage from '../pages/Home';
 import LegacyRouteUpgradeNotice from '../components/common/LegacyRouteUpgradeNotice';
+import SettingsLayout from '../pages/Settings/SettingsLayout';
 
 const AppsPage = lazy(() => import('../pages/Apps'));
-const AssistantCenterPage = lazy(() => import('../pages/AssistantCenter'));
 const DatabaseManagerPage = lazy(() => import('../pages/DatabaseManager'));
-const ModelCenterPage = lazy(() => import('../pages/ModelCenter'));
 const SettingsPage = lazy(() => import('../pages/Settings'));
+const SettingsModelsPage = lazy(() => import('../pages/Settings/Models'));
+const SettingsAssistantsPage = lazy(() => import('../pages/Settings/Assistants'));
 const TaskDetailPage = lazy(() => import('../pages/Tasks/Detail'));
 const TaskOutputPage = lazy(() => import('../pages/Tasks/Output'));
 const TasksPage = lazy(() => import('../pages/Tasks'));
@@ -50,8 +51,10 @@ function AppRouter() {
         <Route path="tasks/:taskId/output" element={renderLazyPage(<TaskOutputPage />)} />
 
         <Route path="settings/overview" element={renderLazyPage(<SettingsPage />)} />
-        <Route path="settings/models" element={renderLazyPage(<ModelCenterPage />)} />
-        <Route path="settings/assistants" element={renderLazyPage(<AssistantCenterPage />)} />
+        <Route path="settings" element={<SettingsLayout />}>
+          <Route path="models" element={renderLazyPage(<SettingsModelsPage />)} />
+          <Route path="assistants" element={renderLazyPage(<SettingsAssistantsPage />)} />
+        </Route>
         <Route path="settings/data-sources" element={renderLazyPage(<DatabaseManagerPage />)} />
         <Route path="settings/apps" element={renderLazyPage(<AppsPage />)} />
         <Route path="settings/rules" element={renderLazyPage(<SettingsRulesPage />)} />

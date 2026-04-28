@@ -5,8 +5,10 @@ import MainLayout from '../layout/MainLayout';
 import HomePage from '../pages/Home';
 
 const AnalyzePage = lazy(() => import('../pages/Analyze'));
+const AppsPage = lazy(() => import('../pages/Apps'));
 const AssistantCenterPage = lazy(() => import('../pages/AssistantCenter'));
 const DatabaseManagerPage = lazy(() => import('../pages/DatabaseManager'));
+const ManagePage = lazy(() => import('../pages/Manage'));
 const ModelCenterPage = lazy(() => import('../pages/ModelCenter'));
 const SessionDetailPage = lazy(() => import('../pages/Sessopns/Datail'));
 const ScriptPage = lazy(() => import('../pages/Script'));
@@ -39,7 +41,9 @@ function AppRouter() {
       <Route path="/" element={<MainLayout />}>
         <Route index element={<Navigate to="/home" replace />} />
         <Route path="home" element={<HomePage />} />
+        <Route path="agent" element={renderLazyPage(<AssistantCenterPage />)} />
         <Route path="assistant-center" element={renderLazyPage(<AssistantCenterPage />)} />
+        <Route path="manage" element={renderLazyPage(<ManagePage />)} />
         <Route path="sessions/:id" element={renderLazyPage(<SessionDetailPage />)} />
         <Route path="workbench" element={renderLazyPage(<WorkbenchPage />)} />
         <Route path="judge" element={renderLazyPage(<AnalyzePage />)} />
@@ -51,6 +55,7 @@ function AppRouter() {
         <Route path="settings" element={renderLazyPage(<SettingsPage />)} />
         <Route path="model-center" element={renderLazyPage(<ModelCenterPage />)} />
         <Route path="database-manager" element={renderLazyPage(<DatabaseManagerPage />)} />
+        <Route path="apps" element={renderLazyPage(<AppsPage />)} />
       </Route>
     </Routes>
   );

@@ -11,55 +11,52 @@ function MainLayout() {
   const location = useLocation();
 
   const items: MenuProps['items'] = [
-    { key: '/home', label: '首页' },
-    { key: '/workbench', label: '任务工作台' },
-    { key: '/judge', label: '判断' },
-    { key: '/retrieve', label: '检索' },
-    { key: '/compose', label: '写作' },
-    { key: '/model-center', label: '模型中心' },
-    { key: '/database-manager', label: '数据库管理' },
+    { key: '/home', label: '工作台' },
+    { key: '/agent', label: '智能体' },
+    { key: '/manage', label: '管理' },
   ];
 
+  const resolveSelectedKey = () => {
+    if (location.pathname.startsWith('/agent') || location.pathname.startsWith('/assistant-center')) {
+      return '/agent';
+    }
+
+    if (
+      location.pathname.startsWith('/manage') ||
+      location.pathname.startsWith('/model-center') ||
+      location.pathname.startsWith('/database-manager') ||
+      location.pathname.startsWith('/apps') ||
+      location.pathname.startsWith('/settings')
+    ) {
+      return '/manage';
+    }
+
+    return '/home';
+  };
+
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className="ap-shell">
       <Header
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          background: '#fff',
-          borderBottom: '1px solid #f0f0f0',
-        }}
+        className="ap-shell__header"
       >
         <div
-          style={{
-            fontSize: 18,
-            fontWeight: 600,
-            marginRight: 32,
-            whiteSpace: 'nowrap',
-            color: '#000',
-          }}
+          className="ap-shell__brand"
         >
-          通用 Agent 平台
+          <span className="ap-shell__brand-mark" />
+          AP 2.0
         </div>
 
         <Menu
           mode="horizontal"
-          selectedKeys={[location.pathname]}
+          selectedKeys={[resolveSelectedKey()]}
           items={items}
           onClick={({ key }) => navigate(key)}
-          style={{ flex: 1, minWidth: 0 }}
+          className="ap-shell__menu"
         />
       </Header>
 
-      <Content style={{ padding: 24, background: '#f5f5f5' }}>
-        <div
-          style={{
-            background: '#fff',
-            minHeight: 'calc(100vh - 112px)',
-            padding: 24,
-            borderRadius: 8,
-          }}
-        >
+      <Content className="ap-shell__content">
+        <div className="ap-shell__surface">
           <GlobalAgentDebugBar />
           <Outlet />
         </div>

@@ -1655,3 +1655,80 @@ body {
     width: 100%;
   }
 }
+
+/* ===== FE-5: Tasks Page & Table ===== */
+.ap-tasks-page {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 28px 4px 48px;
+}
+
+.ap-task-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.ap-task-table-card {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 28px;
+  overflow: hidden;
+}
+
+.ap-task-table .ant-table {
+  font-size: 13px;
+}
+
+/* ===== FE-5: Continue Highlight ===== */
+.ap-task-highlight {
+  padding: 20px;
+  border: 1px solid rgba(96, 165, 250, 0.24);
+  background: rgba(239, 246, 255, 0.52);
+  border-radius: 28px;
+  margin-bottom: 22px;
+}
+
+.ap-task-card {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.06);
+  border-radius: 24px;
+  margin-bottom: 10px;
+}
+
+/* ===== FE-5: Task Detail ===== */
+.ap-task-detail {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 28px 4px 48px;
+}
+
+.ap-task-archive-header {
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 28px;
+}
+
+.ap-version-record .ant-table {
+  font-size: 13px;
+}
+
+@media (max-width: 960px) {
+  .ap-task-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ap-task-filters .ant-select,
+  .ap-task-filters .ant-input {
+    width: 100% !important;
+  }
+}

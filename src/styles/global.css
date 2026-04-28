@@ -1732,3 +1732,81 @@ body {
     width: 100% !important;
   }
 }
+
+/* ===== FE-6: Settings Center ===== */
+.ap-settings-center {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 22px;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 28px 4px 48px;
+}
+
+.ap-settings-sidenav {
+  position: sticky;
+  top: 90px;
+  align-self: start;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 28px;
+  overflow: hidden;
+}
+
+.ap-settings-sidenav .ant-menu {
+  background: transparent;
+  border: 0;
+}
+
+.ap-settings-overview {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.ap-planner-model {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 28px;
+  margin-bottom: 14px;
+}
+
+.ap-planner-model__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ap-planner-model__item {
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.ap-permission-lock {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  border-radius: 28px;
+}
+
+.ap-admin-entry {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  border-radius: 20px;
+}
+
+@media (max-width: 960px) {
+  .ap-settings-center {
+    grid-template-columns: 1fr;
+  }
+
+  .ap-settings-sidenav {
+    position: static;
+  }
+}

@@ -1202,6 +1202,100 @@ body {
   animation: agent-debug-bar-glow-web 1.2s cubic-bezier(0.22, 1, 0.36, 1) 1;
 }
 
+/* ===== FE-3: Task Timeline ===== */
+.ap-task-timeline {
+  padding: 14px 20px;
+  border-radius: 24px;
+  background: rgba(248, 250, 252, 0.66);
+  margin-top: 22px;
+}
+
+/* ===== FE-3: Step Result Card ===== */
+.ap-step-card {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 24px;
+  margin-top: 14px;
+}
+
+.ap-step-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* ===== FE-3: Output Preview ===== */
+.ap-output-preview {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 30px;
+  margin-top: 22px;
+}
+
+.ap-output-preview__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ap-output-preview__versions {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.ap-output-preview__version {
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.ap-output-preview__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.ap-output-preview__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+/* ===== FE-3: Workbench Execution Header ===== */
+.ap-workbench-exec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* ===== FE-3: Cancelled Summary ===== */
+.ap-cancelled-summary {
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .ap-output-preview__actions {
+    flex-direction: column;
+  }
+
+  .ap-output-preview__actions .ant-btn {
+    width: 100%;
+  }
+}
+
 /* ===== FE-2: Task Input ===== */
 .ap-task-input {
   display: flex;

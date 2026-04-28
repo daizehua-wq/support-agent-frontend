@@ -71,3 +71,43 @@ export interface RecentTask {
   lastStep?: string;
   updatedAt: string;
 }
+
+// ===== FE-3: Execution Types =====
+
+export type TaskExecutionStatus = 'idle' | 'running' | 'failed' | 'degraded' | 'done' | 'cancelled';
+
+export type TaskStepExecutionStatus = 'pending' | 'running' | 'done' | 'failed' | 'degraded' | 'skipped';
+
+export type StepFailureKind = 'external_source' | 'internal_knowledge' | 'analysis' | 'output' | 'save';
+
+export interface TaskStepExecution {
+  stepId: string;
+  type: 'analysis' | 'evidence' | 'output' | 'save';
+  title: string;
+  status: TaskStepExecutionStatus;
+  startedAt?: string;
+  completedAt?: string;
+  durationMs?: number;
+  summary?: string;
+  details?: string[];
+  riskNotes?: string[];
+  degradedReason?: string;
+  failureReason?: string;
+  failureKind?: StepFailureKind;
+}
+
+export interface TaskOutputPreview {
+  formalPreview: string;
+  concisePreview: string;
+  spokenPreview: string;
+  evidenceCount: number;
+  riskCount: number;
+}
+
+export interface TaskExecution {
+  taskId: string;
+  status: TaskExecutionStatus;
+  currentStepId?: string;
+  steps: TaskStepExecution[];
+  outputPreview?: TaskOutputPreview;
+}

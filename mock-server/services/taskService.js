@@ -400,6 +400,319 @@ const runExecutionSimulation = (taskId) => {
   advanceStep(0);
 };
 
+// ============================================================================
+// Output generation (P0)
+// ============================================================================
+
+const FORMAL_CONTENT = '尊敬的客户：\n\n根据我们的分析，贵司当前处于半导体材料应用的关键阶段。我们建议从涂布工艺参数优化入手，结合行业标准方案，制定分阶段技术对接计划。近期我们将整理一份详细的技术方案供您审阅。\n\n此方案将包含：\n1. 工艺兼容性分析\n2. 同类客户案例参考\n3. 初步成本对比评估\n\n如有需要调整的方向，请随时告知。';
+
+const CONCISE_CONTENT = '基于当前分析，建议从涂布工艺参数优化入手，制定分阶段技术对接计划。我们将整理技术方案供您审阅。';
+
+const SPOKEN_CONTENT = '您好，根据我们对您这边情况的分析，建议咱们先从涂布工艺这块切入，我们会整理一份详细的技术方案给您看。您看什么时候方便我们详细沟通一下？';
+
+const buildExecutionSteps = (taskId) => [
+  { title: '分析客户场景', status: 'done', summary: '识别为销售跟进场景，建议输出正式跟进方案。' },
+  { title: '检索资料与证据', status: 'done', summary: '已从内部知识库和 Reference Pack 中整理 3 条可引用依据。' },
+  { title: '生成输出', status: 'done', summary: '已生成正式交付版、简洁沟通版、口语跟进版。' },
+  { title: '保存历史任务', status: 'done', summary: '已保存到历史任务。' },
+];
+
+const buildEvidences = () => [
+  { id: 'ev-1', title: '半导体涂布工艺标准', sourceType: 'internal_knowledge', sourceName: '内部知识库', status: 'healthy', summary: '行业标准涂布工艺参数表，包括干燥温度、涂布速度和材料兼容性指南。' },
+  { id: 'ev-2', title: '同类客户案例：XX 材料公司', sourceType: 'reference_pack', sourceName: 'Reference Pack', status: 'healthy', summary: '半导体涂布材料领域的客户合作案例，展示从评估到上线的完整流程。' },
+  { id: 'ev-3', title: '企业背景与风险数据', sourceType: 'external_source', sourceName: '外部资料源', status: 'healthy', summary: '公司注册信息、经营状态和公开的信用记录。' },
+];
+
+const buildRisks = () => [
+  { id: 'r-1', level: 'warning', title: '缺少客户公司全称', description: '未提供客户公司全称，分析结果基于关键词匹配，精确度可能受限。' },
+  { id: 'r-2', level: 'info', title: '输出对象未指定', description: '未指定输出对象，默认使用通用销售沟通风格。' },
+];
+
+function detectOutputStatus(userGoal) {
+  const goal = normalizeText(userGoal);
+  if (goal.includes('输出失败')) return 'failed';
+  if (goal.includes('证据不足')) return 'evidence_insufficient';
+  if (goal.includes('降级')) return 'degraded';
+  return 'success';
+}
+
+function generateOutputVersion(taskId, label, reason) {
+  const now = new Date().toISOString();
+  return {
+    versionId: `${taskId}-v${label.replace('v', '')}-${Date.now()}`,
+    label,
+    status: 'success',
+    isCurrent: false,
+    reason,
+    createdAt: now,
+    formalVersion: FORMAL_CONTENT,
+    conciseVersion: CONCISE_CONTENT,
+    spokenVersion: SPOKEN_CONTENT,
+  };
+}
+
+function lazyGenerateOutputIfNeeded(task) {
+  // Only generate if execution is done and no output yet
+  if (task.status !== 'done') return;
+  if (task.outputVersions && task.outputVersions.length > 0) return;
+
+  const userGoal = task.taskPlan?.userGoal || '';
+  const status = detectOutputStatus(userGoal);
+
+  const v1Id = `${task.taskId}-v1`;
+  const now = new Date().toISOString();
+
+  const v1 = {
+    versionId: v1Id,
+    label: 'v1',
+    status,
+    isCurrent: true,
+    reason: '初始生成',
+    createdAt: now,
+    formalVersion: status === 'failed' ? '' : FORMAL_CONTENT,
+    conciseVersion: status === 'failed' ? '' : CONCISE_CONTENT,
+    spokenVersion: status === 'failed' ? '' : SPOKEN_CONTENT,
+    failureReason: status === 'failed' ? '输出生成失败：模型调用返回空响应。' : undefined,
+  };
+
+  task.outputVersions = [v1];
+  task.currentOutputVersionId = v1Id;
+  task.evidences = buildEvidences();
+  task.risks = buildRisks();
+  task.executionSteps = buildExecutionSteps(task.taskId);
+
+  // Adjust evidences/risks for special statuses
+  if (status === 'degraded') {
+    task.evidences = task.evidences.map((ev) =>
+      ev.sourceType === 'external_source'
+        ? { ...ev, status: 'degraded', summary: '本次未使用外部资料源，输出基于内部知识库和 Reference Pack 生成。' }
+        : ev,
+    );
+    task.risks = [
+      ...task.risks,
+      { id: 'r-d1', level: 'degraded', title: '外部源降级', description: '外部资料源当前不可用，本次输出未包含外部权威数据验证。' },
+    ];
+    task.executionSteps[1].status = 'degraded';
+    task.executionSteps[1].summary = '外部资料源不可用，已降级为内部检索。';
+  }
+
+  if (status === 'evidence_insufficient') {
+    task.risks = [
+      ...task.risks,
+      { id: 'r-e1', level: 'warning', title: '证据不足', description: '缺少部分关键信息，影响分析精确度。建议补充资料后重新生成。' },
+    ];
+  }
+
+  if (status === 'failed') {
+    task.risks = [{ id: 'r-f1', level: 'danger', title: '输出生成失败', description: '已完成的分析结果和证据资料不会丢失。你可以重试生成或返回工作台修改计划。' }];
+  }
+
+  task.updatedAt = now;
+}
+
+// ---------------------------------------------------------------------------
+// Public: getTaskOutput(taskId) → OutputDetail | null
+// ---------------------------------------------------------------------------
+
+export const getTaskOutput = (taskId) => {
+  const task = tasks.get(taskId);
+  if (!task) return null;
+
+  lazyGenerateOutputIfNeeded(task);
+
+  if (!task.outputVersions || task.outputVersions.length === 0) return null;
+
+  const currentVersion = task.outputVersions.find((v) => v.versionId === task.currentOutputVersionId);
+
+  return {
+    taskId: task.taskId,
+    taskTitle: task.taskPlan?.taskTitle || '',
+    taskGoal: task.taskPlan?.userGoal || '',
+    outputTarget: task.taskPlan?.outputTarget || '',
+    tone: task.taskPlan?.tone || '',
+    status: currentVersion?.status || 'success',
+    currentVersionId: task.currentOutputVersionId,
+    versions: task.outputVersions || [],
+    evidences: task.evidences || [],
+    risks: task.risks || [],
+    executionSteps: task.executionSteps || [],
+  };
+};
+
+// ---------------------------------------------------------------------------
+// Public: getOutputVersions(taskId) → version list | null
+// ---------------------------------------------------------------------------
+
+export const getOutputVersions = (taskId) => {
+  const task = tasks.get(taskId);
+  if (!task) return null;
+
+  lazyGenerateOutputIfNeeded(task);
+
+  if (!task.outputVersions || task.outputVersions.length === 0) return null;
+
+  return {
+    taskId: task.taskId,
+    currentVersionId: task.currentOutputVersionId,
+    versions: task.outputVersions,
+  };
+};
+
+// ---------------------------------------------------------------------------
+// Public: regenerateOutput(taskId, mode, tone, note) → new version
+// ---------------------------------------------------------------------------
+
+export const regenerateOutput = (taskId, mode = 'regenerate', tone = 'formal', note = '') => {
+  const task = tasks.get(taskId);
+  if (!task) return null;
+
+  lazyGenerateOutputIfNeeded(task);
+
+  if (!task.outputVersions || task.outputVersions.length === 0) return null;
+
+  const now = new Date().toISOString();
+  const label = `v${task.outputVersions.length + 1}`;
+  const versionId = `${taskId}-v${task.outputVersions.length + 1}-${Date.now()}`;
+
+  const reasonMap = {
+    regenerate: '重新生成',
+    adjust_tone: '调整语气后重新生成',
+    supplement_regenerate: '补充资料后重新生成',
+    retry_external_source: '重试外部资料源后重新生成',
+  };
+  const reason = reasonMap[mode] || '重新生成';
+
+  const userGoal = task.taskPlan?.userGoal || '';
+  const status = detectOutputStatus(userGoal);
+
+  const newVersion = {
+    versionId,
+    label,
+    status,
+    isCurrent: true,
+    reason,
+    createdAt: now,
+    formalVersion: status === 'failed' ? '' : FORMAL_CONTENT,
+    conciseVersion: status === 'failed' ? '' : CONCISE_CONTENT,
+    spokenVersion: status === 'failed' ? '' : SPOKEN_CONTENT,
+    failureReason: status === 'failed' ? '输出生成失败：模型调用返回空响应。' : undefined,
+  };
+
+  // Mark all existing versions as not current
+  task.outputVersions = task.outputVersions.map((v) => ({ ...v, isCurrent: false }));
+  task.outputVersions.push(newVersion);
+  task.currentOutputVersionId = versionId;
+  task.updatedAt = now;
+
+  return {
+    taskId: task.taskId,
+    versionId,
+    label,
+    status,
+    currentVersionId: task.currentOutputVersionId,
+    output: newVersion,
+  };
+};
+
+// ---------------------------------------------------------------------------
+// Public: setCurrentOutputVersion(taskId, versionId) → boolean
+// ---------------------------------------------------------------------------
+
+export const setCurrentOutputVersion = (taskId, versionId) => {
+  const task = tasks.get(taskId);
+  if (!task) return { success: false, error: 'TASK_NOT_FOUND' };
+
+  lazyGenerateOutputIfNeeded(task);
+
+  if (!task.outputVersions || task.outputVersions.length === 0) {
+    return { success: false, error: 'TASK_OUTPUT_NOT_READY' };
+  }
+
+  const targetVersion = task.outputVersions.find((v) => v.versionId === versionId);
+  if (!targetVersion) {
+    return { success: false, error: 'OUTPUT_VERSION_NOT_FOUND' };
+  }
+
+  const now = new Date().toISOString();
+
+  task.outputVersions = task.outputVersions.map((v) => ({
+    ...v,
+    isCurrent: v.versionId === versionId,
+  }));
+  task.currentOutputVersionId = versionId;
+  task.updatedAt = now;
+
+  return {
+    success: true,
+    data: {
+      taskId: task.taskId,
+      currentVersionId: task.currentOutputVersionId,
+      versions: task.outputVersions,
+    },
+  };
+};
+
+// ---------------------------------------------------------------------------
+// Public: exportOutputMarkdown(taskId) → { filename, markdown } | null
+// ---------------------------------------------------------------------------
+
+export const exportOutputMarkdown = (taskId) => {
+  const task = tasks.get(taskId);
+  if (!task) return null;
+
+  lazyGenerateOutputIfNeeded(task);
+
+  if (!task.outputVersions || task.outputVersions.length === 0) return null;
+
+  const currentVersion = task.outputVersions.find((v) => v.versionId === task.currentOutputVersionId);
+  if (!currentVersion) return null;
+
+  const lines = [];
+  const title = task.taskPlan?.taskTitle || 'Output Report';
+
+  lines.push(`# ${title}`);
+  lines.push('');
+  lines.push('## 任务目标');
+  lines.push(task.taskPlan?.userGoal || '');
+  lines.push('');
+
+  lines.push('## 正式交付版');
+  lines.push(currentVersion.formalVersion || '（未生成）');
+  lines.push('');
+
+  lines.push('## 简洁沟通版');
+  lines.push(currentVersion.conciseVersion || '（未生成）');
+  lines.push('');
+
+  lines.push('## 口语跟进版');
+  lines.push(currentVersion.spokenVersion || '（未生成）');
+  lines.push('');
+
+  lines.push('## 关键依据');
+  for (const ev of task.evidences || []) {
+    lines.push(`- **${ev.title}**：${ev.summary}`);
+  }
+  lines.push('');
+
+  lines.push('## 风险与限制');
+  for (const r of task.risks || []) {
+    lines.push(`- **${r.title}**：${r.description}`);
+  }
+  lines.push('');
+
+  lines.push('## 执行过程');
+  for (const step of task.executionSteps || []) {
+    const icon = step.status === 'done' ? '✅' : step.status === 'degraded' ? '⚠️' : step.status === 'failed' ? '❌' : '⏳';
+    lines.push(`- ${icon} ${step.title}${step.summary ? `：${step.summary}` : ''}`);
+  }
+
+  const markdown = lines.join('\n');
+  const safeTitle = title.replace(/[^a-zA-Z0-9\u4e00-\u9fff-_]/g, '_');
+  const filename = `output-${currentVersion.label}-${safeTitle}.md`;
+
+  return { filename, markdown };
+};
+
 // ---------------------------------------------------------------------------
 // Public: listAllTasks() → array (for debugging / future Archive)
 // ---------------------------------------------------------------------------

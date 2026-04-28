@@ -68,7 +68,7 @@ function OutputVersionList({ versions, currentVersionId, onSetCurrent, onRetry, 
                       const text = [version.formalVersion, version.conciseVersion, version.spokenVersion].filter(Boolean).join('\n\n');
                       navigator.clipboard.writeText(text || '').then(() => message.success('已复制该版本全部内容')).catch(() => message.error('复制失败'));
                     }}>复制该版本全部内容</Button>
-                    <Button size="small" onClick={() => { onSetCurrent(version.versionId); message.info('已设为当前版本（本地预览）'); }}>设为当前</Button>
+                    <Button size="small" onClick={() => onSetCurrent(version.versionId)}>设为当前</Button>
                   </>
                 )}
                 {!isCurrent && version.status === 'failed' && (

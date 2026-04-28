@@ -11,6 +11,7 @@ import {
   StopOutlined,
 } from '@ant-design/icons';
 import { generateMockOutput } from '../../utils/mockOutput';
+import * as outputAdapter from '../../utils/taskApiAdapter';
 import EvidenceCard from '../../components/output/EvidenceCard';
 import MarkdownExportAction from '../../components/output/MarkdownExportAction';
 import OutputTabs from '../../components/output/OutputTabs';
@@ -41,11 +42,26 @@ function OutputPage() {
       setLoading(false);
       return;
     }
-    const timer = setTimeout(() => {
-      setOutput(generateMockOutput(taskId));
-      setLoading(false);
-    }, 600);
-    return () => clearTimeout(timer);
+    const id = taskId;
+    let cancelled = false;
+    async function fetch() {
+      setLoading(true);
+      try {
+        const result = await outputAdapter.getOutputDetail(id);
+        if (!cancelled) {
+          setOutput(result);
+          setViewVersionId(result.currentVersionId);
+        }
+      } catch {
+        if (!cancelled) {
+          setOutput(generateMockOutput(id));
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    fetch();
+    return () => { cancelled = true; };
   }, [taskId]);
 
   const currentVersionId = viewVersionId || output?.currentVersionId || '';
@@ -65,19 +81,24 @@ function OutputPage() {
   const isInsufficient = status === 'evidence_insufficient';
   const hasMultipleVersions = versions.length > 1;
 
-  const handleSetCurrent = useCallback((versionId: string) => {
-    setOutput((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        currentVersionId: versionId,
-        versions: prev.versions.map((v) => ({
-          ...v,
-          isCurrent: v.versionId === versionId,
-        })),
-      };
-    });
-  }, []);
+  const handleSetCurrent = useCallback(async (versionId: string) => {
+    if (!taskId) return;
+    try {
+      await outputAdapter.setCurrentOutputVersion(taskId, versionId);
+
+      // Full refresh — keeps output body, version list, evidences, risks in sync
+      const [freshOutput] = await Promise.all([
+        outputAdapter.getOutputDetail(taskId),
+        outputAdapter.getOutputVersions(taskId),
+      ]);
+
+      setOutput(freshOutput);
+      setViewVersionId(freshOutput.currentVersionId);
+      message.success('已设为当前版本');
+    } catch {
+      message.error('设置当前版本失败');
+    }
+  }, [taskId]);
 
   const handleViewVersion = useCallback((versionId: string) => {
     setViewVersionId(versionId);
@@ -91,7 +112,7 @@ function OutputPage() {
     setShowRegenerateModal(true);
   };
 
-  const handleRegenerateConfirm = (mode: string) => {
+  const handleRegenerateConfirm = async (mode: string) => {
     setShowRegenerateModal(false);
     if (mode === 'edit-goal') {
       navigate('/workbench', { state: { mode: 'edit-goal', taskId: output?.taskId } });
@@ -101,53 +122,54 @@ function OutputPage() {
       setShowMissingDrawer(true);
       return;
     }
+    if (!taskId) return;
+
     setRegenerating(true);
-    setTimeout(() => {
+    try {
+      const modeMap: Record<string, string> = {
+        tone: 'adjust_tone',
+        current: 'regenerate',
+        supplement: 'supplement_regenerate',
+        'edit-goal': 'regenerate',
+      };
+      const apiMode = modeMap[mode] || 'regenerate';
+      await outputAdapter.regenerateOutput(taskId, { mode: apiMode });
+
+      // Full refresh from server — keeps output/versions/evidences/risks consistent
+      const [freshOutput] = await Promise.all([
+        outputAdapter.getOutputDetail(taskId),
+        outputAdapter.getOutputVersions(taskId),
+      ]);
+
       setRegenerating(false);
-      setViewVersionId(null);
-      setOutput((prev) => {
-        if (!prev) return prev;
-        const newVersionId = `${prev.taskId}-v${prev.versions.length + 1}`;
-        const newVersion = {
-          versionId: newVersionId,
-          label: `v${prev.versions.length + 1}`,
-          status: 'success' as const,
-          isCurrent: true,
-          reason: getRegenReason(prev.taskId, mode),
-          createdAt: new Date().toLocaleString('zh-CN', { hour12: false }),
-          formalVersion: currentVersion?.formalVersion,
-          conciseVersion: currentVersion?.conciseVersion,
-          spokenVersion: currentVersion?.spokenVersion,
-        };
-        return {
-          ...prev,
-          status: 'success' as const,
-          currentVersionId: newVersionId,
-          versions: [...prev.versions.map((v) => ({ ...v, isCurrent: false })), newVersion],
-        };
-      });
+      setOutput(freshOutput);
+      setViewVersionId(freshOutput.currentVersionId);
       message.success('新版本已生成');
-    }, 2000);
+    } catch {
+      setRegenerating(false);
+      message.error('重新生成失败，请重试');
+    }
   };
 
-  const handleRetryVersion = (versionId: string) => {
+  const handleRetryVersion = async (versionId: string) => {
+    if (!taskId) return;
     setRegenerating(true);
-    setTimeout(() => {
+    try {
+      await outputAdapter.regenerateOutput(taskId, { mode: 'regenerate', note: `基于 ${versionId} 重试` });
+
+      const [freshOutput] = await Promise.all([
+        outputAdapter.getOutputDetail(taskId),
+        outputAdapter.getOutputVersions(taskId),
+      ]);
+
       setRegenerating(false);
-      setOutput((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          status: 'success' as const,
-          versions: prev.versions.map((v) =>
-            v.versionId === versionId
-              ? { ...v, status: 'success' as const, failureReason: undefined }
-              : v,
-          ),
-        };
-      });
+      setOutput(freshOutput);
+      setViewVersionId(freshOutput.currentVersionId);
       message.success('版本生成成功');
-    }, 2000);
+    } catch {
+      setRegenerating(false);
+      message.error('重试生成失败');
+    }
   };
 
   const handleStopGenerating = () => {
@@ -287,6 +309,7 @@ function OutputPage() {
                 </Button>
                 {currentVersion && (
                   <MarkdownExportAction
+                    taskId={output.taskId}
                     taskTitle={output.taskTitle}
                     taskGoal={output.taskGoal}
                     currentVersion={currentVersion}
@@ -384,12 +407,6 @@ function OutputPage() {
       />
     </div>
   );
-}
-
-function getRegenReason(_taskId: string, mode: string): string {
-  if (mode === 'tone') return '调整语气后重新生成';
-  if (mode === 'supplement') return '补充资料后重新生成';
-  return '重新生成';
 }
 
 export default OutputPage;

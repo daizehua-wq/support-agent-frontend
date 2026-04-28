@@ -1,6 +1,10 @@
-import type { TaskPlan } from '../types/taskPlan';
+import type { TaskPlan, TaskExecution } from '../types/taskPlan';
+import type { OutputDetail, OutputVersion } from '../types/output';
 import { generateTaskPlan as generateMockPlan } from './mockTaskPlanner';
-import { normalizeTaskPlanResponse } from './taskNormalizer';
+import { runMockExecution } from './mockTaskExecutor';
+import { generateMockOutput } from './mockOutput';
+import { buildOutputMarkdown } from './markdownExport';
+import { normalizeTaskPlanResponse, normalizeTaskExecutionResponse, normalizeOutputResponse, normalizeOutputVersionsResponse } from './taskNormalizer';
 import * as tasksApi from '../api/tasks';
 import { message } from 'antd';
 
@@ -51,6 +55,201 @@ export async function generateTaskPlan(userGoal: string, appId?: string): Promis
       return generateMockPlan(goal);
     }
 
+    throw error;
+  }
+}
+
+export async function confirmTask(taskId: string, goal: string, missingInfoValues?: Record<string, string>): Promise<TaskExecution> {
+  if (FORCE_MOCK) {
+    return runMockExecution(goal, taskId, () => {});
+  }
+
+  try {
+    const raw = await tasksApi.confirmTask(taskId, missingInfoValues);
+    return normalizeTaskExecutionResponse(raw as any);
+  } catch (error: unknown) {
+    if (isClientError(error)) throw error;
+    if (isNetworkOrServerError(error)) {
+      message.warning('已切换至离线执行模式', 3);
+      return runMockExecution(goal, taskId, () => {});
+    }
+    throw error;
+  }
+}
+
+export async function getExecution(taskId: string, goal: string): Promise<TaskExecution> {
+  if (FORCE_MOCK) {
+    return runMockExecution(goal, taskId, () => {});
+  }
+
+  try {
+    const raw = await tasksApi.getTaskExecution(taskId);
+    return normalizeTaskExecutionResponse(raw as any);
+  } catch (error: unknown) {
+    if (isClientError(error)) throw error;
+    if (isNetworkOrServerError(error)) {
+      message.warning('已切换至离线执行模式', 3);
+      return runMockExecution(goal, taskId, () => {});
+    }
+    throw error;
+  }
+}
+
+export async function stopExecution(taskId: string): Promise<TaskExecution> {
+  if (FORCE_MOCK) return { taskId, status: 'cancelled', steps: [] };
+  try {
+    const raw = await tasksApi.stopTask(taskId);
+    return normalizeTaskExecutionResponse(raw as any);
+  } catch (error: unknown) {
+    if (isNetworkOrServerError(error)) return { taskId, status: 'cancelled', steps: [] };
+    throw error;
+  }
+}
+
+// ===== Output API adapters =====
+
+export async function getOutputDetail(taskId: string): Promise<OutputDetail> {
+  if (FORCE_MOCK) {
+    return generateMockOutput(taskId);
+  }
+
+  try {
+    const raw = await tasksApi.getTaskOutput(taskId);
+    return normalizeOutputResponse(raw);
+  } catch (error: unknown) {
+    if (isClientError(error)) {
+      throw error;
+    }
+
+    if (isNetworkOrServerError(error)) {
+      message.warning('已切换至离线 Output 模式', 3);
+      return generateMockOutput(taskId);
+    }
+
+    throw error;
+  }
+}
+
+export async function getOutputVersions(taskId: string): Promise<{ taskId: string; currentVersionId: string; versions: OutputVersion[] }> {
+  if (FORCE_MOCK) {
+    const mock = generateMockOutput(taskId);
+    return { taskId: mock.taskId, currentVersionId: mock.currentVersionId, versions: mock.versions };
+  }
+
+  try {
+    const raw = await tasksApi.getTaskOutputVersions(taskId);
+    return normalizeOutputVersionsResponse(raw);
+  } catch (error: unknown) {
+    if (isClientError(error)) {
+      throw error;
+    }
+
+    if (isNetworkOrServerError(error)) {
+      message.warning('已切换至离线版本模式', 3);
+      const mock = generateMockOutput(taskId);
+      return { taskId: mock.taskId, currentVersionId: mock.currentVersionId, versions: mock.versions };
+    }
+
+    throw error;
+  }
+}
+
+export async function regenerateOutput(
+  taskId: string,
+  payload: { mode: string; tone?: string; note?: string },
+): Promise<any> {
+  if (FORCE_MOCK) {
+    const mock = generateMockOutput(taskId);
+    const label = `v${mock.versions.length + 1}`;
+    const versionId = `${taskId}-v${mock.versions.length + 1}`;
+    return {
+      taskId,
+      versionId,
+      label,
+      status: 'success',
+      currentVersionId: versionId,
+      output: {
+        versionId,
+        label,
+        status: 'success',
+        isCurrent: true,
+        reason: payload.note || '重新生成',
+        createdAt: new Date().toISOString(),
+        formalVersion: mock.versions[0]?.formalVersion || '',
+        conciseVersion: mock.versions[0]?.conciseVersion || '',
+        spokenVersion: mock.versions[0]?.spokenVersion || '',
+      },
+    };
+  }
+
+  try {
+    const raw = await tasksApi.regenerateTaskOutput(taskId, payload);
+    // Handle wrapping - regenerate returns { success, data: { taskId, versionId, ... } }
+    const data = raw?.data?.data || raw?.data || raw || {};
+    return data;
+  } catch (error: unknown) {
+    if (isClientError(error)) throw error;
+    throw error;
+  }
+}
+
+export async function setCurrentOutputVersion(
+  taskId: string,
+  versionId: string,
+): Promise<{ taskId: string; currentVersionId: string; versions: OutputVersion[] }> {
+  if (FORCE_MOCK) {
+    const mock = generateMockOutput(taskId);
+    const updated = mock.versions.map((v) => ({ ...v, isCurrent: v.versionId === versionId }));
+    return { taskId: mock.taskId, currentVersionId: versionId, versions: updated };
+  }
+
+  try {
+    const raw = await tasksApi.setCurrentOutputVersion(taskId, versionId);
+    return normalizeOutputVersionsResponse(raw);
+  } catch (error: unknown) {
+    if (isClientError(error)) throw error;
+    if (isNetworkOrServerError(error)) {
+      message.warning('已切换至离线版本管理模式', 3);
+      const mock = generateMockOutput(taskId);
+      const updated = mock.versions.map((v) => ({ ...v, isCurrent: v.versionId === versionId }));
+      return { taskId: mock.taskId, currentVersionId: versionId, versions: updated };
+    }
+    throw error;
+  }
+}
+
+export async function exportOutputMarkdown(
+  taskId: string,
+  fallbackData?: {
+    taskTitle: string;
+    taskGoal: string;
+    currentVersion: OutputVersion;
+    evidences: Array<{ title: string; summary: string }>;
+    risks: Array<{ title: string; description: string }>;
+    executionSteps: Array<{ title: string; status: string; summary?: string }>;
+  },
+): Promise<{ filename: string; markdown: string } | null> {
+  if (FORCE_MOCK) {
+    if (fallbackData) {
+      const md = buildOutputMarkdown(fallbackData.taskTitle, fallbackData.taskGoal, fallbackData.currentVersion, fallbackData.executionSteps, fallbackData.evidences, fallbackData.risks);
+      const filename = `output-${fallbackData.currentVersion.label}-${Date.now()}.md`;
+      return { filename, markdown: md };
+    }
+    return null;
+  }
+
+  try {
+    const raw = await tasksApi.exportTaskOutputMarkdown(taskId);
+    const data = raw?.data?.data || raw?.data || raw || {};
+    return data.filename ? data : null;
+  } catch (error: unknown) {
+    if (isClientError(error)) throw error;
+    if (isNetworkOrServerError(error) && fallbackData) {
+      message.warning('已切换至本地 Markdown 导出', 3);
+      const md = buildOutputMarkdown(fallbackData.taskTitle, fallbackData.taskGoal, fallbackData.currentVersion, fallbackData.executionSteps, fallbackData.evidences, fallbackData.risks);
+      const filename = `output-${fallbackData.currentVersion.label}-${Date.now()}.md`;
+      return { filename, markdown: md };
+    }
     throw error;
   }
 }

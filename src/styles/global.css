@@ -1824,3 +1824,31 @@ body {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* ===== FE-7d: Settings Module Shell ===== */
+.ap-settings-module-shell {
+  display: flex;
+  flex-direction: column;
+}
+
+.ap-settings-module-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.ap-settings-embedded-panel {
+  flex: 1;
+}
+
+.ap-settings-embedded-panel--legacy {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 28px;
+  padding: 20px;
+}

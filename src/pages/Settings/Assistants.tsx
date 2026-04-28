@@ -1,20 +1,13 @@
 import { Card, Typography } from 'antd';
-import { SettingOutlined } from '@ant-design/icons';
+import SettingsModuleShell from '../../components/settings/SettingsModuleShell';
 import AssistantCenterPage from '../AssistantCenter';
 
 function SettingsAssistantsPage() {
   return (
-    <div>
-      <div style={{ marginBottom: 18 }}>
-        <Typography.Title level={2} style={{ margin: 0 }}>
-          <SettingOutlined style={{ marginRight: 10 }} />
-          Assistant / Prompt
-        </Typography.Title>
-        <Typography.Paragraph type="secondary" style={{ margin: '8px 0 0', fontSize: 14 }}>
-          管理 Assistant、Prompt、发布版本、模块绑定和治理历史。
-        </Typography.Paragraph>
-      </div>
-
+    <SettingsModuleShell
+      title="Assistant / Prompt"
+      description="管理 Assistant、Prompt、发布版本、模块绑定和治理历史。"
+    >
       <Card size="small" style={{ borderRadius: 22, marginBottom: 18 }} styles={{ body: { padding: 16 } }}>
         <Typography.Text strong style={{ display: 'block', marginBottom: 6, fontSize: 14 }}>
           Assistant / Prompt
@@ -26,7 +19,7 @@ function SettingsAssistantsPage() {
       </Card>
 
       <AssistantCenterPage />
-    </div>
+    </SettingsModuleShell>
   );
 }
 

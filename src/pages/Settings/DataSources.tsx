@@ -1,20 +1,14 @@
 import { Card, Typography } from 'antd';
-import { DatabaseOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import { SafetyCertificateOutlined } from '@ant-design/icons';
+import SettingsModuleShell from '../../components/settings/SettingsModuleShell';
 import DatabaseManagerPage from '../DatabaseManager';
 
 function SettingsDataSourcesPage() {
   return (
-    <div>
-      <div style={{ marginBottom: 18 }}>
-        <Typography.Title level={2} style={{ margin: 0 }}>
-          <DatabaseOutlined style={{ marginRight: 10 }} />
-          数据源管理
-        </Typography.Title>
-        <Typography.Paragraph type="secondary" style={{ margin: '8px 0 0', fontSize: 14 }}>
-          统一管理内部数据库、内部知识库、Reference Pack、外部资料源、轻绑定和 provider 状态。
-        </Typography.Paragraph>
-      </div>
-
+    <SettingsModuleShell
+      title="数据源管理"
+      description="统一管理内部数据库、内部知识库、Reference Pack、外部资料源、轻绑定和 provider 状态。"
+    >
       <Card size="small" style={{ borderRadius: 22, marginBottom: 18 }} styles={{ body: { padding: 16 } }}>
         <Typography.Text strong style={{ display: 'block', marginBottom: 6, fontSize: 14 }}>
           <SafetyCertificateOutlined style={{ marginRight: 6 }} />
@@ -26,7 +20,7 @@ function SettingsDataSourcesPage() {
       </Card>
 
       <DatabaseManagerPage />
-    </div>
+    </SettingsModuleShell>
   );
 }
 

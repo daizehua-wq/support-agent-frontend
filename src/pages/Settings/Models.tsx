@@ -1,21 +1,15 @@
 import { Card, Typography } from 'antd';
-import { RobotOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { ThunderboltOutlined } from '@ant-design/icons';
 import PlannerModelCard from '../../components/settings/PlannerModelCard';
+import SettingsModuleShell from '../../components/settings/SettingsModuleShell';
 import ModelCenterPage from '../ModelCenter';
 
 function SettingsModelsPage() {
   return (
-    <div>
-      <div style={{ marginBottom: 18 }}>
-        <Typography.Title level={2} style={{ margin: 0 }}>
-          <RobotOutlined style={{ marginRight: 10 }} />
-          大模型管理
-        </Typography.Title>
-        <Typography.Paragraph type="secondary" style={{ margin: '8px 0 0', fontSize: 14 }}>
-          管理默认大模型、模块绑定、fallback 规则，并查看任务规划器小模型状态。
-        </Typography.Paragraph>
-      </div>
-
+    <SettingsModuleShell
+      title="大模型管理"
+      description="管理默认大模型、模块绑定、fallback 规则，并查看任务规划器小模型状态。"
+    >
       <PlannerModelCard
         planner={{
           status: 'ready',
@@ -41,7 +35,7 @@ function SettingsModelsPage() {
       <div style={{ marginTop: 18 }}>
         <ModelCenterPage />
       </div>
-    </div>
+    </SettingsModuleShell>
   );
 }
 

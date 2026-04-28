@@ -1,405 +1,138 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { message, Spin, Typography } from 'antd';
+import { ExperimentOutlined } from '@ant-design/icons';
+import TaskInputBox from '../../components/workbench/TaskInputBox';
+import TaskPlanCard from '../../components/workbench/TaskPlanCard';
+import MissingInfoPanel from '../../components/workbench/MissingInfoPanel';
+import ConfirmExecutionBar from '../../components/workbench/ConfirmExecutionBar';
+import ExecutionContextCard from '../../components/workbench/ExecutionContextCard';
+import { generateTaskPlan } from '../../utils/mockTaskPlanner';
+import type { TaskPlan } from '../../types/taskPlan';
 
-import {
-  Alert,
-  Button,
-  Card,
-  Col,
-  Form,
-  Input,
-  Row,
-  Select,
-  Space,
-  Spin,
-  Tag,
-  message,
-} from 'antd';
+type WorkbenchState = 'empty' | 'planning' | 'plan_confirm' | 'needs_info';
 
-import PageHeader from '../../components/common/PageHeader';
-import { getAssistantCenterAssistants, type AssistantCenterListItem } from '../../api/assistantCenter';
-import {
-  runTaskWorkbench,
-  type TaskWorkbenchMaterialItem,
-  type TaskWorkbenchOutcome,
-  type TaskWorkbenchResponseData,
-} from '../../api/agent';
-import { getSettings } from '../../api/settings';
-import { getApiErrorMessage } from '../../utils/apiError';
-import { buildContinueContext, buildContinueNavigationState } from '../../utils/sessionResume';
-
-const outcomeOptions: Array<{ label: string; value: TaskWorkbenchOutcome }> = [
-  { label: '自动识别', value: 'auto' },
-  { label: '帮助判断', value: 'decision_support' },
-  { label: '整理资料', value: 'material_preparation' },
-  { label: '写参考文件', value: 'reference_document' },
-];
-
-type WorkbenchNavigationState = {
-  initialTaskInput?: string;
-  assistantId?: string;
-  expectedOutcome?: TaskWorkbenchOutcome;
-};
-
-type WorkbenchFormValues = {
-  assistantId?: string;
-  expectedOutcome: TaskWorkbenchOutcome;
-  taskInput: string;
-  contextNote?: string;
-  expectedDeliverable?: string;
-};
-
-function MaterialCard({ item }: { item: TaskWorkbenchMaterialItem }) {
-  return (
-    <Card size="small" style={{ height: '100%', borderRadius: 12 }}>
-      <Space direction="vertical" size={12} style={{ width: '100%' }}>
-        <Space wrap>
-          <strong>{item.title}</strong>
-          <Tag color="blue">{item.type}</Tag>
-        </Space>
-        <div style={{ color: '#475569', lineHeight: 1.8 }}>
-          {item.contentLines.map((line) => (
-            <div key={line}>{line}</div>
-          ))}
-        </div>
-      </Space>
-    </Card>
-  );
-}
-
-export default function WorkbenchPage() {
-  const [form] = Form.useForm<WorkbenchFormValues>();
-  const navigate = useNavigate();
+function WorkbenchPage() {
   const location = useLocation();
-  const navigationState = (location.state as WorkbenchNavigationState | null) || null;
+  const draft = (location.state as { draft?: string } | null)?.draft || '';
 
-  const [assistants, setAssistants] = useState<AssistantCenterListItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<TaskWorkbenchResponseData | null>(null);
-
-  const assistantOptions = useMemo(
-    () =>
-      assistants.map((item) => ({
-        label: `${item.assistantName}${item.activeFlag ? '（当前激活）' : ''}`,
-        value: item.assistantId,
-      })),
-    [assistants],
-  );
+  const [taskInput, setTaskInput] = useState('');
+  const [wbState, setWbState] = useState<WorkbenchState>('empty');
+  const [plan, setPlan] = useState<TaskPlan | null>(null);
+  const [missingInfoValues, setMissingInfoValues] = useState<Record<string, string>>({});
+  const [planning, setPlanning] = useState(false);
 
   useEffect(() => {
-    form.setFieldsValue({
-      expectedOutcome: navigationState?.expectedOutcome || 'auto',
-      taskInput: navigationState?.initialTaskInput || '',
-      assistantId: navigationState?.assistantId,
-    });
-  }, [form, navigationState]);
-
-  useEffect(() => {
-    const loadBootstrap = async () => {
-      try {
-        setLoading(true);
-        const [assistantResponse, settings] = await Promise.all([
-          getAssistantCenterAssistants(),
-          getSettings(),
-        ]);
-
-        const nextAssistants = assistantResponse.data?.items || [];
-        const activeAssistantId =
-          assistantResponse.data?.activeAssistantId ||
-          settings.governanceSummary?.activeAssistantId ||
-          nextAssistants.find((item) => item.activeFlag)?.assistantId ||
-          nextAssistants[0]?.assistantId ||
-          '';
-
-        setAssistants(nextAssistants);
-
-        if (!form.getFieldValue('assistantId') && activeAssistantId) {
-          form.setFieldValue('assistantId', activeAssistantId);
-        }
-      } catch (error) {
-        console.error('任务工作台初始化失败：', error);
-        message.error(getApiErrorMessage(error, '任务工作台初始化失败'));
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void loadBootstrap();
-  }, [form]);
-
-  const handleSubmit = async (values: WorkbenchFormValues) => {
-    try {
-      setSubmitting(true);
-      const response = await runTaskWorkbench({
-        assistantId: values.assistantId,
-        expectedOutcome: values.expectedOutcome,
-        taskInput: values.taskInput.trim(),
-        contextNote: values.contextNote?.trim(),
-        expectedDeliverable: values.expectedDeliverable?.trim(),
-      });
-
-      setResult(response.data || null);
-      message.success(response.message || '任务识别成功');
-    } catch (error) {
-      console.error('任务工作台运行失败：', error);
-      message.error(getApiErrorMessage(error, '任务识别失败'));
-    } finally {
-      setSubmitting(false);
+    if (draft) {
+      setTaskInput(draft);
+      setWbState('empty');
     }
+  }, [draft]);
+
+  const handleGeneratePlan = useCallback(() => {
+    if (!taskInput.trim()) return;
+    setPlanning(true);
+    setWbState('planning');
+
+    setTimeout(() => {
+      const generatedPlan = generateTaskPlan(taskInput);
+      setPlan(generatedPlan);
+      setPlanning(false);
+
+      const hasRequiredMissing = generatedPlan.missingInfo.some((i) => i.level === 'required');
+      if (hasRequiredMissing) {
+        setWbState('needs_info');
+      } else {
+        setWbState('plan_confirm');
+      }
+    }, 1200);
+  }, [taskInput]);
+
+  const handleMissingInfoChange = useCallback((field: string, value: string) => {
+    setMissingInfoValues((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const hasRequiredMissing =
+    plan?.missingInfo.some(
+      (item) => item.level === 'required' && !missingInfoValues[item.field]?.trim(),
+    ) ?? false;
+
+  const handleConfirmExecution = () => {
+    message.info('FE-2 仅实现规划态，执行态将在 FE-3 接入。任务计划已确认，后续步骤即将开放。', 5);
   };
 
-  const handleContinue = () => {
-    if (!result?.routeRecommendation?.path) {
-      return;
-    }
+  const renderEmpty = () => (
+    <div className="ap-hero">
+      <h1 className="ap-hero__headline">创建新任务</h1>
+      <p className="ap-hero__subline">输入任务目标，系统会自动规划分析步骤、检索资料并生成专业交付</p>
+      <div style={{ marginTop: 34, width: '100%', maxWidth: 760 }}>
+        <TaskInputBox
+          value={taskInput}
+          onChange={setTaskInput}
+          onGeneratePlan={handleGeneratePlan}
+          disabled={planning}
+          loading={planning}
+        />
+      </div>
+    </div>
+  );
 
-    const taskInput = form.getFieldValue('taskInput')?.trim();
-    const contextNote = form.getFieldValue('contextNote')?.trim();
-    const expectedDeliverable = form.getFieldValue('expectedDeliverable')?.trim();
-    const carriedTaskSubject =
-      result.routeRecommendation.carryPayload?.taskSubject ||
-      expectedDeliverable ||
-      taskInput;
-    const carryPayload = {
-      ...(result.routeRecommendation.carryPayload || {}),
-      taskInput: result.routeRecommendation.carryPayload?.taskInput || taskInput,
-      taskSubject: carriedTaskSubject,
-      productDirection:
-        result.routeRecommendation.carryPayload?.productDirection || carriedTaskSubject,
-      industryType:
-        result.routeRecommendation.carryPayload?.industryType || result.assistant.industryType,
-      context:
-        result.routeRecommendation.carryPayload?.context || contextNote || expectedDeliverable,
-      referenceSummary:
-        result.routeRecommendation.carryPayload?.referenceSummary ||
-        contextNote ||
-        expectedDeliverable,
-      goal:
-        result.routeRecommendation.carryPayload?.goal ||
-        expectedDeliverable ||
-        result.recognizedTask.intentLabel,
-      deliverable:
-        result.routeRecommendation.carryPayload?.deliverable || expectedDeliverable,
-    };
+  const renderPlanning = () => (
+    <div style={{ display: 'grid', placeItems: 'center', minHeight: '40vh' }}>
+      <Spin size="large" tip="正在生成任务计划…">
+        <div style={{ padding: 50 }} />
+      </Spin>
+    </div>
+  );
 
-    const continueContext = buildContinueContext({
-      ...(result.continuePayload || {}),
-      ...(result.routeRecommendation.continuePayload || {}),
-      fromModule: 'workbench',
-    });
+  const renderPlanArea = () => {
+    if (!plan) return null;
 
-    navigate(result.routeRecommendation.path, {
-      state: buildContinueNavigationState({
-        continueContext,
-        carryPayload,
-      }),
-    });
+    return (
+      <div className="ap-workbench-plan">
+        <TaskInputBox
+          value={taskInput}
+          onChange={setTaskInput}
+          onGeneratePlan={handleGeneratePlan}
+          disabled={planning}
+          loading={planning}
+        />
+
+        <TaskPlanCard plan={plan} />
+
+        {plan.missingInfo.length > 0 && (
+          <MissingInfoPanel
+            items={plan.missingInfo}
+            values={missingInfoValues}
+            onChangeValue={handleMissingInfoChange}
+          />
+        )}
+
+        <ExecutionContextCard context={plan.executionContext} />
+
+        <ConfirmExecutionBar
+          hasRequiredMissing={hasRequiredMissing}
+          onConfirm={handleConfirmExecution}
+          loading={false}
+        />
+
+        <div style={{ textAlign: 'center', marginTop: 14 }}>
+          <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+            <ExperimentOutlined style={{ marginRight: 4 }} />
+            当前只是任务计划，不是执行结果。确认前不会调用模型、外部资料源或生成输出。
+          </Typography.Text>
+        </div>
+      </div>
+    );
   };
 
   return (
-    <div>
-      <PageHeader
-        title="任务工作台"
-        description="先输入任务，再让平台识别意图、匹配 Prompt，并把自然语言转成可执行的判断资料或参考文稿材料包。"
-      />
-
-      <Alert
-        type="info"
-        showIcon
-        style={{ marginBottom: 24, borderRadius: 12 }}
-        message="这个入口是平台化的第一层"
-        description="你不需要先决定自己要走哪个销售模块。先说任务，平台会给出识别结果、绑定的助手 Prompt、建议资料包和后续承接链路。"
-      />
-
-      <Row gutter={[16, 16]}>
-        <Col xs={24} xl={10}>
-          <Card style={{ borderRadius: 12 }} title="统一任务输入">
-            <Spin spinning={loading}>
-              <Form<WorkbenchFormValues>
-                form={form}
-                layout="vertical"
-                initialValues={{
-                  expectedOutcome: 'auto',
-                  taskInput: '',
-                }}
-                onFinish={handleSubmit}
-              >
-                <Form.Item name="assistantId" label="使用哪个助手">
-                  <Select
-                    allowClear
-                    placeholder="默认使用当前激活助手"
-                    options={assistantOptions}
-                  />
-                </Form.Item>
-
-                <Form.Item name="expectedOutcome" label="期望产出">
-                  <Select options={outcomeOptions} />
-                </Form.Item>
-
-                <Form.Item
-                  name="taskInput"
-                  label="任务输入"
-                  rules={[
-                    { required: true, message: '请输入任务内容' },
-                    {
-                      validator: async (_, value) => {
-                        if (typeof value === 'string' && value.trim().length >= 2) {
-                          return;
-                        }
-
-                        throw new Error('请至少输入 2 个字符，方便平台识别任务');
-                      },
-                    },
-                  ]}
-                >
-                  <Input.TextArea
-                    rows={7}
-                    placeholder="例如：请帮我判断这个方案是否可推进，并整理出给老板汇报用的要点。"
-                  />
-                </Form.Item>
-
-                <Form.Item name="contextNote" label="补充上下文">
-                  <Input.TextArea
-                    rows={4}
-                    placeholder="补充背景、已有事实、约束条件、已有资料来源等。"
-                  />
-                </Form.Item>
-
-                <Form.Item name="expectedDeliverable" label="希望最后得到什么">
-                  <Input.TextArea
-                    rows={3}
-                    placeholder="例如：一页汇报提纲 / 参考邮件 / 判断建议 / 资料清单。"
-                  />
-                </Form.Item>
-
-                <Space wrap>
-                  <Button type="primary" htmlType="submit" loading={submitting}>
-                    识别任务并生成材料包
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      form.resetFields();
-                      setResult(null);
-                    }}
-                  >
-                    清空
-                  </Button>
-                </Space>
-              </Form>
-            </Spin>
-          </Card>
-        </Col>
-
-        <Col xs={24} xl={14}>
-          <Card style={{ borderRadius: 12 }} title="平台识别结果">
-            {!result ? (
-              <div style={{ color: '#64748B', lineHeight: 1.9 }}>
-                提交任务后，这里会展示：
-                <br />
-                1. 平台识别出的任务类型和岗位提示
-                <br />
-                2. 本次命中的助手与 Prompt
-                <br />
-                3. 可直接复用的工作资料包
-                <br />
-                4. 推荐继续进入的执行链路
-              </div>
-            ) : (
-              <Space direction="vertical" size={16} style={{ width: '100%' }}>
-                <Alert
-                  type="success"
-                  showIcon
-                  message={result.recognizedTask.intentLabel}
-                  description={result.recognizedTask.summary}
-                />
-
-                <Row gutter={[12, 12]}>
-                  <Col xs={24} md={12}>
-                    <Card size="small" style={{ borderRadius: 12 }}>
-                      <div style={{ color: '#64748B', marginBottom: 8 }}>助手</div>
-                      <div style={{ fontSize: 18, fontWeight: 700 }}>{result.assistant.assistantName || '未返回'}</div>
-                      <div style={{ color: '#475569', marginTop: 8 }}>
-                        {result.assistant.description || result.assistant.assistantId || '未返回'}
-                      </div>
-                    </Card>
-                  </Col>
-                  <Col xs={24} md={12}>
-                    <Card size="small" style={{ borderRadius: 12 }}>
-                      <div style={{ color: '#64748B', marginBottom: 8 }}>Prompt 绑定</div>
-                      <div style={{ fontSize: 18, fontWeight: 700 }}>
-                        {result.promptBinding.promptName || result.promptBinding.moduleLabel}
-                      </div>
-                      <div style={{ color: '#475569', marginTop: 8 }}>
-                        {result.promptBinding.promptVersion || '未标记版本'}
-                      </div>
-                    </Card>
-                  </Col>
-                </Row>
-
-                <Card size="small" style={{ borderRadius: 12 }} title="任务结构化结果">
-                  <Space wrap style={{ marginBottom: 12 }}>
-                    <Tag color="blue">{result.recognizedTask.suggestedModuleLabel}</Tag>
-                    <Tag color="green">
-                      置信度 {Math.round((result.recognizedTask.confidence || 0) * 100)}%
-                    </Tag>
-                    {(result.recognizedTask.roleHints || []).map((item) => (
-                      <Tag key={item.key}>{item.label}</Tag>
-                    ))}
-                  </Space>
-
-                  <div style={{ color: '#475569', lineHeight: 1.9 }}>
-                    <div>
-                      <strong>推荐能力：</strong>
-                      {result.recognizedTask.recommendedCapabilities.join(' / ')}
-                    </div>
-                    <div style={{ marginTop: 8 }}>
-                      <strong>关键信息：</strong>
-                      {result.recognizedTask.keyFacts.join('；') || '未识别'}
-                    </div>
-                    <div style={{ marginTop: 8 }}>
-                      <strong>待补充：</strong>
-                      {result.recognizedTask.missingInformation.join('；') || '当前没有明显缺口'}
-                    </div>
-                    <div style={{ marginTop: 8 }}>
-                      <strong>Prompt 摘要：</strong>
-                      {result.promptBinding.promptPreview || '当前 Prompt 未返回摘要'}
-                    </div>
-                  </div>
-                </Card>
-
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>工作资料包</div>
-                  <Row gutter={[12, 12]}>
-                    {result.materialPackage.map((item) => (
-                      <Col xs={24} md={12} key={item.id}>
-                        <MaterialCard item={item} />
-                      </Col>
-                    ))}
-                  </Row>
-                </div>
-
-                <Card size="small" style={{ borderRadius: 12 }} title="下一步建议">
-                  <div style={{ color: '#475569', lineHeight: 1.9 }}>
-                    {result.nextActions.map((item) => (
-                      <div key={item}>{item}</div>
-                    ))}
-                  </div>
-
-                  <Space wrap style={{ marginTop: 16 }}>
-                    <Button type="primary" onClick={handleContinue}>
-                      {result.routeRecommendation.label}
-                    </Button>
-                    <Tag color="processing">
-                      推荐链路：{result.routeRecommendation.moduleLabel}
-                    </Tag>
-                  </Space>
-                </Card>
-              </Space>
-            )}
-          </Card>
-        </Col>
-      </Row>
+    <div style={{ maxWidth: 960, margin: '0 auto', padding: '28px 4px 48px' }}>
+      {wbState === 'empty' && renderEmpty()}
+      {wbState === 'planning' && renderPlanning()}
+      {(wbState === 'plan_confirm' || wbState === 'needs_info') && renderPlanArea()}
     </div>
   );
 }
+
+export default WorkbenchPage;

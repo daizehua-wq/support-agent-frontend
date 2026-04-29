@@ -93,12 +93,20 @@ function SettingsPage() {
     }
   }, [scenarioKey]);
 
-  const isAdmin = state.role === 'admin';
-  const isUser = state.role === 'user';
-
   const realIsAdmin = permissionSummary
     ? permissionSummary.role === 'system_admin' || permissionSummary.role === 'internal_ops'
     : false;
+
+  const capApi = overviewData?.capabilitySummary;
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const capabilitySource = useMemo(() => ({
+    assistant: (capApi?.assistant || capApi?.defaultAssistant || state.defaultAssistant) as any,
+    model: (capApi?.model || capApi?.defaultModel || state.defaultModel) as any,
+    dataSource: (capApi?.dataSource || capApi?.defaultDataSource || state.defaultDataSource) as any,
+    externalSources: (capApi?.externalSources || state.externalSources) as any,
+    pythonRuntimeStatus: (capApi?.pythonRuntimeStatus || state.pythonRuntimeStatus) as any,
+  }), [capApi, state]);
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   const realCanAccessPlatform = permissionSummary?.permissions?.canAccessPlatformManager ?? false;
   const realCanAccessAdminUi = permissionSummary?.permissions?.canAccessAdminUi ?? false;
@@ -201,22 +209,22 @@ function SettingsPage() {
         )}
 
         {/* Planner Model Card */}
-        {isAdmin && (
+        {realIsAdmin && (
           <PlannerModelCard planner={state.plannerModel} />
         )}
 
         {/* Capability Summary */}
         <CapabilityStatusSummary
-          assistant={state.defaultAssistant}
-          model={state.defaultModel}
-          dataSource={state.defaultDataSource}
-          externalSources={state.externalSources}
-          pythonRuntimeStatus={state.pythonRuntimeStatus}
-          compact={isUser}
+          assistant={capabilitySource.assistant}
+          model={capabilitySource.model}
+          dataSource={capabilitySource.dataSource}
+          externalSources={capabilitySource.externalSources}
+          pythonRuntimeStatus={capabilitySource.pythonRuntimeStatus}
+          compact={!realIsAdmin}
         />
 
         {/* Admin: System Health (API-first) */}
-        {isAdmin && (
+        {realIsAdmin && (
           <>
             <Card size="small" style={{ borderRadius: 22, marginTop: 14 }} styles={{ body: { padding: 16 } }}>
               <Typography.Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>系统健康</Typography.Text>
@@ -271,7 +279,7 @@ function SettingsPage() {
         )}
 
         {/* User View: Simplified Health */}
-        {isUser && !isAdmin && (
+        {!realIsAdmin && (
           <>
             <Card size="small" style={{ borderRadius: 22, marginTop: 14 }} styles={{ body: { padding: 16 } }}>
               <Typography.Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>系统健康摘要</Typography.Text>
@@ -298,7 +306,7 @@ function SettingsPage() {
         )}
 
         {/* Quick Links (API-first) */}
-        {isAdmin && (
+        {realIsAdmin && (
           <Card size="small" style={{ borderRadius: 22, marginTop: 14 }} styles={{ body: { padding: 16 } }}>
             <Typography.Text strong style={{ display: 'block', marginBottom: 10, fontSize: 14 }}>快捷入口</Typography.Text>
             <Space size={8} wrap>

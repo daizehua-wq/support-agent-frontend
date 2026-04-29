@@ -332,7 +332,7 @@ export async function getTaskArchiveDetail(taskId: string): Promise<ReturnType<t
   if (FORCE_MOCK) {
     const mock = MOCK_TASKS.find((t) => t.taskId === taskId);
     if (!mock) throw new Error('TASK_NOT_FOUND');
-    return { ...mock, taskPlan: null, execution: null, currentPlanVersionId: null, currentEvidencePackVersionId: null, currentOutputVersionId: null, source: 'legacy_session' as const, createdAt: mock.updatedAt, updatedAt: mock.updatedAt, outputSummary: '', riskSummary: '', withUpdatedAt: mock.updatedAt };
+    return { ...mock, taskPlan: null, execution: null, currentPlanVersionId: null, currentEvidencePackVersionId: null, currentOutputVersionId: null, source: (mock.source || 'task') as 'task' | 'legacy_session', createdAt: mock.updatedAt, updatedAt: mock.updatedAt, outputSummary: '', riskSummary: '', withUpdatedAt: mock.updatedAt };
   }
 
   try {
@@ -344,7 +344,7 @@ export async function getTaskArchiveDetail(taskId: string): Promise<ReturnType<t
       showFallbackWarning();
       const mock = MOCK_TASKS.find((t) => t.taskId === taskId);
       if (!mock) throw new Error('TASK_NOT_FOUND');
-      return { ...mock, taskPlan: null, execution: null, currentPlanVersionId: null, currentEvidencePackVersionId: null, currentOutputVersionId: null, source: 'legacy_session' as const, createdAt: mock.updatedAt, updatedAt: mock.updatedAt, outputSummary: '', riskSummary: '', withUpdatedAt: mock.updatedAt };
+      return { ...mock, taskPlan: null, execution: null, currentPlanVersionId: null, currentEvidencePackVersionId: null, currentOutputVersionId: null, source: (mock.source || 'task') as 'task' | 'legacy_session', createdAt: mock.updatedAt, updatedAt: mock.updatedAt, outputSummary: '', riskSummary: '', withUpdatedAt: mock.updatedAt };
     }
     throw error;
   }

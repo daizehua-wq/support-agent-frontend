@@ -63,6 +63,8 @@ function TasksPage() {
     return tasks;
   }, [search, typeFilter, statusFilter, allTasks]);
 
+  const isFiltering = search.trim() !== '' || statusFilter !== 'all' || typeFilter !== 'all';
+
   const continuableTasks = useMemo(
     () => filtered.filter((t) => t.status === 'continuable'),
     [filtered],
@@ -72,6 +74,9 @@ function TasksPage() {
     () => filtered.filter((t) => t.status !== 'continuable'),
     [filtered],
   );
+
+  const showHighlight = !isFiltering && continuableTasks.length > 0;
+  const tableTasks = isFiltering ? filtered : otherTasks;
 
   const handleContinue = useCallback((task: TaskArchiveItem) => {
     setContinueTarget(task);
@@ -145,7 +150,7 @@ function TasksPage() {
       )}
 
       {/* Continue Highlight */}
-      {!loading && !listError && continuableTasks.length > 0 && search === '' && statusFilter === 'all' && (
+      {!loading && !listError && showHighlight && (
         <div className="ap-task-highlight">
           <Typography.Title level={5} style={{ margin: '0 0 12px' }}>
             你有 {continuableTasks.length} 个可继续任务
@@ -193,9 +198,9 @@ function TasksPage() {
       )}
 
       {/* Table */}
-      {otherTasks.length > 0 && (
+      {tableTasks.length > 0 && (
         <Card className="ap-task-table-card">
-          <HistoryTaskTable tasks={otherTasks} onContinue={handleContinue} />
+          <HistoryTaskTable tasks={tableTasks} onContinue={handleContinue} />
         </Card>
       )}
 

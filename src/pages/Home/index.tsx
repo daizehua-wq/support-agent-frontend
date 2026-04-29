@@ -5,6 +5,7 @@ import {
   ArrowUpOutlined,
   FileTextOutlined,
   HistoryOutlined,
+  ReloadOutlined,
   RocketOutlined,
   SafetyCertificateOutlined,
   CheckCircleFilled,
@@ -36,12 +37,6 @@ function resolveHomeScenario(tasksCount: number, capability: CapabilityStatus): 
   return 'default';
 }
 
-const MOCK_RECENT_TASKS: RecentTask[] = [
-  { taskId: 't-001', title: '分析 XX 半导体客户的应用工序', status: 'completed', lastStep: 'Output 生成完成', updatedAt: '2026-04-27' },
-  { taskId: 't-002', title: '检索锂电池涂布工艺案例', status: 'continuable', lastStep: 'Analysis 完成', updatedAt: '2026-04-26' },
-  { taskId: 't-003', title: '生成 PCB 客户技术方案', status: 'completed', lastStep: 'Output 生成完成', updatedAt: '2026-04-25' },
-];
-
 const MOCK_CAPABILITY: CapabilityStatus = {
   assistant: { name: '默认销售支持助手', status: 'active' },
   model: { name: 'gpt-4o-mini', status: 'connected' },
@@ -65,6 +60,25 @@ function HomePage() {
   const [sending, setSending] = useState(false);
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([]);
   const [recentLoading, setRecentLoading] = useState(true);
+  const [recentError, setRecentError] = useState(false);
+
+  const handleReloadRecent = () => {
+    setRecentLoading(true);
+    setRecentError(false);
+    archiveAdapter.getRecentTaskArchive().then((items) => {
+      setRecentTasks(items.map((t) => ({
+        taskId: t.taskId,
+        title: t.taskTitle,
+        status: t.status === 'continuable' ? 'continuable' : 'completed',
+        lastStep: t.recentStep,
+        updatedAt: t.updatedAt,
+      })));
+    }).catch(() => {
+      setRecentError(true);
+    }).finally(() => {
+      setRecentLoading(false);
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -80,7 +94,7 @@ function HomePage() {
       }
     }).catch(() => {
       if (!cancelled) {
-        setRecentTasks(MOCK_RECENT_TASKS);
+        setRecentError(true);
       }
     }).finally(() => {
       if (!cancelled) setRecentLoading(false);
@@ -192,6 +206,22 @@ function HomePage() {
               styles={{ body: { padding: '28px 20px', textAlign: 'center' } }}
             >
               <Typography.Text type="secondary" style={{ fontSize: 14 }}>加载最近任务…</Typography.Text>
+            </Card>
+          ) : recentError ? (
+            <Card
+              className="ap-session-item"
+              styles={{ body: { padding: '28px 20px', textAlign: 'center', display: 'grid', gap: 12 } }}
+            >
+              <Typography.Text strong style={{ fontSize: 15, color: '#ef4444' }}>
+                最近任务加载失败
+              </Typography.Text>
+              <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                暂时无法获取最近历史任务。你仍可以进入工作台创建新任务。
+              </Typography.Text>
+              <Space size={8} style={{ justifyContent: 'center' }}>
+                <Button size="small" icon={<ReloadOutlined />} onClick={handleReloadRecent}>重新加载</Button>
+                <Button size="small" onClick={() => navigate('/workbench')}>进入工作台</Button>
+              </Space>
             </Card>
           ) : homeScenario === 'firstUse' ? (
             <Card

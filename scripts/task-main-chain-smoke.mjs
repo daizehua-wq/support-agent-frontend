@@ -7,6 +7,8 @@ let taskId = null;
 let cloneTaskId = null;
 let v1Id = null;
 let v2Id = null;
+let ev1Id = null;
+let ev2Id = null;
 
 function inner(resp) {
   return resp?.json?.data?.data || {};
@@ -214,6 +216,51 @@ async function main() {
   assert('currentOutputVersionId present', !!detail?.currentOutputVersionId);
   assert('outputSummary present', typeof detail?.outputSummary === 'string');
   assert('detail source=task', detail?.source === 'task');
+
+  // Evidence Pack v1 checks
+  assert('evidencePackVersions >= 1', Array.isArray(detail?.evidencePackVersions) && detail.evidencePackVersions.length >= 1);
+  ev1Id = detail?.evidencePackVersions?.[0]?.versionId;
+  assert('currentEvidencePackVersionId present', !!detail?.currentEvidencePackVersionId);
+  const ev1 = detail?.evidencePackVersions?.find((v) => v.versionId === ev1Id);
+  assert('Evidence Pack v1 exists', !!ev1);
+  assert('Evidence Pack v1 kind=evidence_pack', ev1?.kind === 'evidence_pack');
+  assert('Evidence Pack v1 status=active', ev1?.status === 'active');
+  assert('Evidence Pack v1 has summary', typeof ev1?.summary === 'string' && ev1.summary.length > 0);
+  console.log(`   ev1Id: ${ev1Id}\n`);
+
+  // ====================================================================
+  // Step 11b: Regenerate with supplement_regenerate → new Evidence Pack + new Output
+  // ====================================================================
+  console.log('11b. POST /api/tasks/:taskId/output/regenerate (supplement_regenerate)');
+  res = await api('POST', `/api/tasks/${taskId}/output/regenerate`, { mode: 'supplement_regenerate' });
+  assert('HTTP 200', res.status === 200);
+  const sregen = inner(res);
+  assert('regenerate returns new versionId', !!sregen?.versionId);
+
+  // Verify Evidence Pack increased
+  res = await api('GET', `/api/tasks/${taskId}`);
+  const detailAfterSR = inner(res);
+  assert('evidencePackVersions increased', Array.isArray(detailAfterSR?.evidencePackVersions) && detailAfterSR.evidencePackVersions.length >= 2);
+  ev2Id = detailAfterSR?.currentEvidencePackVersionId;
+  assert('currentEvidencePackVersionId updated', !!ev2Id && ev2Id !== ev1Id);
+  const ev2 = detailAfterSR?.evidencePackVersions?.find((v) => v.versionId === ev2Id);
+  assert('new Evidence Pack status=active', ev2?.status === 'active');
+  assert('old Evidence Pack status=archived', detailAfterSR?.evidencePackVersions?.find((v) => v.versionId === ev1Id)?.status === 'archived');
+  console.log(`   ev1Id: ${ev1Id}, ev2Id: ${ev2Id}\n`);
+
+  // ====================================================================
+  // Step 11c: PUT /set-current-version for evidence_pack → verify pointer-only switch
+  // ====================================================================
+  console.log('11c. PUT /api/tasks/:taskId/set-current-version (evidence_pack, ev1)');
+  res = await api('PUT', `/api/tasks/${taskId}/set-current-version`, { versionType: 'evidence_pack', versionId: ev1Id });
+  assert('HTTP 200', res.status === 200);
+  const setEvRes = inner(res);
+  assert('currentEvidencePackVersionId = ev1', setEvRes?.currentEvidencePackVersionId === ev1Id);
+  assert('evidencePackVersions unchanged', setEvRes?.evidencePackVersions?.length === detailAfterSR.evidencePackVersions.length);
+  const ev1After = setEvRes?.evidencePackVersions?.find((v) => v.versionId === ev1Id);
+  const ev2After = setEvRes?.evidencePackVersions?.find((v) => v.versionId === ev2Id);
+  assert('ev1 status=active after switch', ev1After?.status === 'active');
+  assert('ev2 status=archived after switch', ev2After?.status === 'archived');
   console.log('');
 
   // ====================================================================
@@ -250,6 +297,8 @@ async function main() {
   const cloneDetail = inner(res);
   assert('clone detail hasOutput=false', cloneDetail?.hasOutput === false);
   assert('clone outputVersions empty', Array.isArray(cloneDetail?.outputVersions) && cloneDetail.outputVersions.length === 0);
+  assert('clone evidencePackVersions empty', Array.isArray(cloneDetail?.evidencePackVersions) && cloneDetail.evidencePackVersions.length === 0);
+  assert('clone currentEvidencePackVersionId empty', !cloneDetail?.currentEvidencePackVersionId);
   console.log(`   cloneTaskId: ${cloneTaskId}\n`);
 
   // ====================================================================
@@ -260,7 +309,7 @@ async function main() {
   assert('HTTP 200', res.status === 200);
   const setVer = inner(res);
   assert('currentOutputVersionId = v2', setVer?.currentOutputVersionId === v2Id);
-  assert('version count unchanged', setVer?.outputVersions?.length === 2);
+  assert('outputVersions retained (>= 2)', Array.isArray(setVer?.outputVersions) && setVer.outputVersions.length >= 2);
   console.log('');
 
   // ====================================================================

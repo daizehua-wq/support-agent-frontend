@@ -481,6 +481,28 @@ function lazyGenerateOutputIfNeeded(task) {
   task.risks = buildRisks();
   task.executionSteps = buildExecutionSteps(task.taskId);
 
+  // Generate initial Evidence Pack v1
+  const evV1 = {
+    versionId: `${task.taskId}-evidence-v1`,
+    label: 'v1',
+    status: 'success',
+    isCurrent: true,
+    reason: '初始证据包',
+    source: 'execution',
+    createdAt: now,
+    evidenceCount: 3,
+    sources: [
+      { sourceId: 'internal-kb', sourceName: '内部知识库', sourceType: 'internal_knowledge', status: 'healthy', hitCount: 2, summary: '命中内部知识库 2 条相关资料' },
+      { sourceId: 'reference-pack', sourceName: 'Reference Pack', sourceType: 'reference_pack', status: 'healthy', hitCount: 1, summary: '命中参考资料库 1 条相关案例' },
+      { sourceId: 'external-source', sourceName: '外部资料源', sourceType: 'external_source', status: 'healthy', hitCount: 0, summary: '外部资料源正常但本次未命中' },
+    ],
+    riskNotes: [],
+    formattedEvidence: task.evidences,
+  };
+
+  task.evidencePackVersions = [evV1];
+  task.currentEvidencePackVersionId = evV1.versionId;
+
   // Adjust evidences/risks for special statuses
   if (status === 'degraded') {
     task.evidences = task.evidences.map((ev) =>
@@ -582,6 +604,34 @@ export const regenerateOutput = (taskId, mode = 'regenerate', tone = 'formal', n
   };
   const reason = reasonMap[mode] || '重新生成';
 
+  // If supplement-regenerate: create new Evidence Pack version first
+  let evidenceVersionId;
+  if (mode === 'supplement_regenerate') {
+    if (!task.evidencePackVersions) task.evidencePackVersions = [];
+    const evCount = task.evidencePackVersions.length + 1;
+    evidenceVersionId = `${taskId}-evidence-v${evCount}`;
+    const newEvidencePack = {
+      versionId: evidenceVersionId,
+      label: `v${evCount}`,
+      status: 'success',
+      isCurrent: true,
+      reason: '补充资料后重新生成',
+      source: 'supplement-regenerate',
+      createdAt: now,
+      evidenceCount: 4,
+      sources: [
+        { sourceId: 'internal-kb', sourceName: '内部知识库', sourceType: 'internal_knowledge', status: 'healthy', hitCount: 2, summary: '命中内部知识库 2 条相关资料' },
+        { sourceId: 'reference-pack', sourceName: 'Reference Pack', sourceType: 'reference_pack', status: 'healthy', hitCount: 1, summary: '命中参考资料库 1 条相关案例' },
+        { sourceId: 'supplemented', sourceName: '用户补充资料', sourceType: 'customer_data', status: 'healthy', hitCount: 1, summary: '用户补充的客户信息' },
+      ],
+      riskNotes: [],
+      formattedEvidence: task.evidences || [],
+    };
+    task.evidencePackVersions = task.evidencePackVersions.map((ev) => ({ ...ev, isCurrent: false }));
+    task.evidencePackVersions.push(newEvidencePack);
+    task.currentEvidencePackVersionId = evidenceVersionId;
+  }
+
   const userGoal = task.taskPlan?.userGoal || '';
   const status = detectOutputStatus(userGoal);
 
@@ -596,6 +646,7 @@ export const regenerateOutput = (taskId, mode = 'regenerate', tone = 'formal', n
     conciseVersion: status === 'failed' ? '' : CONCISE_CONTENT,
     spokenVersion: status === 'failed' ? '' : SPOKEN_CONTENT,
     failureReason: status === 'failed' ? '输出生成失败：模型调用返回空响应。' : undefined,
+    evidenceVersionId,
   };
 
   // Mark all existing versions as not current
@@ -752,9 +803,17 @@ function buildPlanVersions(task) {
   }];
 }
 
-function buildEvidenceVersions(_task) {
-  // P0: no evidence pack versions yet
-  return [];
+function buildEvidenceVersions(task) {
+  if (!task.evidencePackVersions || task.evidencePackVersions.length === 0) return [];
+  return task.evidencePackVersions.map((ev) => ({
+    versionId: ev.versionId,
+    label: ev.label,
+    kind: 'evidence_pack',
+    reason: ev.reason,
+    createdAt: ev.createdAt,
+    status: ev.isCurrent ? 'active' : 'archived',
+    summary: `证据包 ${ev.label}：${ev.sources?.length || 0} 个证据源，命中 ${ev.evidenceCount || 0} 条`,
+  }));
 }
 
 function mapOutputVersionToRecord(v) {
@@ -847,7 +906,7 @@ export const getTaskArchiveDetail = (taskId) => {
     taskPlan: task.taskPlan || null,
     execution: task.taskExecution || null,
     currentPlanVersionId: task.taskPlan?.planVersionId || null,
-    currentEvidencePackVersionId: null, // P0: no evidence pack versions
+    currentEvidencePackVersionId: task.currentEvidencePackVersionId || null,
     currentOutputVersionId: task.currentOutputVersionId || null,
     analysisSummary: item.analysisSummary || (task.taskPlan?.understanding || ''),
     evidenceSummary: item.evidenceSummary || '',
@@ -915,12 +974,43 @@ export const continueTask = (taskId, mode) => {
         message: '返回 Workbench 基于当前结果继续输出',
       };
 
-    case 'supplement-regenerate':
+    case 'supplement-regenerate': {
+      // Generate new Evidence Pack version
+      const evCount = (task.evidencePackVersions?.length || 0) + 1;
+      const evVersionId = `${taskId}-evidence-v${evCount}`;
+      const newEvidencePack = {
+        versionId: evVersionId,
+        label: `v${evCount}`,
+        status: 'success',
+        isCurrent: true,
+        reason: '补充资料后重新生成',
+        source: 'supplement-regenerate',
+        createdAt: now,
+        evidenceCount: 4,
+        sources: [
+          { sourceId: 'internal-kb', sourceName: '内部知识库', sourceType: 'internal_knowledge', status: 'healthy', hitCount: 2, summary: '命中内部知识库 2 条相关资料' },
+          { sourceId: 'reference-pack', sourceName: 'Reference Pack', sourceType: 'reference_pack', status: 'healthy', hitCount: 1, summary: '命中参考资料库 1 条相关案例' },
+          { sourceId: 'supplemented', sourceName: '用户补充资料', sourceType: 'customer_data', status: 'healthy', hitCount: 1, summary: '用户补充的客户信息' },
+        ],
+        riskNotes: [],
+        formattedEvidence: task.evidences || [],
+      };
+
+      if (!task.evidencePackVersions) task.evidencePackVersions = [];
+      task.evidencePackVersions = task.evidencePackVersions.map((ev) => ({ ...ev, isCurrent: false }));
+      task.evidencePackVersions.push(newEvidencePack);
+      task.currentEvidencePackVersionId = evVersionId;
+      task.updatedAt = now;
+
       return {
-        resumeContext,
+        resumeContext: {
+          ...resumeContext,
+          newEvidencePackVersionId: evVersionId,
+        },
         nextRoute: '/workbench',
         message: '返回 Workbench 补充资料后重新生成',
       };
+    }
 
     case 'edit-goal':
       return {
@@ -1014,8 +1104,21 @@ export const setCurrentTaskVersion = (taskId, versionType, versionId) => {
       return { success: false, error: 'PLAN_VERSION_NOT_FOUND' };
     }
   } else if (versionType === 'evidence_pack') {
-    // P0: no evidence pack versions
-    return { success: false, error: 'EVIDENCE_VERSION_NOT_FOUND' };
+    if (!task.evidencePackVersions || task.evidencePackVersions.length === 0) {
+      return { success: false, error: 'EVIDENCE_VERSION_NOT_FOUND' };
+    }
+
+    const target = task.evidencePackVersions.find((v) => v.versionId === versionId);
+    if (!target) {
+      return { success: false, error: 'EVIDENCE_VERSION_NOT_FOUND' };
+    }
+
+    task.evidencePackVersions = task.evidencePackVersions.map((v) => ({
+      ...v,
+      isCurrent: v.versionId === versionId,
+    }));
+    task.currentEvidencePackVersionId = versionId;
+    task.updatedAt = now;
   } else {
     return { success: false, error: 'INVALID_VERSION_TYPE' };
   }

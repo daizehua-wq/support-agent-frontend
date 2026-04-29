@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Alert, Button, message, Space, Spin, Tag, Typography } from 'antd';
 import {
   ExperimentOutlined,
@@ -27,6 +27,7 @@ type WorkbenchState = 'empty' | 'planning' | 'plan_confirm' | 'needs_info' | 'ru
 
 function WorkbenchPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const draft = (location.state as { draft?: string } | null)?.draft || '';
 
   const [taskInput, setTaskInput] = useState(draft || '');
@@ -41,18 +42,34 @@ function WorkbenchPage() {
   const [showMissingDrawer, setShowMissingDrawer] = useState(false);
   const [showDegradedModal, setShowDegradedModal] = useState(false);
 
-  const { execution, execStatus, start, stop, retryStep, skipEvidenceAndContinue, reset } = useTaskExecution();
+  const { execution, execStatus, outputPreview, start, stop, retryStep, skipEvidenceAndContinue, reset } = useTaskExecution();
 
   const executionWbState: WorkbenchState | null = useMemo(() => {
+    if (execution?.status) {
+      if (execution.status === 'degraded') return 'degraded';
+      if (execution.status === 'running') return 'running';
+      if (execution.status === 'done') return execution.steps.some((s) => s.status === 'degraded') ? 'degraded' : 'done';
+      if (execution.status === 'failed') return 'failed';
+      if (execution.status === 'cancelled') return 'cancelled';
+    }
     if (execStatus === 'degraded') return 'degraded';
     if (execStatus === 'running') return 'running';
     if (execStatus === 'done') return execution?.steps.some((s) => s.status === 'degraded') ? 'degraded' : 'done';
     if (execStatus === 'failed') return 'failed';
     if (execStatus === 'cancelled') return 'cancelled';
     return null;
-  }, [execStatus, execution]);
+  }, [execution, execStatus]);
 
   const effectiveWbState: WorkbenchState = executionWbState ?? wbState;
+
+  useEffect(() => {
+    console.debug('[workbench-state]', {
+      execStatus,
+      executionStatus: execution?.status,
+      effectiveWbState,
+      taskId: execution?.taskId ?? plan?.taskId,
+    });
+  }, [execStatus, execution?.status, effectiveWbState, execution?.taskId, plan?.taskId]);
 
   const handleGeneratePlan = useCallback(async () => {
     if (!taskInput.trim()) return;
@@ -229,11 +246,14 @@ function WorkbenchPage() {
       {execution?.steps.filter((s) => s.status === 'done' || s.status === 'degraded').map((step) => (
         <StepResultCard key={step.stepId} step={step} />
       ))}
-      {execution?.outputPreview && plan && (
-        <OutputPreviewCard taskId={plan.taskId} preview={execution.outputPreview} degraded={effectiveWbState === 'degraded'} />
+      {(outputPreview || execution?.outputPreview) && plan && (
+        <OutputPreviewCard taskId={plan.taskId} preview={outputPreview ?? execution!.outputPreview!} degraded={effectiveWbState === 'degraded'} />
       )}
       <div style={{ textAlign: 'center', marginTop: 14 }}>
-        <Typography.Text type="secondary">已生成三版输出，并保存到历史任务。</Typography.Text>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Typography.Text type="secondary">已生成三版输出，并保存到历史任务。</Typography.Text>
+          <Button type="primary" onClick={() => navigate(`/tasks/${plan?.taskId || execution?.taskId}/output`)}>查看 Output</Button>
+        </Space>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { Button, Space, Tag, Typography } from 'antd';
+import { Button, Space, Tag, Typography, Alert } from 'antd';
 import { ExportOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import CopyOutputMenu from './CopyOutputMenu';
 import type { TaskArchiveItem } from '../../types/taskArchive';
@@ -24,6 +24,14 @@ function TaskArchiveHeader({ task, onContinue, onGoOutput }: TaskArchiveHeaderPr
 
   return (
     <div className="ap-task-archive-header">
+      {task.source === 'legacy_session' && (
+        <Alert
+          type="info" banner showIcon
+          message="旧版 Session 只读视图"
+          description="该任务来自旧版 Session，只支持回看和基于上下文继续，不支持版本切换。"
+          style={{ borderRadius: 20, marginBottom: 14 }}
+        />
+      )}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <Typography.Title level={3} style={{ margin: 0 }}>{task.taskTitle}</Typography.Title>

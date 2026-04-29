@@ -1,10 +1,11 @@
-import { Button, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Space, Table, Tag, Tooltip, Typography, message } from 'antd';
 import { EyeOutlined, RedoOutlined, SwapOutlined } from '@ant-design/icons';
 import type { TaskVersionRecord, TaskVersionKind } from '../../types/taskArchive';
 
 type VersionRecordTableProps = {
   versions: TaskVersionRecord[];
   onSetCurrent: (version: TaskVersionRecord) => void;
+  readonly?: boolean;
 };
 
 const KIND_LABELS: Record<TaskVersionKind, string> = {
@@ -13,7 +14,7 @@ const KIND_LABELS: Record<TaskVersionKind, string> = {
   output: 'Output',
 };
 
-function VersionRecordTable({ versions, onSetCurrent }: VersionRecordTableProps) {
+function VersionRecordTable({ versions, onSetCurrent, readonly = false }: VersionRecordTableProps) {
   if (versions.length === 0) {
     return (
       <div style={{ padding: 20, textAlign: 'center' }}>
@@ -75,30 +76,35 @@ function VersionRecordTable({ versions, onSetCurrent }: VersionRecordTableProps)
         {
           title: '操作',
           width: 180,
-          render: (_: unknown, record: TaskVersionRecord) => (
+          render: (_: unknown, record: TaskVersionRecord) => {
+            const isFailed = record.status === 'failed';
+            const isActive = record.status === 'active';
+            const setLabel = record.kind === 'task_plan' ? '设为当前计划' : record.kind === 'evidence_pack' ? '设为当前证据包' : '设为当前版本';
+
+            return (
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-              {record.status === 'failed' ? (
+              {isFailed ? (
                 <>
                   <Button size="small" icon={<EyeOutlined />} onClick={() => message.info(`失败原因：${record.failureReason || '未知'}`)}>查看失败原因</Button>
                   <Button size="small" icon={<RedoOutlined />} onClick={() => message.info('重试将在后续阶段接入真实 API')}>重试生成</Button>
                 </>
-              ) : record.status !== 'active' ? (
+              ) : isActive ? (
+                <Button size="small" icon={<EyeOutlined />} onClick={() => message.info('当前版本')}>查看</Button>
+              ) : (
                 <>
                   <Button size="small" icon={<EyeOutlined />} onClick={() => message.info('查看版本详情')}>查看</Button>
-                  {record.kind === 'output' && (
-                    <Button size="small" icon={<SwapOutlined />} onClick={() => onSetCurrent(record)}>设为当前版本</Button>
-                  )}
-                  {record.kind !== 'output' && (
-                    <Button size="small" icon={<SwapOutlined />} onClick={() => onSetCurrent(record)}>
-                      {record.kind === 'task_plan' ? '设为当前计划' : '设为当前证据包'}
-                    </Button>
+                  {readonly ? (
+                    <Tooltip title="旧版 Session 不支持版本切换">
+                      <Button size="small" icon={<SwapOutlined />} disabled>{setLabel}</Button>
+                    </Tooltip>
+                  ) : (
+                    <Button size="small" icon={<SwapOutlined />} onClick={() => onSetCurrent(record)}>{setLabel}</Button>
                   )}
                 </>
-              ) : (
-                <Button size="small" icon={<EyeOutlined />} onClick={() => message.info('当前版本')}>查看</Button>
               )}
             </div>
-          ),
+            );
+          },
         },
       ]}
     />

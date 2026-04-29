@@ -332,15 +332,10 @@ router.post('/:taskId/continue', (req, res) => {
     });
   }
 
-  const taskPlan = getTaskPlan(taskId);
-  if (!taskPlan) {
-    return sendError(res, 404, '指定的任务不存在', 'TASK_NOT_FOUND', { taskId });
-  }
-
   const result = continueTask(taskId, mode);
-
+  
   if (!result) {
-    return sendError(res, 400, '无法继续该任务', 'CONTINUE_FAILED', { taskId, mode });
+    return sendError(res, 404, '指定的任务不存在', 'TASK_NOT_FOUND', { taskId, mode });
   }
 
   return sendSuccess(res, {
@@ -368,19 +363,16 @@ router.put('/:taskId/set-current-version', (req, res) => {
     });
   }
 
-  const taskPlan = getTaskPlan(taskId);
-  if (!taskPlan) {
-    return sendError(res, 404, '指定的任务不存在', 'TASK_NOT_FOUND', { taskId });
-  }
-
   const result = setCurrentTaskVersion(taskId, versionType, versionId);
 
   if (!result.success) {
     const errorMap = {
+      TASK_NOT_FOUND: { code: 404, msg: '指定的任务不存在' },
       OUTPUT_VERSION_NOT_FOUND: { code: 404, msg: '指定的 Output 版本不存在' },
       PLAN_VERSION_NOT_FOUND: { code: 404, msg: '指定的 TaskPlan 版本不存在' },
       EVIDENCE_VERSION_NOT_FOUND: { code: 404, msg: '指定的 Evidence Pack 版本不存在' },
       INVALID_VERSION_TYPE: { code: 400, msg: '无效的版本类型' },
+      LEGACY_SESSION_READONLY: { code: 409, msg: '旧版 Session 为只读视图，不支持版本切换' },
     };
     const err = errorMap[result.error] || { code: 500, msg: '设置当前版本失败' };
     return sendError(res, err.code, err.msg, result.error, { taskId });

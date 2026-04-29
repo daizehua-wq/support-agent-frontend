@@ -268,6 +268,7 @@ export function normalizeTaskArchiveItem(raw: any): TaskArchiveItem {
     completedSteps: raw.completedSteps || raw.completed_steps,
     pendingSteps: raw.pendingSteps || raw.pending_steps,
     hasOutput: Boolean(raw.hasOutput ?? raw.has_output ?? false),
+    source: (raw.source === 'task' || raw.source === 'legacy_session') ? raw.source : undefined,
   };
 }
 

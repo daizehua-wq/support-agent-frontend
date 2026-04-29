@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { listLegacySessionTasks, getLegacySessionTaskDetail, isLegacySession } from './sessionTaskAdapter.js';
 
 // ============================================================================
 // In-memory Task Store (P0 — no DB migration, no old session adapter)
@@ -867,24 +868,34 @@ function mapTaskToArchiveItem(task) {
 // ---------------------------------------------------------------------------
 
 export const listTasks = (query = {}) => {
-  const items = Array.from(tasks.values())
-    .map(mapTaskToArchiveItem)
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  // Merge new tasks + legacy sessions, deduplicate by taskId
+  const taskItems = Array.from(tasks.values()).map(mapTaskToArchiveItem);
+  const legacyItems = listLegacySessionTasks();
+  const seen = new Set();
+  const merged = [];
+
+  for (const item of [...taskItems, ...legacyItems]) {
+    if (seen.has(item.taskId)) continue;
+    seen.add(item.taskId);
+    merged.push(item);
+  }
+
+  merged.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
   if (query.taskTitle) {
     const keyword = String(query.taskTitle).toLowerCase();
-    return items.filter((t) => t.taskTitle.toLowerCase().includes(keyword));
+    return merged.filter((t) => t.taskTitle.toLowerCase().includes(keyword));
   }
 
   if (query.taskType && query.taskType !== 'all') {
-    return items.filter((t) => t.taskType === query.taskType);
+    return merged.filter((t) => t.taskType === query.taskType);
   }
 
   if (query.status && query.status !== 'all') {
-    return items.filter((t) => t.status === query.status);
+    return merged.filter((t) => t.status === query.status);
   }
 
-  return items;
+  return merged;
 };
 
 // ---------------------------------------------------------------------------
@@ -893,31 +904,36 @@ export const listTasks = (query = {}) => {
 
 export const getTaskArchiveDetail = (taskId) => {
   const task = tasks.get(taskId);
-  if (!task) return null;
+  if (task) {
+    const item = mapTaskToArchiveItem(task);
 
-  const item = mapTaskToArchiveItem(task);
+    // Ensure output is lazily generated for consistent hasOutput/currentVersion
+    lazyGenerateOutputIfNeeded(task);
 
-  // Ensure output is lazily generated for consistent hasOutput/currentVersion
-  lazyGenerateOutputIfNeeded(task);
+    return {
+      ...item,
+      taskPlan: task.taskPlan || null,
+      execution: task.taskExecution || null,
+      currentPlanVersionId: task.taskPlan?.planVersionId || null,
+      currentEvidencePackVersionId: task.currentEvidencePackVersionId || null,
+      currentOutputVersionId: task.currentOutputVersionId || null,
+      analysisSummary: item.analysisSummary || (task.taskPlan?.understanding || ''),
+      evidenceSummary: item.evidenceSummary || '',
+      outputSummary: task.currentOutputVersionId
+        ? (task.outputVersions?.find((v) => v.versionId === task.currentOutputVersionId)?.formalVersion?.slice(0, 120) || '') + '...'
+        : '',
+      riskSummary: (task.risks || []).map((r) => r.title).join('；'),
+      source: 'task',
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt,
+    };
+  }
 
-  return {
-    ...item,
-    // Full introspection fields (not in list view)
-    taskPlan: task.taskPlan || null,
-    execution: task.taskExecution || null,
-    currentPlanVersionId: task.taskPlan?.planVersionId || null,
-    currentEvidencePackVersionId: task.currentEvidencePackVersionId || null,
-    currentOutputVersionId: task.currentOutputVersionId || null,
-    analysisSummary: item.analysisSummary || (task.taskPlan?.understanding || ''),
-    evidenceSummary: item.evidenceSummary || '',
-    outputSummary: task.currentOutputVersionId
-      ? (task.outputVersions?.find((v) => v.versionId === task.currentOutputVersionId)?.formalVersion?.slice(0, 120) || '') + '...'
-      : '',
-    riskSummary: (task.risks || []).map((r) => r.title).join('；'),
-    source: 'task',
-    createdAt: task.createdAt,
-    updatedAt: task.updatedAt,
-  };
+  // Fall back to legacy session
+  const legacy = getLegacySessionTaskDetail(taskId);
+  if (legacy) return legacy;
+
+  return null;
 };
 
 // ---------------------------------------------------------------------------
@@ -951,19 +967,27 @@ export const listRecentTasks = () => {
 
 export const continueTask = (taskId, mode) => {
   const task = tasks.get(taskId);
-  if (!task) return null;
+  const isLegacy = !task && isLegacySession(taskId);
+
+  if (!task && !isLegacy) return null;
 
   const now = new Date().toISOString();
+  const legacyDetail = isLegacy ? getLegacySessionTaskDetail(taskId) : null;
+
+  const taskTitle = task?.taskPlan?.taskTitle || legacyDetail?.taskTitle || '';
+  const taskGoal = task?.taskPlan?.userGoal || legacyDetail?.taskGoal || '';
+  const taskType = task?.taskPlan?.taskType || legacyDetail?.taskType || 'full_workflow';
 
   const resumeContext = {
     taskId,
-    taskTitle: task.taskPlan?.taskTitle || '',
-    taskGoal: task.taskPlan?.userGoal || '',
-    taskType: task.taskPlan?.taskType || 'full_workflow',
-    existingPlanVersionId: task.taskPlan?.planVersionId || null,
-    hasOutput: !!(task.outputVersions && task.outputVersions.length > 0),
-    outputVersionCount: task.outputVersions?.length || 0,
-    existingOutputVersionIds: (task.outputVersions || []).map((v) => v.versionId),
+    taskTitle,
+    taskGoal,
+    taskType,
+    source: isLegacy ? 'legacy_session' : 'task',
+    existingPlanVersionId: task?.taskPlan?.planVersionId || null,
+    hasOutput: isLegacy ? !!(legacyDetail?.hasOutput) : !!(task?.outputVersions && task.outputVersions.length > 0),
+    outputVersionCount: isLegacy ? 0 : (task?.outputVersions?.length || 0),
+    existingOutputVersionIds: isLegacy ? [] : (task?.outputVersions || []).map((v) => v.versionId),
   };
 
   switch (mode) {
@@ -1020,20 +1044,30 @@ export const continueTask = (taskId, mode) => {
       };
 
     case 'clone-task-structure': {
-      // Clone: new task with same structure but no data copies
       const cloneTaskId = randomUUID();
       const clonePlanId = randomUUID();
 
+      const baseTaskPlan = isLegacy
+        ? {
+            taskTitle: (legacyDetail?.taskTitle || taskTitle) + ' (副本)',
+            taskType,
+            userGoal: taskGoal,
+            understanding: legacyDetail?.analysisSummary || '',
+            executionContext: legacyDetail?.executionContext || buildExecutionContext(),
+            riskHints: [],
+          }
+        : (task?.taskPlan || {});
+
       const cloneTaskPlan = {
-        ...(task.taskPlan || {}),
+        ...baseTaskPlan,
         taskId: cloneTaskId,
         planVersionId: clonePlanId,
-        taskTitle: (task.taskPlan?.taskTitle || '') + ' (副本)',
+        taskTitle: (baseTaskPlan.taskTitle || '') + (baseTaskPlan.taskTitle?.includes('(副本)') ? '' : ' (副本)'),
         planVersion: 'v1',
         createdAt: now,
         updatedAt: now,
         steps: buildTaskSteps(cloneTaskId),
-        riskHints: task.taskPlan?.riskHints || [],
+        riskHints: baseTaskPlan.riskHints || [],
       };
 
       const cloneTask = {
@@ -1077,6 +1111,11 @@ export const continueTask = (taskId, mode) => {
 // ---------------------------------------------------------------------------
 
 export const setCurrentTaskVersion = (taskId, versionType, versionId) => {
+  // Legacy session: readonly
+  if (isLegacySession(taskId)) {
+    return { success: false, error: 'LEGACY_SESSION_READONLY' };
+  }
+
   const task = tasks.get(taskId);
   if (!task) return { success: false, error: 'TASK_NOT_FOUND' };
 

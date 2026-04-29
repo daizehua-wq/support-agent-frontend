@@ -153,7 +153,7 @@ function TaskDetailPage() {
       {/* Version Records */}
       <Card size="small" style={{ borderRadius: 22, marginTop: 14 }} styles={{ body: { padding: 16 } }}>
         <Typography.Text strong style={{ fontSize: 14, display: 'block', marginBottom: 10 }}>版本记录</Typography.Text>
-        <VersionRecordTable versions={allVersions} onSetCurrent={handleSetCurrent} />
+        <VersionRecordTable versions={allVersions} onSetCurrent={handleSetCurrent} readonly={(task as any).source === 'legacy_session'} />
       </Card>
 
       {/* Execution Timeline */}

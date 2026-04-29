@@ -50,6 +50,7 @@ export interface TaskArchiveItem {
   completedSteps?: string[];
   pendingSteps?: string[];
   hasOutput: boolean;
+  source?: 'task' | 'legacy_session';
 }
 
 export type TaskTypeFilter = 'all' | TaskArchiveType;

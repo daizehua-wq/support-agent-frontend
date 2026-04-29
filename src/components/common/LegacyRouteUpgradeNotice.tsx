@@ -66,11 +66,14 @@ const MANAGE_LIKE_PATHS = [
   '/apps',
   '/manage',
   '/settings',
-  '/history',
 ];
 const OUTPUT_LIKE_PATHS = ['/output'];
 
 function resolveCategory(pathname: string): RouteCategory {
+  if (pathname.startsWith('/sessions/') || pathname.startsWith('/history')) {
+    return 'history';
+  }
+
   if (ANALYZE_LIKE_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
     return 'analyze';
   }
@@ -85,10 +88,6 @@ function resolveCategory(pathname: string): RouteCategory {
 
   if (OUTPUT_LIKE_PATHS.some((p) => pathname.startsWith(p))) {
     return 'output';
-  }
-
-  if (pathname.startsWith('/sessions/') || pathname.startsWith('/history')) {
-    return 'history';
   }
 
   return 'default';
@@ -106,13 +105,16 @@ function LegacyRouteUpgradeNotice() {
   const extractedTaskId = taskIdMatch ? taskIdMatch[1] : '';
 
   let resolvedTargetPath = baseConfig.targetPath;
+  let routeOverride: Partial<NoticeConfig> = {};
   if (category === 'output' && extractedTaskId) {
     resolvedTargetPath = `/tasks/${extractedTaskId}/output`;
+    routeOverride = { buttonLabel: '查看 Output' };
   } else if (category === 'history' && extractedTaskId) {
     resolvedTargetPath = `/tasks/${extractedTaskId}`;
+    routeOverride = { buttonLabel: '查看历史任务详情' };
   }
 
-  const config: NoticeConfig = { ...baseConfig, targetPath: resolvedTargetPath };
+  const config: NoticeConfig = { ...baseConfig, ...routeOverride, targetPath: resolvedTargetPath };
 
   const hasSeenBefore = localStorage.getItem(storageKey) === 'true';
 

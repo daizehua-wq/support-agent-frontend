@@ -31,54 +31,54 @@ export async function retryStep(taskId: string, stepId: string): Promise<TaskExe
 
 // ===== Output API =====
 
-export async function getTaskOutput(taskId: string): Promise<any> {
-  const res = await request.get<any, any>(`/api/tasks/${taskId}/output`);
+export async function getTaskOutput(taskId: string): Promise<unknown> {
+  const res = await request.get<unknown, unknown>(`/api/tasks/${taskId}/output`);
   return res;
 }
 
-export async function getTaskOutputVersions(taskId: string): Promise<any> {
-  const res = await request.get<any, any>(`/api/tasks/${taskId}/output/versions`);
+export async function getTaskOutputVersions(taskId: string): Promise<unknown> {
+  const res = await request.get<unknown, unknown>(`/api/tasks/${taskId}/output/versions`);
   return res;
 }
 
-export async function regenerateTaskOutput(taskId: string, payload: { mode: string; tone?: string; note?: string }): Promise<any> {
-  const res = await request.post<any, any>(`/api/tasks/${taskId}/output/regenerate`, payload);
+export async function regenerateTaskOutput(taskId: string, payload: { mode: string; tone?: string; note?: string }): Promise<unknown> {
+  const res = await request.post<unknown, unknown>(`/api/tasks/${taskId}/output/regenerate`, payload);
   return res;
 }
 
-export async function setCurrentOutputVersion(taskId: string, versionId: string): Promise<any> {
-  const res = await request.put<any, any>(`/api/tasks/${taskId}/output/set-current`, { versionId });
+export async function setCurrentOutputVersion(taskId: string, versionId: string): Promise<unknown> {
+  const res = await request.put<unknown, unknown>(`/api/tasks/${taskId}/output/set-current`, { versionId });
   return res;
 }
 
-export async function exportTaskOutputMarkdown(taskId: string): Promise<any> {
-  const res = await request.get<any, any>(`/api/tasks/${taskId}/output/export/markdown`);
+export async function exportTaskOutputMarkdown(taskId: string): Promise<unknown> {
+  const res = await request.get<unknown, unknown>(`/api/tasks/${taskId}/output/export/markdown`);
   return res;
 }
 
 // ===== Task Archive API =====
 
-export async function getTasks(params?: { taskTitle?: string; taskType?: string; status?: string }): Promise<any> {
-  const res = await request.get<any, any>('/api/tasks', { params });
+export async function getTasks(params?: { taskTitle?: string; taskType?: string; status?: string }): Promise<unknown> {
+  const res = await request.get<unknown, unknown>('/api/tasks', { params });
   return res;
 }
 
-export async function getTaskDetail(taskId: string): Promise<any> {
-  const res = await request.get<any, any>(`/api/tasks/${taskId}`);
+export async function getTaskDetail(taskId: string): Promise<unknown> {
+  const res = await request.get<unknown, unknown>(`/api/tasks/${taskId}`);
   return res;
 }
 
-export async function getRecentTasks(): Promise<any> {
-  const res = await request.get<any, any>('/api/tasks/recent');
+export async function getRecentTasks(): Promise<unknown> {
+  const res = await request.get<unknown, unknown>('/api/tasks/recent');
   return res;
 }
 
-export async function continueTask(taskId: string, mode: string): Promise<any> {
-  const res = await request.post<any, any>(`/api/tasks/${taskId}/continue`, { mode });
+export async function continueTask(taskId: string, mode: string): Promise<unknown> {
+  const res = await request.post<unknown, unknown>(`/api/tasks/${taskId}/continue`, { mode });
   return res;
 }
 
-export async function setCurrentTaskVersion(taskId: string, versionType: string, versionId: string): Promise<any> {
-  const res = await request.put<any, any>(`/api/tasks/${taskId}/set-current-version`, { versionType, versionId });
+export async function setCurrentTaskVersion(taskId: string, versionType: string, versionId: string): Promise<unknown> {
+  const res = await request.put<unknown, unknown>(`/api/tasks/${taskId}/set-current-version`, { versionType, versionId });
   return res;
 }

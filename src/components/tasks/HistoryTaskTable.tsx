@@ -65,7 +65,7 @@ function HistoryTaskTable({ tasks, onContinue }: HistoryTaskTableProps) {
               <Button type="link" style={{ padding: 0, fontWeight: 650, fontSize: 14, textAlign: 'left' }} onClick={() => navigate(`/tasks/${record.taskId}`)}>
                 {title}
               </Button>
-              {(record as any).source === 'legacy_session' && <Tag style={{ fontSize: 10, color: '#6366f1' }}>旧版 Session</Tag>}
+              {record.source === 'legacy_session' && <Tag style={{ fontSize: 10, color: '#6366f1' }}>旧版 Session</Tag>}
             </Space>
           ),
         },

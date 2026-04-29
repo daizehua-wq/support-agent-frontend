@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Alert, Button, Card, Space, Tag, Typography, message } from 'antd';
 import {
@@ -18,6 +18,8 @@ import {
   getUserView,
   getNoPermission,
 } from '../../utils/mockSettingsCenter';
+import * as permissionAdapter from '../../utils/permissionAdapter';
+import type { PermissionSummary } from '../../types/permissions';
 import type { SettingsCenterState, SettingsNavItem } from '../../types/settingsCenter';
 
 const NAV_ITEMS: SettingsNavItem[] = [
@@ -42,6 +44,13 @@ const DEMO_SCENARIOS: Array<{ key: string; label: string }> = [
 function SettingsPage() {
   const navigate = useNavigate();
   const [scenarioKey, setScenarioKey] = useState('default');
+  const [permissionSummary, setPermissionSummary] = useState<PermissionSummary | null>(null);
+
+  useEffect(() => {
+    permissionAdapter.getPermissionSummary().then((summary) => {
+      setPermissionSummary(summary);
+    });
+  }, []);
 
   const state: SettingsCenterState = useMemo(() => {
     switch (scenarioKey) {
@@ -55,6 +64,14 @@ function SettingsPage() {
 
   const isAdmin = state.role === 'admin';
   const isUser = state.role === 'user';
+
+  const realIsAdmin = permissionSummary
+    ? permissionSummary.role === 'system_admin' || permissionSummary.role === 'internal_ops'
+    : false;
+
+  const realCanAccessPlatform = permissionSummary?.permissions?.canAccessPlatformManager ?? false;
+  const realCanAccessAdminUi = permissionSummary?.permissions?.canAccessAdminUi ?? false;
+  const realRoleLabel = permissionSummary?.displayName ?? '普通用户';
   const navItems = state.scenario === 'noPermission'
     ? NAV_ITEMS.map((item) => ({ ...item, status: 'locked' as const }))
     : state.scenario === 'degraded'
@@ -87,10 +104,15 @@ function SettingsPage() {
       <div className="ap-settings-overview">
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
-          <Typography.Title level={2} style={{ margin: 0 }}>
-            <SettingOutlined style={{ marginRight: 12 }} />
-            设置管理中心
-          </Typography.Title>
+          <Space>
+            <Typography.Title level={2} style={{ margin: 0 }}>
+              <SettingOutlined style={{ marginRight: 12 }} />
+              设置管理中心
+            </Typography.Title>
+            {permissionSummary && (
+              <Tag color={realIsAdmin ? 'blue' : 'default'} style={{ fontSize: 11 }}>{realRoleLabel}</Tag>
+            )}
+          </Space>
           <Space size={6} wrap>
             {import.meta.env.DEV && DEMO_SCENARIOS.map((s) => (
               <Button
@@ -183,18 +205,22 @@ function SettingsPage() {
               </Card>
             )}
 
-            {/* Admin Only Entries */}
+            {/* Admin Only Entries — gated by real permissions */}
             <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <AdminOnlyEntry
-                label="Platform Manager"
-                description="工厂 Agent、渠道配置、演化调度器"
-                permissionLabel="系统管理员"
-              />
-              <AdminOnlyEntry
-                label="Admin UI"
-                description="API 密钥管理、应用统计、渠道监控"
-                permissionLabel="内部运维"
-              />
+              {realCanAccessPlatform && (
+                <AdminOnlyEntry
+                  label="Platform Manager"
+                  description="工厂 Agent、渠道配置、演化调度器"
+                  permissionLabel="系统管理员"
+                />
+              )}
+              {realCanAccessAdminUi && (
+                <AdminOnlyEntry
+                  label="Admin UI"
+                  description="API 密钥管理、应用统计、渠道监控"
+                  permissionLabel="内部运维"
+                />
+              )}
             </div>
           </>
         )}

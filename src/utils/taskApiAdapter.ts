@@ -1,10 +1,12 @@
 import type { TaskPlan, TaskExecution } from '../types/taskPlan';
 import type { OutputDetail, OutputVersion } from '../types/output';
+import type { TaskArchiveItem } from '../types/taskArchive';
 import { generateTaskPlan as generateMockPlan } from './mockTaskPlanner';
 import { runMockExecution } from './mockTaskExecutor';
 import { generateMockOutput } from './mockOutput';
 import { buildOutputMarkdown } from './markdownExport';
-import { normalizeTaskPlanResponse, normalizeTaskExecutionResponse, normalizeOutputResponse, normalizeOutputVersionsResponse } from './taskNormalizer';
+import { MOCK_TASKS } from './mockTasks';
+import { normalizeTaskPlanResponse, normalizeTaskExecutionResponse, normalizeOutputResponse, normalizeOutputVersionsResponse, normalizeTaskArchiveListResponse, normalizeTaskArchiveDetailResponse, normalizeContinueTaskResponse } from './taskNormalizer';
 import * as tasksApi from '../api/tasks';
 import { message } from 'antd';
 
@@ -252,4 +254,127 @@ export async function exportOutputMarkdown(
     }
     throw error;
   }
+}
+
+// ===== Task Archive API adapters =====
+
+export async function getTaskArchiveList(params?: { taskTitle?: string; taskType?: string; status?: string }): Promise<TaskArchiveItem[]> {
+  if (FORCE_MOCK) {
+    return filterMockTasks(params);
+  }
+
+  try {
+    const raw = await tasksApi.getTasks(params);
+    return normalizeTaskArchiveListResponse(raw);
+  } catch (error: unknown) {
+    if (isClientError(error)) throw error;
+    if (isNetworkOrServerError(error)) {
+      message.warning('已切换至离线历史任务模式', 3);
+      return filterMockTasks(params);
+    }
+    throw error;
+  }
+}
+
+export async function getTaskArchiveDetail(taskId: string): Promise<any> {
+  if (FORCE_MOCK) {
+    const mock = MOCK_TASKS.find((t) => t.taskId === taskId);
+    if (!mock) throw new Error('TASK_NOT_FOUND');
+    return { ...mock, taskPlan: null, execution: null, currentPlanVersionId: null, currentEvidencePackVersionId: null, currentOutputVersionId: null, source: 'legacy_session', createdAt: mock.updatedAt, updatedAt: mock.updatedAt };
+  }
+
+  try {
+    const raw = await tasksApi.getTaskDetail(taskId);
+    return normalizeTaskArchiveDetailResponse(raw);
+  } catch (error: unknown) {
+    if (isClientError(error)) throw error;
+    if (isNetworkOrServerError(error)) {
+      message.warning('已切换至离线任务详情模式', 3);
+      const mock = MOCK_TASKS.find((t) => t.taskId === taskId);
+      if (!mock) throw new Error('TASK_NOT_FOUND');
+      return { ...mock, taskPlan: null, execution: null, currentPlanVersionId: null, currentEvidencePackVersionId: null, currentOutputVersionId: null, source: 'legacy_session', createdAt: mock.updatedAt, updatedAt: mock.updatedAt };
+    }
+    throw error;
+  }
+}
+
+export async function getRecentTaskArchive(): Promise<Array<{ taskId: string; taskTitle: string; status: string; recentStep?: string; updatedAt: string }>> {
+  if (FORCE_MOCK) {
+    return MOCK_TASKS.slice(0, 3).map((t) => ({
+      taskId: t.taskId,
+      taskTitle: t.taskTitle,
+      status: t.status,
+      recentStep: t.recentStep,
+      updatedAt: t.updatedAt,
+    }));
+  }
+
+  try {
+    const raw = await tasksApi.getRecentTasks();
+    const data = raw?.data?.data || raw?.data || raw || [];
+    return Array.isArray(data) ? data : [];
+  } catch (error: unknown) {
+    if (isClientError(error)) throw error;
+    if (isNetworkOrServerError(error)) {
+      message.warning('已切换至离线最近任务模式', 3);
+      return MOCK_TASKS.slice(0, 3).map((t) => ({
+        taskId: t.taskId,
+        taskTitle: t.taskTitle,
+        status: t.status,
+        recentStep: t.recentStep,
+        updatedAt: t.updatedAt,
+      }));
+    }
+    throw error;
+  }
+}
+
+export async function continueTaskArchive(taskId: string, mode: string): Promise<{ resumeContext: any; nextRoute: string }> {
+  if (FORCE_MOCK) {
+    return { resumeContext: { taskId, mode }, nextRoute: '/workbench' };
+  }
+
+  try {
+    const raw = await tasksApi.continueTask(taskId, mode);
+    return normalizeContinueTaskResponse(raw);
+  } catch (error: unknown) {
+    if (isClientError(error)) throw error;
+    if (isNetworkOrServerError(error)) {
+      message.warning('已切换至离线继续模式', 3);
+      return { resumeContext: { taskId, mode }, nextRoute: '/workbench' };
+    }
+    throw error;
+  }
+}
+
+export async function setCurrentTaskArchiveVersion(taskId: string, versionType: string, versionId: string): Promise<any> {
+  if (FORCE_MOCK) {
+    return getTaskArchiveDetail(taskId);
+  }
+
+  try {
+    const raw = await tasksApi.setCurrentTaskVersion(taskId, versionType, versionId);
+    return normalizeTaskArchiveDetailResponse(raw);
+  } catch (error: unknown) {
+    if (isClientError(error)) throw error;
+    if (isNetworkOrServerError(error)) {
+      message.warning('已切换至离线版本管理模式', 3);
+      return getTaskArchiveDetail(taskId);
+    }
+    throw error;
+  }
+}
+
+function filterMockTasks(params?: { taskTitle?: string; taskType?: string; status?: string }): TaskArchiveItem[] {
+  let tasks = [...MOCK_TASKS];
+  if (params?.taskTitle) {
+    tasks = tasks.filter((t) => t.taskTitle.toLowerCase().includes(params.taskTitle!.toLowerCase()));
+  }
+  if (params?.taskType && params.taskType !== 'all') {
+    tasks = tasks.filter((t) => t.taskType === params.taskType);
+  }
+  if (params?.status && params.status !== 'all') {
+    tasks = tasks.filter((t) => t.status === params.status);
+  }
+  return tasks;
 }

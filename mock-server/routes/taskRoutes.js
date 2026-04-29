@@ -9,6 +9,11 @@ import {
   regenerateOutput,
   setCurrentOutputVersion,
   exportOutputMarkdown,
+  listTasks,
+  getTaskArchiveDetail,
+  listRecentTasks,
+  continueTask,
+  setCurrentTaskVersion,
 } from '../services/taskService.js';
 
 const router = Router();
@@ -299,6 +304,124 @@ router.get('/:taskId/output/export/markdown', (req, res) => {
   return sendSuccess(res, {
     message: 'Markdown 导出成功',
     data: exportData,
+  });
+});
+
+// ============================================================================
+// Task Archive / History Routes (P0-Full-4)
+// ============================================================================
+
+// 10. GET /api/tasks/recent — Home page recent tasks (before /:taskId to avoid shadowing)
+
+router.get('/recent', (req, res) => {
+  const recent = listRecentTasks();
+  return sendSuccess(res, { message: '获取最近任务成功', data: recent });
+});
+
+// 11. POST /api/tasks/:taskId/continue — Continue a task
+
+router.post('/:taskId/continue', (req, res) => {
+  const { taskId } = req.params;
+  const { mode } = req.body || {};
+
+  const validModes = ['continue-output', 'supplement-regenerate', 'edit-goal', 'clone-task-structure'];
+  if (!mode || !validModes.includes(mode)) {
+    return sendError(res, 400, '无效的继续模式', 'VALIDATION_ERROR', {
+      field: 'mode',
+      allowed: validModes,
+    });
+  }
+
+  const taskPlan = getTaskPlan(taskId);
+  if (!taskPlan) {
+    return sendError(res, 404, '指定的任务不存在', 'TASK_NOT_FOUND', { taskId });
+  }
+
+  const result = continueTask(taskId, mode);
+
+  if (!result) {
+    return sendError(res, 400, '无法继续该任务', 'CONTINUE_FAILED', { taskId, mode });
+  }
+
+  return sendSuccess(res, {
+    message: result.message || '继续推进成功',
+    data: result,
+  });
+});
+
+// 12. PUT /api/tasks/:taskId/set-current-version — Set current version
+
+router.put('/:taskId/set-current-version', (req, res) => {
+  const { taskId } = req.params;
+  const { versionType, versionId } = req.body || {};
+
+  if (!versionType || !['task_plan', 'evidence_pack', 'output'].includes(versionType)) {
+    return sendError(res, 400, '缺少有效参数：versionType', 'MISSING_REQUIRED_INFO', {
+      missingFields: ['versionType'],
+      allowed: ['task_plan', 'evidence_pack', 'output'],
+    });
+  }
+
+  if (!versionId || typeof versionId !== 'string') {
+    return sendError(res, 400, '缺少必填参数：versionId', 'MISSING_REQUIRED_INFO', {
+      missingFields: ['versionId'],
+    });
+  }
+
+  const taskPlan = getTaskPlan(taskId);
+  if (!taskPlan) {
+    return sendError(res, 404, '指定的任务不存在', 'TASK_NOT_FOUND', { taskId });
+  }
+
+  const result = setCurrentTaskVersion(taskId, versionType, versionId);
+
+  if (!result.success) {
+    const errorMap = {
+      OUTPUT_VERSION_NOT_FOUND: { code: 404, msg: '指定的 Output 版本不存在' },
+      PLAN_VERSION_NOT_FOUND: { code: 404, msg: '指定的 TaskPlan 版本不存在' },
+      EVIDENCE_VERSION_NOT_FOUND: { code: 404, msg: '指定的 Evidence Pack 版本不存在' },
+      INVALID_VERSION_TYPE: { code: 400, msg: '无效的版本类型' },
+    };
+    const err = errorMap[result.error] || { code: 500, msg: '设置当前版本失败' };
+    return sendError(res, err.code, err.msg, result.error, { taskId });
+  }
+
+  return sendSuccess(res, {
+    message: '已设为当前版本',
+    data: result.data,
+  });
+});
+
+// 13. GET /api/tasks/:taskId — Archive detail (must be last GET with :taskId)
+
+router.get('/:taskId', (req, res) => {
+  const { taskId } = req.params;
+
+  const detail = getTaskArchiveDetail(taskId);
+
+  if (!detail) {
+    return sendError(res, 404, '指定的任务不存在', 'TASK_NOT_FOUND', { taskId });
+  }
+
+  return sendSuccess(res, {
+    message: '获取任务详情成功',
+    data: detail,
+  });
+});
+
+// 14. GET /api/tasks — Task list (root)
+
+router.get('/', (req, res) => {
+  const { taskTitle, taskType, status } = req.query || {};
+  const query = {};
+  if (taskTitle) query.taskTitle = taskTitle;
+  if (taskType) query.taskType = taskType;
+  if (status) query.status = status;
+
+  const items = listTasks(query);
+  return sendSuccess(res, {
+    message: '获取历史任务列表成功',
+    data: { items, total: items.length },
   });
 });
 

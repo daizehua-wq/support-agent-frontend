@@ -725,3 +725,300 @@ export const listAllTasks = () => {
     updatedAt: t.updatedAt,
   }));
 };
+
+// ============================================================================
+// Task Archive (P0-Full-4)
+// ============================================================================
+
+function mapTaskStatus(task) {
+  if (task.status === 'done') return 'completed';
+  if (task.status === 'running') return 'running';
+  if (task.status === 'waiting_confirmation') return 'draft';
+  if (task.status === 'failed') return 'failed';
+  return 'draft';
+}
+
+function buildPlanVersions(task) {
+  if (!task.taskPlan) return [];
+  const versionId = task.taskPlan.planVersionId || `${task.taskId}-plan-v1`;
+  return [{
+    versionId,
+    label: 'v1',
+    kind: 'task_plan',
+    reason: '初始计划',
+    createdAt: task.taskPlan.createdAt || task.createdAt,
+    status: 'archived',
+    summary: task.taskPlan.understanding || '任务计划',
+  }];
+}
+
+function buildEvidenceVersions(_task) {
+  // P0: no evidence pack versions yet
+  return [];
+}
+
+function mapOutputVersionToRecord(v) {
+  return {
+    versionId: v.versionId,
+    label: v.label,
+    kind: 'output',
+    reason: v.reason,
+    createdAt: v.createdAt,
+    status: v.status === 'failed' ? 'failed' : (v.isCurrent ? 'active' : 'archived'),
+    failureReason: v.failureReason,
+    summary: v.formalVersion ? v.formalVersion.slice(0, 80) + '...' : '',
+  };
+}
+
+function mapTaskToArchiveItem(task) {
+  const now = new Date().toISOString();
+
+  return {
+    taskId: task.taskId,
+    taskTitle: task.taskPlan?.taskTitle || '',
+    taskType: task.taskPlan?.taskType || 'full_workflow',
+    status: mapTaskStatus(task),
+    recentStep: task.status === 'done' ? 'Output 生成完成' : task.status === 'running' ? '执行中' : '未开始',
+    assistantName: task.taskPlan?.executionContext?.assistantName || '默认销售支持助手',
+    updatedAt: task.updatedAt || now,
+    taskGoal: task.taskPlan?.userGoal || '',
+    planVersions: buildPlanVersions(task),
+    evidencePackVersions: buildEvidenceVersions(task),
+    outputVersions: (task.outputVersions || []).map(mapOutputVersionToRecord),
+    analysisSummary: task.status === 'done' ? '分析完成：识别为销售跟进场景。' : '',
+    evidenceSummary: task.status === 'done' ? '已整理 2 条依据：内部知识库和参考案例。' : '',
+    risks: (task.risks || []).map((r) => ({ level: r.level, title: r.title, description: r.description })),
+    executionContext: task.taskPlan?.executionContext || {
+      assistantName: '默认销售支持助手',
+      modelName: 'qwen3-8b',
+      dataSources: [],
+      taskPlanner: { status: 'ready', source: 'rule_engine' },
+    },
+    failedStep: task.taskExecution?.steps?.find((s) => s.status === 'failed')?.title,
+    failureKind: task.taskExecution?.steps?.find((s) => s.status === 'failed')?.failureKind,
+    failureReason: task.taskExecution?.steps?.find((s) => s.status === 'failed')?.failureReason,
+    completedSteps: task.taskExecution?.steps?.filter((s) => s.status === 'done').map((s) => s.title),
+    pendingSteps: task.taskExecution?.steps?.filter((s) => s.status !== 'done').map((s) => s.title),
+    hasOutput: !!(task.outputVersions && task.outputVersions.length > 0),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Public: listTasks(query?) → TaskArchiveItem[]
+// ---------------------------------------------------------------------------
+
+export const listTasks = (query = {}) => {
+  const items = Array.from(tasks.values())
+    .map(mapTaskToArchiveItem)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+  if (query.taskTitle) {
+    const keyword = String(query.taskTitle).toLowerCase();
+    return items.filter((t) => t.taskTitle.toLowerCase().includes(keyword));
+  }
+
+  if (query.taskType && query.taskType !== 'all') {
+    return items.filter((t) => t.taskType === query.taskType);
+  }
+
+  if (query.status && query.status !== 'all') {
+    return items.filter((t) => t.status === query.status);
+  }
+
+  return items;
+};
+
+// ---------------------------------------------------------------------------
+// Public: getTaskArchiveDetail(taskId) → TaskArchiveDetail | null
+// ---------------------------------------------------------------------------
+
+export const getTaskArchiveDetail = (taskId) => {
+  const task = tasks.get(taskId);
+  if (!task) return null;
+
+  const item = mapTaskToArchiveItem(task);
+
+  // Ensure output is lazily generated for consistent hasOutput/currentVersion
+  lazyGenerateOutputIfNeeded(task);
+
+  return {
+    ...item,
+    // Full introspection fields (not in list view)
+    taskPlan: task.taskPlan || null,
+    execution: task.taskExecution || null,
+    currentPlanVersionId: task.taskPlan?.planVersionId || null,
+    currentEvidencePackVersionId: null, // P0: no evidence pack versions
+    currentOutputVersionId: task.currentOutputVersionId || null,
+    analysisSummary: item.analysisSummary || (task.taskPlan?.understanding || ''),
+    evidenceSummary: item.evidenceSummary || '',
+    outputSummary: task.currentOutputVersionId
+      ? (task.outputVersions?.find((v) => v.versionId === task.currentOutputVersionId)?.formalVersion?.slice(0, 120) || '') + '...'
+      : '',
+    riskSummary: (task.risks || []).map((r) => r.title).join('；'),
+    source: 'task',
+    createdAt: task.createdAt,
+    updatedAt: task.updatedAt,
+  };
+};
+
+// ---------------------------------------------------------------------------
+// Public: listRecentTasks() → array of 3-5 recent tasks
+// ---------------------------------------------------------------------------
+
+export const listRecentTasks = () => {
+  const allTasks = Array.from(tasks.values())
+    .map(mapTaskToArchiveItem)
+    .sort((a, b) => {
+      // Prioritize continuable tasks, then by updatedAt
+      if (a.status === 'continuable' && b.status !== 'continuable') return -1;
+      if (b.status === 'continuable' && a.status !== 'continuable') return 1;
+      return b.updatedAt.localeCompare(a.updatedAt);
+    });
+
+  return allTasks.slice(0, 5).map((t) => ({
+    taskId: t.taskId,
+    taskTitle: t.taskTitle,
+    status: t.status,
+    recentStep: t.recentStep,
+    updatedAt: t.updatedAt,
+    continuable: t.status === 'continuable' || t.status === 'running',
+    hasOutput: t.hasOutput,
+  }));
+};
+
+// ---------------------------------------------------------------------------
+// Public: continueTask(taskId, mode) → resumeContext || null
+// ---------------------------------------------------------------------------
+
+export const continueTask = (taskId, mode) => {
+  const task = tasks.get(taskId);
+  if (!task) return null;
+
+  const now = new Date().toISOString();
+
+  const resumeContext = {
+    taskId,
+    taskTitle: task.taskPlan?.taskTitle || '',
+    taskGoal: task.taskPlan?.userGoal || '',
+    taskType: task.taskPlan?.taskType || 'full_workflow',
+    existingPlanVersionId: task.taskPlan?.planVersionId || null,
+    hasOutput: !!(task.outputVersions && task.outputVersions.length > 0),
+    outputVersionCount: task.outputVersions?.length || 0,
+    existingOutputVersionIds: (task.outputVersions || []).map((v) => v.versionId),
+  };
+
+  switch (mode) {
+    case 'continue-output':
+      return {
+        resumeContext,
+        nextRoute: '/workbench',
+        message: '返回 Workbench 基于当前结果继续输出',
+      };
+
+    case 'supplement-regenerate':
+      return {
+        resumeContext,
+        nextRoute: '/workbench',
+        message: '返回 Workbench 补充资料后重新生成',
+      };
+
+    case 'edit-goal':
+      return {
+        resumeContext,
+        nextRoute: '/workbench',
+        message: '返回 Workbench 编辑任务目标',
+      };
+
+    case 'clone-task-structure': {
+      // Clone: new task with same structure but no data copies
+      const cloneTaskId = randomUUID();
+      const clonePlanId = randomUUID();
+
+      const cloneTaskPlan = {
+        ...(task.taskPlan || {}),
+        taskId: cloneTaskId,
+        planVersionId: clonePlanId,
+        taskTitle: (task.taskPlan?.taskTitle || '') + ' (副本)',
+        planVersion: 'v1',
+        createdAt: now,
+        updatedAt: now,
+        steps: buildTaskSteps(cloneTaskId),
+        riskHints: task.taskPlan?.riskHints || [],
+      };
+
+      const cloneTask = {
+        taskId: cloneTaskId,
+        taskPlan: cloneTaskPlan,
+        taskExecution: null,
+        outputVersions: [],
+        currentOutputVersionId: undefined,
+        evidences: [],
+        risks: [],
+        executionSteps: [],
+        status: 'waiting_confirmation',
+        planVersion: 'v1',
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      tasks.set(cloneTaskId, cloneTask);
+
+      return {
+        resumeContext: {
+          ...resumeContext,
+          taskId: cloneTaskId,
+          cloneFrom: taskId,
+          hasOutput: false,
+          outputVersionCount: 0,
+          existingOutputVersionIds: [],
+        },
+        nextRoute: '/workbench',
+        message: '已创建任务副本（不含历史版本/证据/Output）',
+      };
+    }
+
+    default:
+      return null;
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Public: setCurrentTaskVersion(taskId, versionType, versionId) → TaskArchiveDetail | null
+// ---------------------------------------------------------------------------
+
+export const setCurrentTaskVersion = (taskId, versionType, versionId) => {
+  const task = tasks.get(taskId);
+  if (!task) return { success: false, error: 'TASK_NOT_FOUND' };
+
+  const now = new Date().toISOString();
+
+  if (versionType === 'output') {
+    if (!task.outputVersions || task.outputVersions.length === 0) {
+      return { success: false, error: 'OUTPUT_VERSION_NOT_FOUND' };
+    }
+
+    const target = task.outputVersions.find((v) => v.versionId === versionId);
+    if (!target) {
+      return { success: false, error: 'OUTPUT_VERSION_NOT_FOUND' };
+    }
+
+    task.outputVersions = task.outputVersions.map((v) => ({
+      ...v,
+      isCurrent: v.versionId === versionId,
+    }));
+    task.currentOutputVersionId = versionId;
+    task.updatedAt = now;
+  } else if (versionType === 'task_plan') {
+    // P0: only one plan version, verify it exists
+    if (task.taskPlan?.planVersionId !== versionId) {
+      return { success: false, error: 'PLAN_VERSION_NOT_FOUND' };
+    }
+  } else if (versionType === 'evidence_pack') {
+    // P0: no evidence pack versions
+    return { success: false, error: 'EVIDENCE_VERSION_NOT_FOUND' };
+  } else {
+    return { success: false, error: 'INVALID_VERSION_TYPE' };
+  }
+
+  return { success: true, data: getTaskArchiveDetail(taskId) };
+};

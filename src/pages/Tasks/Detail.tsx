@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Alert, Button, Card, Space, Spin, Tag, Typography, message } from 'antd';
 import {
@@ -12,14 +12,36 @@ import ContinueTaskModal from '../../components/tasks/ContinueTaskModal';
 import TaskArchiveHeader from '../../components/tasks/TaskArchiveHeader';
 import VersionRecordTable from '../../components/tasks/VersionRecordTable';
 import { MOCK_TASKS } from '../../utils/mockTasks';
-import type { TaskVersionRecord } from '../../types/taskArchive';
+import * as archiveAdapter from '../../utils/taskApiAdapter';
+import type { TaskArchiveItem, TaskVersionRecord } from '../../types/taskArchive';
 
 function TaskDetailPage() {
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
   const [showContinue, setShowContinue] = useState(false);
+  const [task, setTask] = useState<TaskArchiveItem | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const task = useMemo(() => MOCK_TASKS.find((t) => t.taskId === taskId) || null, [taskId]);
+  useEffect(() => {
+    if (!taskId) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    archiveAdapter.getTaskArchiveDetail(taskId).then((detail) => {
+      if (!cancelled) {
+        setTask(detail as unknown as TaskArchiveItem);
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        const mock = MOCK_TASKS.find((t) => t.taskId === taskId) || null;
+        setTask(mock);
+      }
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [taskId]);
 
   if (!taskId) {
     return (
@@ -29,7 +51,7 @@ function TaskDetailPage() {
     );
   }
 
-  if (!task) {
+  if (loading || !task) {
     return (
       <div style={{ display: 'grid', placeItems: 'center', minHeight: '40vh' }}>
         <Spin size="large" tip="加载任务详情…" />
@@ -41,14 +63,37 @@ function TaskDetailPage() {
     (a, b) => b.createdAt.localeCompare(a.createdAt),
   );
 
-  const handleSetCurrent = (version: TaskVersionRecord) => {
-    message.info(`已将 ${version.label} 设为当前${version.kind === 'task_plan' ? '计划' : version.kind === 'evidence_pack' ? '证据包' : '版本'}（本地预览）`);
-  };
+  const handleSetCurrent = useCallback(async (version: TaskVersionRecord) => {
+    if (!taskId) return;
+    try {
+      const refreshed = await archiveAdapter.setCurrentTaskArchiveVersion(taskId, version.kind, version.versionId);
+      setTask(refreshed as unknown as TaskArchiveItem);
+      message.success(`已将 ${version.label} 设为当前${version.kind === 'task_plan' ? '计划' : version.kind === 'evidence_pack' ? '证据包' : '版本'}`);
+    } catch {
+      message.error('设置当前版本失败');
+    }
+  }, [taskId]);
 
-  const handleContinueModal = (mode: string) => {
-    navigate('/workbench', { state: { mode, taskId: task.taskId } });
+  const handleContinueModal = useCallback(async (mode: string) => {
+    if (!task) return;
     setShowContinue(false);
-  };
+
+    const validModes = ['continue-output', 'supplement-regenerate', 'edit-goal', 'clone-task-structure'];
+    if (!validModes.includes(mode)) {
+      message.error('无效的继续模式');
+      return;
+    }
+
+    const route = '/workbench';
+
+    try {
+      const result = await archiveAdapter.continueTaskArchive(task.taskId, mode);
+      navigate(route, { state: { mode, taskId: result.resumeContext?.taskId || task.taskId, resumeContext: result.resumeContext } });
+    } catch {
+      message.error('继续推进失败');
+
+    }
+  }, [task, navigate]);
 
   const currentOutput = task.outputVersions.find((v: TaskVersionRecord) => v.status === 'active') || task.outputVersions[task.outputVersions.length - 1];
 

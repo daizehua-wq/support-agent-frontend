@@ -1,5 +1,6 @@
 import type { TaskPlan, TaskExecution, TaskStep, TaskStepExecution, MissingInfoItem, ExecutionContextSummary, TaskOutputPreview } from '../types/taskPlan';
 import type { OutputDetail, OutputVersion, OutputEvidence, OutputRisk, EvidenceSourceType, EvidenceStatus } from '../types/output';
+import type { TaskArchiveItem, TaskArchiveStatus, TaskVersionRecord } from '../types/taskArchive';
 
 function normalizeTaskStep(raw: any): TaskStep {
   return {
@@ -195,5 +196,103 @@ export function normalizeOutputVersionsResponse(raw: any): { taskId: string; cur
     taskId: data.taskId || data.task_id || '',
     currentVersionId,
     versions: normalizedVersions,
+  };
+}
+
+// ===== Task Archive normalizers =====
+
+const VALID_ARCHIVE_STATUSES = new Set(['continuable', 'failed', 'running', 'needs_info', 'completed', 'draft']);
+
+function normalizeArchiveStatus(status: string): TaskArchiveStatus {
+  if (VALID_ARCHIVE_STATUSES.has(status)) return status as TaskArchiveStatus;
+  if (status === 'done') return 'completed';
+  if (status === 'waiting_confirmation') return 'draft';
+  return 'completed';
+}
+
+function normalizeTaskVersionRecord(raw: any): TaskVersionRecord {
+  return {
+    versionId: raw.versionId || raw.version_id || '',
+    label: raw.label || 'v1',
+    kind: (['task_plan', 'evidence_pack', 'output'].includes(raw.kind) ? raw.kind : 'output'),
+    reason: raw.reason || '',
+    createdAt: raw.createdAt || raw.created_at || '',
+    status: (['active', 'archived', 'failed'].includes(raw.status) ? raw.status : 'archived'),
+    failureReason: raw.failureReason || raw.failure_reason,
+    summary: raw.summary,
+  };
+}
+
+export function normalizeTaskArchiveListResponse(raw: any): TaskArchiveItem[] {
+  const data = raw?.data?.data || raw?.data || raw || {};
+  const items: any[] = data.items || data || [];
+  if (!Array.isArray(items)) return [];
+  return items.map(normalizeTaskArchiveItem);
+}
+
+export function normalizeTaskArchiveItem(raw: any): TaskArchiveItem {
+  return {
+    taskId: raw.taskId || raw.task_id || '',
+    taskTitle: raw.taskTitle || raw.task_title || '未命名任务',
+    taskType: raw.taskType || raw.task_type || 'full_workflow',
+    status: normalizeArchiveStatus(raw.status),
+    recentStep: raw.recentStep || raw.recent_step,
+    assistantName: raw.assistantName || raw.assistant_name || '',
+    updatedAt: raw.updatedAt || raw.updated_at || '',
+    taskGoal: raw.taskGoal || raw.task_goal || '',
+    planVersions: (raw.planVersions || raw.plan_versions || []).map(normalizeTaskVersionRecord),
+    evidencePackVersions: (raw.evidencePackVersions || raw.evidence_pack_versions || []).map(normalizeTaskVersionRecord),
+    outputVersions: (raw.outputVersions || raw.output_versions || []).map(normalizeTaskVersionRecord),
+    analysisSummary: raw.analysisSummary || raw.analysis_summary,
+    evidenceSummary: raw.evidenceSummary || raw.evidence_summary,
+    risks: (raw.risks || []).map((r: any) => ({
+      level: r.level || 'info',
+      title: r.title || '',
+      description: r.description || '',
+    })),
+    executionContext: {
+      assistantName: raw.executionContext?.assistantName || raw.execution_context?.assistant_name || raw.executionContext?.assistant_name || '',
+      modelName: raw.executionContext?.modelName || raw.execution_context?.model_name || raw.executionContext?.model_name || '',
+      dataSources: (raw.executionContext?.dataSources || raw.execution_context?.data_sources || []).map((ds: any) => ({
+        name: ds.name || '',
+        status: ds.status || 'unknown',
+      })),
+      taskPlanner: {
+        status: raw.executionContext?.taskPlanner?.status || raw.execution_context?.task_planner?.status || 'unknown',
+        source: raw.executionContext?.taskPlanner?.source || raw.execution_context?.task_planner?.source || 'embedded_model',
+      },
+    },
+    failedStep: raw.failedStep || raw.failed_step,
+    failureKind: raw.failureKind || raw.failure_kind,
+    failureReason: raw.failureReason || raw.failure_reason,
+    completedSteps: raw.completedSteps || raw.completed_steps,
+    pendingSteps: raw.pendingSteps || raw.pending_steps,
+    hasOutput: Boolean(raw.hasOutput ?? raw.has_output ?? false),
+  };
+}
+
+export function normalizeTaskArchiveDetailResponse(raw: any): any {
+  const data = raw?.data?.data || raw?.data || raw || {};
+  // Archive detail extends TaskArchiveItem with more fields
+  return {
+    ...normalizeTaskArchiveItem(data),
+    taskPlan: data.taskPlan || data.task_plan || null,
+    execution: data.execution || null,
+    currentPlanVersionId: data.currentPlanVersionId || data.current_plan_version_id || null,
+    currentEvidencePackVersionId: data.currentEvidencePackVersionId || data.current_evidence_pack_version_id || null,
+    currentOutputVersionId: data.currentOutputVersionId || data.current_output_version_id || null,
+    outputSummary: data.outputSummary || data.output_summary || '',
+    riskSummary: data.riskSummary || data.risk_summary || '',
+    source: data.source || 'task',
+    createdAt: data.createdAt || data.created_at || '',
+    withUpdatedAt: data.updatedAt || data.updated_at || '',
+  };
+}
+
+export function normalizeContinueTaskResponse(raw: any): { resumeContext: any; nextRoute: string } {
+  const data = raw?.data?.data || raw?.data || raw || {};
+  return {
+    resumeContext: data.resumeContext || data.resume_context || {},
+    nextRoute: data.nextRoute || data.next_route || '/workbench',
   };
 }

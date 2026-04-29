@@ -55,3 +55,30 @@ export async function exportTaskOutputMarkdown(taskId: string): Promise<any> {
   const res = await request.get<any, any>(`/api/tasks/${taskId}/output/export/markdown`);
   return res;
 }
+
+// ===== Task Archive API =====
+
+export async function getTasks(params?: { taskTitle?: string; taskType?: string; status?: string }): Promise<any> {
+  const res = await request.get<any, any>('/api/tasks', { params });
+  return res;
+}
+
+export async function getTaskDetail(taskId: string): Promise<any> {
+  const res = await request.get<any, any>(`/api/tasks/${taskId}`);
+  return res;
+}
+
+export async function getRecentTasks(): Promise<any> {
+  const res = await request.get<any, any>('/api/tasks/recent');
+  return res;
+}
+
+export async function continueTask(taskId: string, mode: string): Promise<any> {
+  const res = await request.post<any, any>(`/api/tasks/${taskId}/continue`, { mode });
+  return res;
+}
+
+export async function setCurrentTaskVersion(taskId: string, versionType: string, versionId: string): Promise<any> {
+  const res = await request.put<any, any>(`/api/tasks/${taskId}/set-current-version`, { versionType, versionId });
+  return res;
+}

@@ -1,11 +1,12 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card, Input, Select, Space, Typography } from 'antd';
+import { Button, Card, Input, Select, Space, Spin, Typography, message } from 'antd';
 import { HistoryOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import ContinueTaskModal from '../../components/tasks/ContinueTaskModal';
 import HistoryTaskCard from '../../components/tasks/HistoryTaskCard';
 import HistoryTaskTable from '../../components/tasks/HistoryTaskTable';
 import { MOCK_TASKS } from '../../utils/mockTasks';
+import * as archiveAdapter from '../../utils/taskApiAdapter';
 import type { TaskArchiveItem } from '../../types/taskArchive';
 
 const TYPE_OPTIONS: Array<{ value: string; label: string }> = [
@@ -33,9 +34,23 @@ function TasksPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [continueTarget, setContinueTarget] = useState<TaskArchiveItem | null>(null);
   const [showContinue, setShowContinue] = useState(false);
+  const [allTasks, setAllTasks] = useState<TaskArchiveItem[]>(MOCK_TASKS);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    archiveAdapter.getTaskArchiveList().then((items) => {
+      if (!cancelled) setAllTasks(items);
+    }).catch(() => {
+      // fallback to MOCK_TASKS already in state
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const filtered = useMemo(() => {
-    let tasks = MOCK_TASKS;
+    let tasks = allTasks;
     if (search.trim()) {
       tasks = tasks.filter((t) => t.taskTitle.toLowerCase().includes(search.toLowerCase()));
     }
@@ -46,7 +61,7 @@ function TasksPage() {
       tasks = tasks.filter((t) => t.status === statusFilter);
     }
     return tasks;
-  }, [search, typeFilter, statusFilter]);
+  }, [search, typeFilter, statusFilter, allTasks]);
 
   const continuableTasks = useMemo(
     () => filtered.filter((t) => t.status === 'continuable'),
@@ -63,10 +78,24 @@ function TasksPage() {
     setShowContinue(true);
   }, []);
 
-  const handleContinueModal = useCallback((mode: string) => {
+  const handleContinueModal = useCallback(async (mode: string) => {
     if (!continueTarget) return;
-    navigate('/workbench', { state: { mode, taskId: continueTarget.taskId } });
     setShowContinue(false);
+
+    const validModes = ['continue-output', 'supplement-regenerate', 'edit-goal', 'clone-task-structure'];
+    if (!validModes.includes(mode)) {
+      message.error('无效的继续模式');
+      return;
+    }
+
+    const route = '/workbench';
+
+    try {
+      const result = await archiveAdapter.continueTaskArchive(continueTarget.taskId, mode);
+      navigate(route, { state: { mode, taskId: result.resumeContext?.taskId || continueTarget.taskId, resumeContext: result.resumeContext } });
+    } catch {
+      message.error('继续推进失败');
+    }
   }, [continueTarget, navigate]);
 
   return (
@@ -95,8 +124,15 @@ function TasksPage() {
         </Space>
       </div>
 
+      {/* Loading */}
+      {loading && (
+        <Card style={{ borderRadius: 28, textAlign: 'center', padding: 40 }}>
+          <Spin size="large" tip="加载历史任务…" />
+        </Card>
+      )}
+
       {/* Continue Highlight */}
-      {continuableTasks.length > 0 && search === '' && statusFilter === 'all' && (
+      {!loading && continuableTasks.length > 0 && search === '' && statusFilter === 'all' && (
         <div className="ap-task-highlight">
           <Typography.Title level={5} style={{ margin: '0 0 12px' }}>
             你有 {continuableTasks.length} 个可继续任务
@@ -111,7 +147,7 @@ function TasksPage() {
       )}
 
       {/* True Empty */}
-      {MOCK_TASKS.length === 0 && (
+      {!loading && allTasks.length === 0 && (
         <Card style={{ borderRadius: 28, textAlign: 'center', padding: 40, minHeight: 300, display: 'grid', placeItems: 'center' }}>
           <div>
             <Typography.Text type="secondary" style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>
@@ -126,7 +162,7 @@ function TasksPage() {
       )}
 
       {/* Search Empty */}
-      {MOCK_TASKS.length > 0 && filtered.length === 0 && (
+      {allTasks.length > 0 && filtered.length === 0 && (
         <Card style={{ borderRadius: 28, textAlign: 'center', padding: 40, minHeight: 300, display: 'grid', placeItems: 'center' }}>
           <div>
             <Typography.Text type="secondary" style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>

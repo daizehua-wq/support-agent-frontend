@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Card, Space, Tag, Typography, Alert } from 'antd';
 import {
@@ -12,6 +12,7 @@ import {
   CloseCircleFilled,
 } from '@ant-design/icons';
 import type { CapabilityStatus, RecentTask } from '../../types/taskPlan';
+import * as archiveAdapter from '../../utils/taskApiAdapter';
 
 type HomeScenario = 'firstUse' | 'default' | 'degraded' | 'missingDefaults';
 
@@ -62,8 +63,32 @@ function HomePage() {
   const navigate = useNavigate();
   const [taskGoal, setTaskGoal] = useState('');
   const [sending, setSending] = useState(false);
+  const [recentTasks, setRecentTasks] = useState<RecentTask[]>([]);
+  const [recentLoading, setRecentLoading] = useState(true);
 
-  const tasks = MOCK_RECENT_TASKS;
+  useEffect(() => {
+    let cancelled = false;
+    archiveAdapter.getRecentTaskArchive().then((items) => {
+      if (!cancelled) {
+        setRecentTasks(items.map((t) => ({
+          taskId: t.taskId,
+          title: t.taskTitle,
+          status: t.status === 'continuable' ? 'continuable' : 'completed',
+          lastStep: t.recentStep,
+          updatedAt: t.updatedAt,
+        })));
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setRecentTasks(MOCK_RECENT_TASKS);
+      }
+    }).finally(() => {
+      if (!cancelled) setRecentLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const tasks = recentTasks;
   const capability = MOCK_CAPABILITY;
   const homeScenario = resolveHomeScenario(tasks.length, capability);
   const isDisabled = homeScenario === 'missingDefaults';
@@ -161,7 +186,14 @@ function HomePage() {
             最近任务
           </Typography.Title>
 
-          {homeScenario === 'firstUse' ? (
+          {recentLoading ? (
+            <Card
+              className="ap-session-item"
+              styles={{ body: { padding: '28px 20px', textAlign: 'center' } }}
+            >
+              <Typography.Text type="secondary" style={{ fontSize: 14 }}>加载最近任务…</Typography.Text>
+            </Card>
+          ) : homeScenario === 'firstUse' ? (
             <Card
               className="ap-session-item"
               styles={{ body: { padding: '28px 20px', textAlign: 'center', display: 'grid', gap: 10 } }}

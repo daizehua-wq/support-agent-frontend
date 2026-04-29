@@ -92,7 +92,8 @@ function TasksPage() {
 
     try {
       const result = await archiveAdapter.continueTaskArchive(continueTarget.taskId, mode);
-      navigate(route, { state: { mode, taskId: result.resumeContext?.taskId || continueTarget.taskId, resumeContext: result.resumeContext } });
+      const ctx = result.resumeContext as { taskId?: string } | undefined;
+      navigate(route, { state: { mode, taskId: ctx?.taskId || continueTarget.taskId, resumeContext: result.resumeContext } });
     } catch {
       message.error('继续推进失败');
     }

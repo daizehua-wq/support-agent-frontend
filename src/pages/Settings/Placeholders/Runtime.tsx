@@ -5,8 +5,11 @@ import RuntimeStatusCard from '../../../components/settings/RuntimeStatusCard';
 import SettingsModuleShell from '../../../components/settings/SettingsModuleShell';
 import * as settingsAdapter from '../../../utils/settingsCenterAdapter';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ApiData = any;
+
 function SettingsRuntimePage() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<ApiData>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -15,7 +18,14 @@ function SettingsRuntimePage() {
     settingsAdapter.getRuntime().then(setData).catch(() => setError(true)).finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    settingsAdapter.getRuntime()
+      .then((d) => { if (!cancelled) setData(d); })
+      .catch(() => { if (!cancelled) setError(true); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   if (loading) return <SettingsModuleShell title="运行状态与安全" description=""><div style={{textAlign:'center',padding:40}}><Spin /></div></SettingsModuleShell>;
   if (error) return <SettingsModuleShell title="运行状态与安全" description=""><div style={{textAlign:'center',padding:40}}><Typography.Text type="secondary">设置数据加载失败，请稍后重试。</Typography.Text><br/><Button icon={<ReloadOutlined />} style={{marginTop:12}} onClick={load}>重新加载</Button></div></SettingsModuleShell>;

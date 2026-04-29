@@ -63,7 +63,8 @@ export function useTaskExecution(): UseTaskExecutionResult {
     setExecution((prev) => prev ? { ...prev, status: 'cancelled' as const } : null);
   }, [clearPoll]);
 
-  const retryStep = useCallback((_stepId: string) => {
+  const retryStep = useCallback((stepId: string) => {
+    if (stepId) { /* step-based retry not yet implemented; restart full execution */ }
     clearPoll();
     start(goalRef.current, taskIdRef.current);
   }, [clearPoll, start]);

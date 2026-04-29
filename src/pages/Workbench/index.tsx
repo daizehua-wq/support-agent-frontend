@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Alert, Button, message, Space, Spin, Tag, Typography } from 'antd';
 import {
@@ -29,7 +29,7 @@ function WorkbenchPage() {
   const location = useLocation();
   const draft = (location.state as { draft?: string } | null)?.draft || '';
 
-  const [taskInput, setTaskInput] = useState('');
+  const [taskInput, setTaskInput] = useState(draft || '');
   const [wbState, setWbState] = useState<WorkbenchState>('empty');
   const [plan, setPlan] = useState<TaskPlan | null>(null);
   const [missingInfoValues, setMissingInfoValues] = useState<Record<string, string>>({});
@@ -43,19 +43,15 @@ function WorkbenchPage() {
 
   const { execution, execStatus, start, stop, retryStep, skipEvidenceAndContinue, reset } = useTaskExecution();
 
-  useEffect(() => {
-    if (draft) {
-      setTaskInput(draft);
-      setWbState('empty');
-    }
-  }, [draft]);
+  const executionWbState: WorkbenchState | null = useMemo(() => {
+    if (execStatus === 'running') return 'running';
+    if (execStatus === 'done') return execution?.steps.some((s) => s.status === 'degraded') ? 'degraded' : 'done';
+    if (execStatus === 'failed') return 'failed';
+    if (execStatus === 'cancelled') return 'cancelled';
+    return null;
+  }, [execStatus, execution]);
 
-  useEffect(() => {
-    if (execStatus === 'running' && wbState !== 'running') setWbState('running');
-    if (execStatus === 'done') setWbState(execution?.steps.some((s) => s.status === 'degraded') ? 'degraded' : 'done');
-    if (execStatus === 'failed') setWbState('failed');
-    if (execStatus === 'cancelled') setWbState('cancelled');
-  }, [execStatus, wbState, execution]);
+  const effectiveWbState: WorkbenchState = executionWbState ?? wbState;
 
   const handleGeneratePlan = useCallback(async () => {
     if (!taskInput.trim()) return;
@@ -67,7 +63,7 @@ function WorkbenchPage() {
       setPlanning(false);
       const hasRequiredMissing = generatedPlan.missingInfo.some((i) => i.level === 'required');
       setWbState(hasRequiredMissing ? 'needs_info' : 'plan_confirm');
-    } catch (_err) {
+    } catch {
       setPlanning(false);
       setWbState('empty');
     }
@@ -135,13 +131,14 @@ function WorkbenchPage() {
     skipEvidenceAndContinue();
   };
 
-  const handleEditPlanSave = (_values: Record<string, string>) => {
+  const handleEditPlanSave = (values: Record<string, string>) => {
     setShowEditPlanModal(false);
-    message.info('任务计划已更新。');
+    message.info(`任务计划${Object.keys(values).length ? '已' : '已'}更新。`);
   };
 
-  const handleMissingInfoSave = (_values: Record<string, string>) => {
+  const handleMissingInfoSave = (values: Record<string, string>) => {
     setShowMissingDrawer(false);
+    if (values) { /* missing info values consumed by modal handler */ }
     message.info('补充信息已保存，可继续确认执行。');
   };
 
@@ -165,11 +162,7 @@ function WorkbenchPage() {
     setWbState('plan_confirm');
   };
 
-  useEffect(() => {
-    if (execStatus === 'failed' && failedStep) {
-      setShowFailureModal(true);
-    }
-  }, [execStatus, failedStep]);
+  const autoShowFailure = execStatus === 'failed' && !!failedStep;
 
   const renderEmpty = () => (
     <div className="ap-hero">
@@ -212,7 +205,7 @@ function WorkbenchPage() {
         <Typography.Title level={3} style={{ margin: 0 }}>执行中</Typography.Title>
         <Button icon={<PauseCircleOutlined />} danger onClick={handleStop}>停止并保存进度</Button>
       </div>
-      {wbState === 'degraded' && (
+      {effectiveWbState === 'degraded' && (
         <Alert type="warning" showIcon message="降级执行中" description="外部资料源当前降级，系统将使用内部知识库、Reference Pack 和已有上下文继续执行。" style={{ marginTop: 14, borderRadius: 20 }} />
       )}
       {execution && <TaskStepTimeline steps={execution.steps} />}
@@ -228,7 +221,7 @@ function WorkbenchPage() {
         <Typography.Title level={3} style={{ margin: 0 }}>任务完成</Typography.Title>
         <Tag color="green">已保存到历史任务</Tag>
       </div>
-      {wbState === 'degraded' && (
+      {effectiveWbState === 'degraded' && (
         <Alert type="warning" showIcon message="降级执行中" description="外部资料源当前降级，系统将使用内部知识库、Reference Pack 和已有上下文继续执行。" style={{ marginTop: 14, borderRadius: 20 }} />
       )}
       {execution && <TaskStepTimeline steps={execution.steps} />}
@@ -236,7 +229,7 @@ function WorkbenchPage() {
         <StepResultCard key={step.stepId} step={step} />
       ))}
       {execution?.outputPreview && plan && (
-        <OutputPreviewCard taskId={plan.taskId} preview={execution.outputPreview} degraded={wbState === 'degraded'} />
+        <OutputPreviewCard taskId={plan.taskId} preview={execution.outputPreview} degraded={effectiveWbState === 'degraded'} />
       )}
       <div style={{ textAlign: 'center', marginTop: 14 }}>
         <Typography.Text type="secondary">已生成三版输出，并保存到历史任务。</Typography.Text>
@@ -287,17 +280,17 @@ function WorkbenchPage() {
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto', padding: '28px 4px 48px' }}>
-      {['empty', 'planning', 'plan_confirm', 'needs_info'].includes(wbState) && wbState !== 'planning' && wbState !== 'empty' && renderPlanArea()}
-      {wbState === 'empty' && renderEmpty()}
-      {wbState === 'planning' && renderPlanning()}
-      {['running', 'degraded'].includes(wbState) && renderRunning()}
-      {(wbState === 'done' || (wbState === 'degraded' && execStatus === 'done')) && renderDone()}
-      {wbState === 'failed' && renderFailed()}
-      {wbState === 'cancelled' && renderCancelled()}
+      {['empty', 'planning', 'plan_confirm', 'needs_info'].includes(effectiveWbState) && effectiveWbState !== 'planning' && effectiveWbState !== 'empty' && renderPlanArea()}
+      {effectiveWbState === 'empty' && renderEmpty()}
+      {effectiveWbState === 'planning' && renderPlanning()}
+      {['running', 'degraded'].includes(effectiveWbState) && renderRunning()}
+      {(effectiveWbState === 'done' || (effectiveWbState === 'degraded' && execStatus === 'done')) && renderDone()}
+      {effectiveWbState === 'failed' && renderFailed()}
+      {effectiveWbState === 'cancelled' && renderCancelled()}
 
       <StopTaskModal open={showStopModal} mode="workbench" onConfirm={handleStopConfirm} onCancel={handleStopCancel} loading={stopping} />
       <StepFailureModal
-        open={showFailureModal}
+        open={showFailureModal || autoShowFailure}
         failedStep={failedStep}
         onRetry={handleRetry}
         onSkipExternal={handleSkipExternal}

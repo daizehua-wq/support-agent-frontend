@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Button,
@@ -77,7 +77,7 @@ function Channels() {
 
   const currentFormTitle = editTarget ? '编辑渠道' : '新增渠道';
 
-  const loadChannels = async () => {
+  const loadChannels = useCallback(async () => {
     try {
       setLoading(true);
       setChannels(await fetchChannels());
@@ -87,7 +87,7 @@ function Channels() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const handleOpenCreate = () => {
     setEditTarget(null);
@@ -96,7 +96,7 @@ function Channels() {
     setModalOpen(true);
   };
 
-  const handleOpenEdit = (record: ChannelConfig) => {
+  const handleOpenEdit = useCallback((record: ChannelConfig) => {
     const config = (record.config || {}) as Record<string, string>;
     setEditTarget(record);
     form.setFieldsValue({
@@ -109,7 +109,7 @@ function Channels() {
       encrypt_key: config.encrypt_key || '',
     });
     setModalOpen(true);
-  };
+  }, [form]);
 
   const handleSave = async () => {
     try {
@@ -136,11 +136,11 @@ function Channels() {
     }
   };
 
-  const handleDelete = async (record: ChannelConfig) => {
+  const handleDelete = useCallback(async (record: ChannelConfig) => {
     await deleteChannel(record.id);
     await loadChannels();
     message.success('渠道已停用');
-  };
+  }, [loadChannels]);
 
   const handleReload = async () => {
     try {
@@ -234,12 +234,12 @@ function Channels() {
         ),
       },
     ],
-    [],
+    [handleOpenEdit, handleDelete],
   );
 
   useEffect(() => {
     void loadChannels();
-  }, []);
+  }, [loadChannels]);
 
   return (
     <Space direction="vertical" size={20} style={{ width: '100%' }}>

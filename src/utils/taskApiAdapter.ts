@@ -9,6 +9,7 @@ import { MOCK_TASKS } from './mockTasks';
 import { normalizeTaskPlanResponse, normalizeTaskExecutionResponse, normalizeOutputResponse, normalizeOutputVersionsResponse, normalizeTaskArchiveListResponse, normalizeTaskArchiveDetailResponse, normalizeContinueTaskResponse } from './taskNormalizer';
 import * as tasksApi from '../api/tasks';
 import { message } from 'antd';
+import { asArray, asUnknownRecord, firstString, readValue, type UnknownRecord } from './unknownRecord';
 
 const FORCE_MOCK = import.meta.env.VITE_USE_TASK_MOCK === 'true';
 
@@ -71,7 +72,7 @@ export async function generateTaskPlan(userGoal: string, appId?: string): Promis
 
   try {
     const raw = await tasksApi.createTaskPlan(goal, appId);
-    return normalizeTaskPlanResponse(raw as any);
+    return normalizeTaskPlanResponse(raw);
   } catch (error: unknown) {
     if (isClientError(error)) {
       throw error;
@@ -93,7 +94,7 @@ export async function confirmTask(taskId: string, goal: string, missingInfoValue
 
   try {
     const raw = await tasksApi.confirmTask(taskId, missingInfoValues);
-    return normalizeTaskExecutionResponse(raw as any);
+    return normalizeTaskExecutionResponse(raw);
   } catch (error: unknown) {
     if (isClientError(error)) throw error;
     if (isNetworkOrServerError(error)) {
@@ -111,7 +112,7 @@ export async function getExecution(taskId: string, goal: string): Promise<TaskEx
 
   try {
     const raw = await tasksApi.getTaskExecution(taskId);
-    return normalizeTaskExecutionResponse(raw as any);
+    return normalizeTaskExecutionResponse(raw);
   } catch (error: unknown) {
     if (isClientError(error)) throw error;
     if (isNetworkOrServerError(error)) {
@@ -126,7 +127,7 @@ export async function stopExecution(taskId: string): Promise<TaskExecution> {
   if (FORCE_MOCK) return { taskId, status: 'cancelled', steps: [] };
   try {
     const raw = await tasksApi.stopTask(taskId);
-    return normalizeTaskExecutionResponse(raw as any);
+    return normalizeTaskExecutionResponse(raw);
   } catch (error: unknown) {
     if (isNetworkOrServerError(error)) return { taskId, status: 'cancelled', steps: [] };
     throw error;
@@ -184,7 +185,7 @@ export async function getOutputVersions(taskId: string): Promise<{ taskId: strin
 export async function regenerateOutput(
   taskId: string,
   payload: { mode: string; tone?: string; note?: string },
-): Promise<any> {
+): Promise<UnknownRecord> {
   if (FORCE_MOCK) {
     const mock = generateMockOutput(taskId);
     const label = `v${mock.versions.length + 1}`;
@@ -212,7 +213,7 @@ export async function regenerateOutput(
   try {
     const raw = await tasksApi.regenerateTaskOutput(taskId, payload);
     // Handle wrapping - regenerate returns { success, data: { taskId, versionId, ... } }
-    const data = raw?.data?.data || raw?.data || raw || {};
+    const data = unwrapApiData(raw);
     return data;
   } catch (error: unknown) {
     if (isClientError(error)) throw error;
@@ -291,8 +292,10 @@ export async function exportOutputMarkdown(
 
   try {
     const raw = await tasksApi.exportTaskOutputMarkdown(taskId);
-    const data = raw?.data?.data || raw?.data || raw || {};
-    return data.filename ? data : null;
+    const data = unwrapApiData(raw);
+    const filename = firstString(data, ['filename']);
+    const markdown = firstString(data, ['markdown']);
+    return filename ? { filename, markdown } : null;
   } catch (error: unknown) {
     if (isClientError(error)) throw error;
     if (isNetworkOrServerError(error) && fallbackData) {
@@ -325,11 +328,11 @@ export async function getTaskArchiveList(params?: { taskTitle?: string; taskType
   }
 }
 
-export async function getTaskArchiveDetail(taskId: string): Promise<any> {
+export async function getTaskArchiveDetail(taskId: string): Promise<ReturnType<typeof normalizeTaskArchiveDetailResponse>> {
   if (FORCE_MOCK) {
     const mock = MOCK_TASKS.find((t) => t.taskId === taskId);
     if (!mock) throw new Error('TASK_NOT_FOUND');
-    return { ...mock, taskPlan: null, execution: null, currentPlanVersionId: null, currentEvidencePackVersionId: null, currentOutputVersionId: null, source: 'legacy_session', createdAt: mock.updatedAt, updatedAt: mock.updatedAt };
+    return { ...mock, taskPlan: null, execution: null, currentPlanVersionId: null, currentEvidencePackVersionId: null, currentOutputVersionId: null, source: 'legacy_session' as const, createdAt: mock.updatedAt, updatedAt: mock.updatedAt, outputSummary: '', riskSummary: '', withUpdatedAt: mock.updatedAt };
   }
 
   try {
@@ -341,7 +344,7 @@ export async function getTaskArchiveDetail(taskId: string): Promise<any> {
       showFallbackWarning();
       const mock = MOCK_TASKS.find((t) => t.taskId === taskId);
       if (!mock) throw new Error('TASK_NOT_FOUND');
-      return { ...mock, taskPlan: null, execution: null, currentPlanVersionId: null, currentEvidencePackVersionId: null, currentOutputVersionId: null, source: 'legacy_session', createdAt: mock.updatedAt, updatedAt: mock.updatedAt };
+      return { ...mock, taskPlan: null, execution: null, currentPlanVersionId: null, currentEvidencePackVersionId: null, currentOutputVersionId: null, source: 'legacy_session' as const, createdAt: mock.updatedAt, updatedAt: mock.updatedAt, outputSummary: '', riskSummary: '', withUpdatedAt: mock.updatedAt };
     }
     throw error;
   }
@@ -360,8 +363,18 @@ export async function getRecentTaskArchive(): Promise<Array<{ taskId: string; ta
 
   try {
     const raw = await tasksApi.getRecentTasks();
-    const data = raw?.data?.data || raw?.data || raw || [];
-    return Array.isArray(data) ? data : [];
+    const data = unwrapApiPayload(raw);
+    const list = Array.isArray(data) ? data : asArray(readValue(data, 'items'));
+    return list.map((item) => {
+      const record = asUnknownRecord(item);
+      return {
+        taskId: firstString(record, ['taskId', 'task_id']),
+        taskTitle: firstString(record, ['taskTitle', 'task_title']),
+        status: firstString(record, ['status']),
+        recentStep: firstString(record, ['recentStep', 'recent_step']) || undefined,
+        updatedAt: firstString(record, ['updatedAt', 'updated_at']),
+      };
+    });
   } catch (error: unknown) {
     if (isClientError(error)) throw error;
     if (isNetworkOrServerError(error)) {
@@ -378,7 +391,7 @@ export async function getRecentTaskArchive(): Promise<Array<{ taskId: string; ta
   }
 }
 
-export async function continueTaskArchive(taskId: string, mode: string): Promise<{ resumeContext: any; nextRoute: string }> {
+export async function continueTaskArchive(taskId: string, mode: string): Promise<{ resumeContext: unknown; nextRoute: string }> {
   if (FORCE_MOCK) {
     return { resumeContext: { taskId, mode }, nextRoute: '/workbench' };
   }
@@ -396,7 +409,7 @@ export async function continueTaskArchive(taskId: string, mode: string): Promise
   }
 }
 
-export async function setCurrentTaskArchiveVersion(taskId: string, versionType: string, versionId: string): Promise<any> {
+export async function setCurrentTaskArchiveVersion(taskId: string, versionType: string, versionId: string): Promise<ReturnType<typeof normalizeTaskArchiveDetailResponse>> {
   if (FORCE_MOCK) {
     return getTaskArchiveDetail(taskId);
   }
@@ -426,4 +439,17 @@ function filterMockTasks(params?: { taskTitle?: string; taskType?: string; statu
     tasks = tasks.filter((t) => t.status === params.status);
   }
   return tasks;
+}
+
+function unwrapApiData(raw: unknown): UnknownRecord {
+  return asUnknownRecord(unwrapApiPayload(raw));
+}
+
+function unwrapApiPayload(raw: unknown): unknown {
+  const root = asUnknownRecord(raw);
+  const data = root.data;
+  const dataRecord = asUnknownRecord(data);
+  if (dataRecord.data !== undefined) return dataRecord.data;
+  if (data !== undefined) return data;
+  return raw;
 }

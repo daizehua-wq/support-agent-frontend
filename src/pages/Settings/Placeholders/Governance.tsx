@@ -25,10 +25,16 @@ function SettingsGovernancePage() {
 
   const load = () => {
     setLoading(true); setError(false);
-    settingsAdapter.getGovernance().then((d) => setEvents(d.events || [])).catch(() => setError(true)).finally(() => setLoading(false));
+    settingsAdapter.getGovernance().then((d) => setEvents((d.events as GovernanceEvent[]) || [])).catch(() => setError(true)).finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    settingsAdapter.getGovernance()
+      .then((d) => { if (!cancelled) { setEvents((d.events as GovernanceEvent[]) || []); setLoading(false); } })
+      .catch(() => { if (!cancelled) { setError(true); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, []);
 
   const filtered = useMemo(() => typeFilter === 'all' ? events : events.filter((e) => e.type === typeFilter), [typeFilter, events]);
 

@@ -19,12 +19,11 @@ function TaskDetailPage() {
   const navigate = useNavigate();
   const [showContinue, setShowContinue] = useState(false);
   const [task, setTask] = useState<TaskArchiveItem | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(taskId));
   const [detailError, setDetailError] = useState(false);
 
   useEffect(() => {
     if (!taskId) {
-      setLoading(false);
       return;
     }
     let cancelled = false;
@@ -41,6 +40,39 @@ function TaskDetailPage() {
     });
     return () => { cancelled = true; };
   }, [taskId]);
+
+  const handleSetCurrent = useCallback(async (version: TaskVersionRecord) => {
+    if (!taskId) return;
+    try {
+      const refreshed = await archiveAdapter.setCurrentTaskArchiveVersion(taskId, version.kind, version.versionId);
+      setTask(refreshed as unknown as TaskArchiveItem);
+      message.success(`已将 ${version.label} 设为当前${version.kind === 'task_plan' ? '计划' : version.kind === 'evidence_pack' ? '证据包' : '版本'}`);
+    } catch {
+      message.error('设置当前版本失败');
+    }
+  }, [taskId]);
+
+  const handleContinueModal = useCallback(async (mode: string) => {
+    if (!task) return;
+    setShowContinue(false);
+
+    const validModes = ['continue-output', 'supplement-regenerate', 'edit-goal', 'clone-task-structure'];
+    if (!validModes.includes(mode)) {
+      message.error('无效的继续模式');
+      return;
+    }
+
+    const route = '/workbench';
+
+    try {
+      const result = await archiveAdapter.continueTaskArchive(task.taskId, mode);
+      const ctx = result.resumeContext as { taskId?: string } | undefined;
+      navigate(route, { state: { mode, taskId: ctx?.taskId || task.taskId, resumeContext: result.resumeContext } });
+    } catch {
+      message.error('继续推进失败');
+
+    }
+  }, [task, navigate]);
 
   if (!taskId) {
     return (
@@ -75,38 +107,6 @@ function TaskDetailPage() {
   const allVersions = [...task.planVersions, ...task.evidencePackVersions, ...task.outputVersions].sort(
     (a, b) => b.createdAt.localeCompare(a.createdAt),
   );
-
-  const handleSetCurrent = useCallback(async (version: TaskVersionRecord) => {
-    if (!taskId) return;
-    try {
-      const refreshed = await archiveAdapter.setCurrentTaskArchiveVersion(taskId, version.kind, version.versionId);
-      setTask(refreshed as unknown as TaskArchiveItem);
-      message.success(`已将 ${version.label} 设为当前${version.kind === 'task_plan' ? '计划' : version.kind === 'evidence_pack' ? '证据包' : '版本'}`);
-    } catch {
-      message.error('设置当前版本失败');
-    }
-  }, [taskId]);
-
-  const handleContinueModal = useCallback(async (mode: string) => {
-    if (!task) return;
-    setShowContinue(false);
-
-    const validModes = ['continue-output', 'supplement-regenerate', 'edit-goal', 'clone-task-structure'];
-    if (!validModes.includes(mode)) {
-      message.error('无效的继续模式');
-      return;
-    }
-
-    const route = '/workbench';
-
-    try {
-      const result = await archiveAdapter.continueTaskArchive(task.taskId, mode);
-      navigate(route, { state: { mode, taskId: result.resumeContext?.taskId || task.taskId, resumeContext: result.resumeContext } });
-    } catch {
-      message.error('继续推进失败');
-
-    }
-  }, [task, navigate]);
 
   const currentOutput = task.outputVersions.find((v: TaskVersionRecord) => v.status === 'active') || task.outputVersions[task.outputVersions.length - 1];
 
@@ -153,7 +153,7 @@ function TaskDetailPage() {
       {/* Version Records */}
       <Card size="small" style={{ borderRadius: 22, marginTop: 14 }} styles={{ body: { padding: 16 } }}>
         <Typography.Text strong style={{ fontSize: 14, display: 'block', marginBottom: 10 }}>版本记录</Typography.Text>
-        <VersionRecordTable versions={allVersions} onSetCurrent={handleSetCurrent} readonly={(task as any).source === 'legacy_session'} />
+        <VersionRecordTable versions={allVersions} onSetCurrent={handleSetCurrent} readonly={task.source === 'legacy_session'} />
       </Card>
 
       {/* Execution Timeline */}

@@ -401,7 +401,7 @@ export function normalizeTaskArchiveListResponse(raw: unknown): TaskArchiveItem[
   return items.map(normalizeTaskArchiveItem);
 }
 
-export function normalizeTaskArchiveItem(raw: unknown): TaskArchiveItem {
+function normalizeTaskArchiveItem(raw: unknown): TaskArchiveItem {
   const item = asUnknownRecord(raw);
   const executionContext = firstRecord(item, ['executionContext', 'execution_context']);
   const taskPlanner = firstRecord(executionContext, ['taskPlanner', 'task_planner']);

@@ -1857,6 +1857,11 @@ body {
 
 /* --- 1024 narrow screen --- */
 @media (max-width: 1024px) {
+  .ap-settings-center {
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 14px;
+  }
+
   .ap-home-sections {
     grid-template-columns: 1fr;
   }

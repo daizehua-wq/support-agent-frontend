@@ -27,16 +27,6 @@ export interface KnowledgeSource {
   updatedAt: string;
 }
 
-export interface ApplicationPackBinding {
-  id: string;
-  label: string;
-  name: string;
-  assistantName: string;
-  dataSourceName: string;
-  ruleName: string;
-  status: 'active' | 'inactive';
-}
-
 export interface StrategyToggle {
   id: string;
   label: string;

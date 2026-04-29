@@ -17,12 +17,6 @@ export interface TaskVersionRecord {
   summary?: string;
 }
 
-export interface TaskArchiveOutputSummary {
-  currentVersionLabel: string;
-  outputVersionCount: number;
-  formalPreview: string;
-}
-
 export interface TaskArchiveItem {
   taskId: string;
   taskTitle: string;
@@ -52,12 +46,3 @@ export interface TaskArchiveItem {
   hasOutput: boolean;
   source?: 'task' | 'legacy_session';
 }
-
-export type TaskTypeFilter = 'all' | TaskArchiveType;
-export type TaskStatusFilter = 'all' | TaskArchiveStatus;
-
-export type ContinueTaskMode =
-  | 'continue-output'
-  | 'supplement-regenerate'
-  | 'edit-goal'
-  | 'clone-task-structure';

@@ -58,7 +58,3 @@ export interface SettingsCenterState {
   recentGovernance: GovernancePreviewItem[];
   degradedCapabilities: string[];
 }
-
-export interface SideNavConfig {
-  items: SettingsNavItem[];
-}

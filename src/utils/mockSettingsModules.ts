@@ -1,7 +1,6 @@
 import type {
   SettingsRule,
   KnowledgeSource,
-  ApplicationPackBinding,
   StrategyToggle,
   GovernanceEvent,
   RuntimeModuleState,
@@ -19,12 +18,6 @@ export const MOCK_KNOWLEDGE: KnowledgeSource[] = [
   { id: 'k2', name: 'Reference Pack', type: 'reference_pack', status: 'ready', itemCount: 42, updatedAt: '2026-04-27' },
   { id: 'k3', name: '业务 FAQ', type: 'faq', status: 'connected', itemCount: 89, updatedAt: '2026-04-26' },
   { id: 'k4', name: '产品资料', type: 'product_docs', status: 'degraded', itemCount: 230, updatedAt: '2026-04-25' },
-];
-
-export const MOCK_APP_PACKS: ApplicationPackBinding[] = [
-  { id: 'ap1', label: '销售场景包', name: 'sales-scenario-pack', assistantName: '销售支持助手', dataSourceName: '内部知识库 + 企查查', ruleName: '销售场景规则集', status: 'active' },
-  { id: 'ap2', label: '客户分析场景包', name: 'customer-analysis-pack', assistantName: '客户分析助手', dataSourceName: '内部知识库 + Reference Pack', ruleName: '客户分析规则集', status: 'active' },
-  { id: 'ap3', label: '资料检索场景包', name: 'evidence-search-pack', assistantName: '资料检索助手', dataSourceName: '内部知识库', ruleName: '检索规则集', status: 'active' },
 ];
 
 export const MOCK_STRATEGIES: StrategyToggle[] = [

@@ -128,18 +128,6 @@ export default defineConfig({
             return 'assistant-center-page'
           }
 
-          if (id.includes('/src/pages/Search/')) {
-            return 'search-page'
-          }
-
-          if (id.includes('/src/pages/Script/')) {
-            return 'script-page'
-          }
-
-          if (id.includes('/src/pages/Sessopns/')) {
-            return 'session-page'
-          }
-
           if (
             id.includes('/src/components/governance/') ||
             id.includes('/src/api/assistantCenter') ||

@@ -44,6 +44,7 @@ function WorkbenchPage() {
   const { execution, execStatus, start, stop, retryStep, skipEvidenceAndContinue, reset } = useTaskExecution();
 
   const executionWbState: WorkbenchState | null = useMemo(() => {
+    if (execStatus === 'degraded') return 'degraded';
     if (execStatus === 'running') return 'running';
     if (execStatus === 'done') return execution?.steps.some((s) => s.status === 'degraded') ? 'degraded' : 'done';
     if (execStatus === 'failed') return 'failed';

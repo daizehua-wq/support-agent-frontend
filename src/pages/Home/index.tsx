@@ -65,7 +65,7 @@ function HomePage() {
   const handleReloadRecent = () => {
     setRecentLoading(true);
     setRecentError(false);
-    archiveAdapter.getRecentTaskArchive().then((items) => {
+    archiveAdapter.getRecentTaskArchive({ allowFallback: false }).then((items) => {
       setRecentTasks(items.map((t) => ({
         taskId: t.taskId,
         title: t.taskTitle,
@@ -82,7 +82,7 @@ function HomePage() {
 
   useEffect(() => {
     let cancelled = false;
-    archiveAdapter.getRecentTaskArchive().then((items) => {
+    archiveAdapter.getRecentTaskArchive({ allowFallback: false }).then((items) => {
       if (!cancelled) {
         setRecentTasks(items.map((t) => ({
           taskId: t.taskId,

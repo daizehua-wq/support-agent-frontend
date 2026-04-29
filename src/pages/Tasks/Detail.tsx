@@ -12,13 +12,27 @@ import ContinueTaskModal from '../../components/tasks/ContinueTaskModal';
 import TaskArchiveHeader from '../../components/tasks/TaskArchiveHeader';
 import VersionRecordTable from '../../components/tasks/VersionRecordTable';
 import * as archiveAdapter from '../../utils/taskApiAdapter';
+import { asArray, asUnknownRecord, readString } from '../../utils/unknownRecord';
 import type { TaskArchiveItem, TaskVersionRecord } from '../../types/taskArchive';
+
+type TaskArchiveDetail = TaskArchiveItem & {
+  taskPlan: unknown;
+  execution: unknown;
+  currentPlanVersionId: string | null;
+  currentEvidencePackVersionId: string | null;
+  currentOutputVersionId: string | null;
+  outputSummary: string;
+  riskSummary: string;
+  source: 'task' | 'legacy_session';
+  createdAt: string;
+  withUpdatedAt: string;
+};
 
 function TaskDetailPage() {
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
   const [showContinue, setShowContinue] = useState(false);
-  const [task, setTask] = useState<TaskArchiveItem | null>(null);
+  const [task, setTask] = useState<TaskArchiveDetail | null>(null);
   const [loading, setLoading] = useState(Boolean(taskId));
   const [detailError, setDetailError] = useState(false);
 
@@ -29,7 +43,7 @@ function TaskDetailPage() {
     let cancelled = false;
     archiveAdapter.getTaskArchiveDetail(taskId).then((detail) => {
       if (!cancelled) {
-        setTask(detail as unknown as TaskArchiveItem);
+        setTask(detail);
       }
     }).catch(() => {
       if (!cancelled) {
@@ -45,7 +59,7 @@ function TaskDetailPage() {
     if (!taskId) return;
     try {
       const refreshed = await archiveAdapter.setCurrentTaskArchiveVersion(taskId, version.kind, version.versionId);
-      setTask(refreshed as unknown as TaskArchiveItem);
+      setTask(refreshed);
       message.success(`已将 ${version.label} 设为当前${version.kind === 'task_plan' ? '计划' : version.kind === 'evidence_pack' ? '证据包' : '版本'}`);
     } catch {
       message.error('设置当前版本失败');
@@ -110,9 +124,68 @@ function TaskDetailPage() {
 
   const currentOutput = task.outputVersions.find((v: TaskVersionRecord) => v.status === 'active') || task.outputVersions[task.outputVersions.length - 1];
 
+  const taskPlanRecord = (task.taskPlan != null && typeof task.taskPlan === 'object') ? task.taskPlan as Record<string, unknown> : null;
+  const hasTaskPlan = Boolean(taskPlanRecord && Object.keys(taskPlanRecord).length > 0);
+
   return (
     <div className="ap-task-detail">
       <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/tasks')} style={{ marginBottom: 16 }}>返回历史任务</Button>
+
+      {/* Task Plan */}
+      {hasTaskPlan && (
+        <Card size="small" style={{ borderRadius: 22, marginTop: 14 }} styles={{ body: { padding: 16 } }}>
+          <Typography.Text strong style={{ fontSize: 14, display: 'block', marginBottom: 10 }}>
+            <FileSearchOutlined style={{ marginRight: 6 }} />任务计划
+          </Typography.Text>
+          {(() => {
+            const plan = asUnknownRecord(taskPlanRecord!);
+            const steps = asArray(plan.steps);
+            const missingInfo = asArray(plan.missingInfo);
+            return (
+              <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                {steps.length > 0 && (
+                  <div>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>执行步骤：</Typography.Text>
+                    {steps.map((step, i) => {
+                      const s = asUnknownRecord(step);
+                      const stepType = readString(s, 'type') || 'analysis';
+                      const typeColors: Record<string, string> = { analysis: '#3b82f6', evidence: '#f59e0b', output: '#10b981', save: '#6366f1' };
+                      return (
+                        <div key={i} style={{ padding: '4px 0', fontSize: 13 }}>
+                          <Tag color={typeColors[stepType] || 'default'} style={{ fontSize: 10, marginRight: 6 }}>
+                            {stepType === 'analysis' ? '分析' : stepType === 'evidence' ? '证据检索' : stepType === 'output' ? '生成输出' : stepType === 'save' ? '保存' : stepType}
+                          </Tag>
+                          {readString(s, 'title') || `步骤 ${i + 1}`}
+                          {s.required === false ? ' (可选)' : stepType === 'analysis' ? ' (必须)' : ''}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {missingInfo.length > 0 && (
+                  <div>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>建议补充信息：</Typography.Text>
+                    {missingInfo.map((info, i) => {
+                      const m = asUnknownRecord(info);
+                      const level = readString(m, 'level');
+                      const levelColors: Record<string, string> = { required: 'red', recommended: 'orange', optional: 'default' };
+                      return (
+                        <div key={i} style={{ padding: '2px 0', fontSize: 12 }}>
+                          <Tag color={levelColors[level] || 'default'} style={{ fontSize: 10, marginRight: 6 }}>
+                            {level === 'required' ? '必填' : level === 'recommended' ? '建议' : '可选'}
+                          </Tag>
+                          {readString(m, 'label') || readString(m, 'field')}
+                          {readString(m, 'reason') ? ` — ${readString(m, 'reason')}` : ''}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Space>
+            );
+          })()}
+        </Card>
+      )}
 
       {/* Failed alerts */}
       {task.status === 'failed' && task.failureKind === 'external_source' && (

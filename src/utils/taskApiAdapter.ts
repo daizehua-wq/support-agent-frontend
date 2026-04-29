@@ -350,7 +350,9 @@ export async function getTaskArchiveDetail(taskId: string): Promise<ReturnType<t
   }
 }
 
-export async function getRecentTaskArchive(): Promise<Array<{ taskId: string; taskTitle: string; status: string; recentStep?: string; updatedAt: string }>> {
+export async function getRecentTaskArchive(options?: { allowFallback?: boolean }): Promise<Array<{ taskId: string; taskTitle: string; status: string; recentStep?: string; updatedAt: string }>> {
+  const allowFallback = options?.allowFallback !== false;
+
   if (FORCE_MOCK) {
     return MOCK_TASKS.slice(0, 3).map((t) => ({
       taskId: t.taskId,
@@ -377,7 +379,7 @@ export async function getRecentTaskArchive(): Promise<Array<{ taskId: string; ta
     });
   } catch (error: unknown) {
     if (isClientError(error)) throw error;
-    if (isNetworkOrServerError(error)) {
+    if (isNetworkOrServerError(error) && allowFallback) {
       showFallbackWarning();
       return MOCK_TASKS.slice(0, 3).map((t) => ({
         taskId: t.taskId,

@@ -36,6 +36,7 @@ function OutputPage() {
   const [showStopModal, setShowStopModal] = useState(false);
   const [showDegradedModal, setShowDegradedModal] = useState(false);
   const [showMissingDrawer, setShowMissingDrawer] = useState(false);
+  const [isSupplementWorkflow, setIsSupplementWorkflow] = useState(false);
 
   useEffect(() => {
     if (!taskId) {
@@ -119,6 +120,7 @@ function OutputPage() {
       return;
     }
     if (mode === 'supplement') {
+      setIsSupplementWorkflow(true);
       setShowMissingDrawer(true);
       return;
     }
@@ -174,6 +176,34 @@ function OutputPage() {
 
   const handleStopGenerating = () => {
     setShowStopModal(true);
+  };
+
+  const handleSupplementRegenerate = async (values: Record<string, string>) => {
+    if (!taskId) return;
+    setRegenerating(true);
+    try {
+      const note = Object.entries(values)
+        .filter(([, v]) => v?.trim())
+        .map(([k, v]) => `${k}: ${v}`)
+        .join('; ');
+      await outputAdapter.regenerateOutput(taskId, {
+        mode: 'supplement_regenerate',
+        ...(note ? { note } : {}),
+      });
+
+      const [freshOutput] = await Promise.all([
+        outputAdapter.getOutputDetail(taskId),
+        outputAdapter.getOutputVersions(taskId),
+      ]);
+
+      setRegenerating(false);
+      setOutput(freshOutput);
+      setViewVersionId(freshOutput.currentVersionId);
+      message.success('补充资料后新版本已生成');
+    } catch {
+      setRegenerating(false);
+      message.error('补充资料后生成失败，请重试');
+    }
   };
 
   const handleStopConfirm = () => {
@@ -331,14 +361,14 @@ function OutputPage() {
                     executionSteps={executionSteps}
                   />
                 )}
-                <Button icon={<EditOutlined />} onClick={() => message.info('Missing Info Drawer 将在后续 FE-8 接入。', 3)}>
+                <Button icon={<EditOutlined />} onClick={() => { setIsSupplementWorkflow(true); setShowMissingDrawer(true); }}>
                   补充资料再生成
                 </Button>
                 <Button icon={<HistoryOutlined />} onClick={() => navigate(`/tasks/${output.taskId}`)}>
                   查看历史任务
                 </Button>
                 {isInsufficient && (
-                  <Button icon={<ReloadOutlined />} onClick={handleRegenerate}>
+                  <Button icon={<ReloadOutlined />} onClick={() => { setIsSupplementWorkflow(true); setShowMissingDrawer(true); }}>
                     补充资料再生成
                   </Button>
                 )}
@@ -414,8 +444,25 @@ function OutputPage() {
           { key: 'outputTarget', label: '输出对象', level: 'recommended', value: '' },
           { key: 'toneStyle', label: '语气偏好', level: 'optional', value: '' },
         ]}
-        onSave={() => { setShowMissingDrawer(false); message.info('已保存补充信息。'); }}
-        onContinueLimited={() => { setShowMissingDrawer(false); }}
+        onSave={(values) => {
+          if (isSupplementWorkflow) {
+            setIsSupplementWorkflow(false);
+            setShowMissingDrawer(false);
+            handleSupplementRegenerate(values);
+          } else {
+            setShowMissingDrawer(false);
+            message.success('补充信息已保存。');
+          }
+        }}
+        onContinueLimited={() => {
+          if (isSupplementWorkflow) {
+            setIsSupplementWorkflow(false);
+            setShowMissingDrawer(false);
+            handleSupplementRegenerate({});
+          } else {
+            setShowMissingDrawer(false);
+          }
+        }}
         onClose={() => setShowMissingDrawer(false)}
       />
     </div>

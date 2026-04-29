@@ -5,7 +5,6 @@ import { HistoryOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons
 import ContinueTaskModal from '../../components/tasks/ContinueTaskModal';
 import HistoryTaskCard from '../../components/tasks/HistoryTaskCard';
 import HistoryTaskTable from '../../components/tasks/HistoryTaskTable';
-import { MOCK_TASKS } from '../../utils/mockTasks';
 import * as archiveAdapter from '../../utils/taskApiAdapter';
 import type { TaskArchiveItem } from '../../types/taskArchive';
 
@@ -34,15 +33,16 @@ function TasksPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [continueTarget, setContinueTarget] = useState<TaskArchiveItem | null>(null);
   const [showContinue, setShowContinue] = useState(false);
-  const [allTasks, setAllTasks] = useState<TaskArchiveItem[]>(MOCK_TASKS);
+  const [allTasks, setAllTasks] = useState<TaskArchiveItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     archiveAdapter.getTaskArchiveList().then((items) => {
       if (!cancelled) setAllTasks(items);
     }).catch(() => {
-      // fallback to MOCK_TASKS already in state
+      if (!cancelled) setListError(true);
     }).finally(() => {
       if (!cancelled) setLoading(false);
     });
@@ -131,8 +131,20 @@ function TasksPage() {
         </Card>
       )}
 
+      {/* List Error */}
+      {!loading && listError && (
+        <Card style={{ borderRadius: 28, textAlign: 'center', padding: 40 }}>
+          <Typography.Text type="secondary" style={{ fontSize: 15, display: 'block', marginBottom: 12 }}>历史任务加载失败</Typography.Text>
+          <Typography.Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 16 }}>暂时无法获取历史任务列表。你仍可以进入工作台创建新任务。</Typography.Text>
+          <Space>
+            <Button onClick={() => window.location.reload()}>重新加载</Button>
+            <Button type="primary" onClick={() => navigate('/workbench')}>进入工作台</Button>
+          </Space>
+        </Card>
+      )}
+
       {/* Continue Highlight */}
-      {!loading && continuableTasks.length > 0 && search === '' && statusFilter === 'all' && (
+      {!loading && !listError && continuableTasks.length > 0 && search === '' && statusFilter === 'all' && (
         <div className="ap-task-highlight">
           <Typography.Title level={5} style={{ margin: '0 0 12px' }}>
             你有 {continuableTasks.length} 个可继续任务
@@ -147,7 +159,7 @@ function TasksPage() {
       )}
 
       {/* True Empty */}
-      {!loading && allTasks.length === 0 && (
+      {!loading && !listError && allTasks.length === 0 && (
         <Card style={{ borderRadius: 28, textAlign: 'center', padding: 40, minHeight: 300, display: 'grid', placeItems: 'center' }}>
           <div>
             <Typography.Text type="secondary" style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>

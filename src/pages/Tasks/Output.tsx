@@ -10,7 +10,6 @@ import {
   ReloadOutlined,
   StopOutlined,
 } from '@ant-design/icons';
-import { generateMockOutput } from '../../utils/mockOutput';
 import * as outputAdapter from '../../utils/taskApiAdapter';
 import EvidenceCard from '../../components/output/EvidenceCard';
 import MarkdownExportAction from '../../components/output/MarkdownExportAction';
@@ -29,6 +28,7 @@ function OutputPage() {
   const navigate = useNavigate();
   const [output, setOutput] = useState<OutputDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [outputError, setOutputError] = useState(false);
   const [activeTab, setActiveTab] = useState<OutputTabKey>('formal');
   const [viewVersionId, setViewVersionId] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
@@ -54,7 +54,7 @@ function OutputPage() {
         }
       } catch {
         if (!cancelled) {
-          setOutput(generateMockOutput(id));
+          setOutputError(true);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -190,6 +190,19 @@ function OutputPage() {
     return (
       <div style={{ display: 'grid', placeItems: 'center', minHeight: '50vh' }}>
         <Spin size="large" tip="加载 Output…" />
+      </div>
+    );
+  }
+
+  if (outputError) {
+    return (
+      <div style={{ maxWidth: 760, margin: '60px auto', textAlign: 'center', padding: 24 }}>
+        <FileTextOutlined style={{ fontSize: 48, color: '#94a3b8' }} />
+        <Typography.Title level={4} style={{ marginTop: 16 }}>Output 加载失败</Typography.Title>
+        <Typography.Paragraph type="secondary">暂时无法获取该任务的 Output 信息。</Typography.Paragraph>
+        <Button type="primary" size="large" icon={<ArrowLeftOutlined />} onClick={() => navigate('/workbench')}>
+          返回工作台
+        </Button>
       </div>
     );
   }

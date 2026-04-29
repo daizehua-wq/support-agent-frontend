@@ -18,12 +18,31 @@ type ApiError = {
   message?: string;
 };
 
+export function shouldUseTaskMock(): boolean {
+  return FORCE_MOCK;
+}
+
+const CLIENT_ERROR_CODES = new Set([
+  'MISSING_REQUIRED_INFO',
+  'VALIDATION_ERROR',
+  'TASK_NOT_FOUND',
+  'TASK_STATUS_CONFLICT',
+  'TASK_NOT_READY',
+  'TASK_OUTPUT_NOT_READY',
+  'OUTPUT_VERSION_NOT_FOUND',
+  'PLAN_VERSION_NOT_FOUND',
+  'EVIDENCE_VERSION_NOT_FOUND',
+  'PERMISSION_DENIED',
+  'CONTINUE_FAILED',
+  'INVALID_VERSION_TYPE',
+]);
+
 function isClientError(error: unknown): boolean {
   const e = error as ApiError;
   const status = e?.response?.status;
   if (status && status >= 400 && status < 500 && status !== 429) return true;
   const code = e?.response?.data?.error?.code || '';
-  return ['MISSING_REQUIRED_INFO', 'VALIDATION_ERROR'].includes(code);
+  return CLIENT_ERROR_CODES.has(code);
 }
 
 function isNetworkOrServerError(error: unknown): boolean {
@@ -31,6 +50,12 @@ function isNetworkOrServerError(error: unknown): boolean {
   if (!e?.response) return true;
   const status = e.response?.status;
   return status ? status >= 500 : false;
+}
+
+const FALLBACK_WARNING = '已切换至离线模式，当前展示的是本地示例数据。';
+
+function showFallbackWarning() {
+  message.warning(FALLBACK_WARNING, 3);
 }
 
 export async function generateTaskPlan(userGoal: string, appId?: string): Promise<TaskPlan> {
@@ -53,7 +78,7 @@ export async function generateTaskPlan(userGoal: string, appId?: string): Promis
     }
 
     if (isNetworkOrServerError(error)) {
-      message.warning('已切换至离线规划模式', 3);
+      showFallbackWarning();
       return generateMockPlan(goal);
     }
 
@@ -72,7 +97,7 @@ export async function confirmTask(taskId: string, goal: string, missingInfoValue
   } catch (error: unknown) {
     if (isClientError(error)) throw error;
     if (isNetworkOrServerError(error)) {
-      message.warning('已切换至离线执行模式', 3);
+      showFallbackWarning();
       return runMockExecution(goal, taskId, () => {});
     }
     throw error;
@@ -90,7 +115,7 @@ export async function getExecution(taskId: string, goal: string): Promise<TaskEx
   } catch (error: unknown) {
     if (isClientError(error)) throw error;
     if (isNetworkOrServerError(error)) {
-      message.warning('已切换至离线执行模式', 3);
+      showFallbackWarning();
       return runMockExecution(goal, taskId, () => {});
     }
     throw error;
@@ -124,7 +149,7 @@ export async function getOutputDetail(taskId: string): Promise<OutputDetail> {
     }
 
     if (isNetworkOrServerError(error)) {
-      message.warning('已切换至离线 Output 模式', 3);
+      showFallbackWarning();
       return generateMockOutput(taskId);
     }
 
@@ -147,7 +172,7 @@ export async function getOutputVersions(taskId: string): Promise<{ taskId: strin
     }
 
     if (isNetworkOrServerError(error)) {
-      message.warning('已切换至离线版本模式', 3);
+      showFallbackWarning();
       const mock = generateMockOutput(taskId);
       return { taskId: mock.taskId, currentVersionId: mock.currentVersionId, versions: mock.versions };
     }
@@ -191,6 +216,30 @@ export async function regenerateOutput(
     return data;
   } catch (error: unknown) {
     if (isClientError(error)) throw error;
+    if (isNetworkOrServerError(error)) {
+      showFallbackWarning();
+      const mock = generateMockOutput(taskId);
+      const label = `v${mock.versions.length + 1}`;
+      const versionId = `${taskId}-v${mock.versions.length + 1}`;
+      return {
+        taskId,
+        versionId,
+        label,
+        status: 'success',
+        currentVersionId: versionId,
+        output: {
+          versionId,
+          label,
+          status: 'success',
+          isCurrent: true,
+          reason: payload.note || '重新生成',
+          createdAt: new Date().toISOString(),
+          formalVersion: mock.versions[0]?.formalVersion || '',
+          conciseVersion: mock.versions[0]?.conciseVersion || '',
+          spokenVersion: mock.versions[0]?.spokenVersion || '',
+        },
+      };
+    }
     throw error;
   }
 }
@@ -211,7 +260,7 @@ export async function setCurrentOutputVersion(
   } catch (error: unknown) {
     if (isClientError(error)) throw error;
     if (isNetworkOrServerError(error)) {
-      message.warning('已切换至离线版本管理模式', 3);
+      showFallbackWarning();
       const mock = generateMockOutput(taskId);
       const updated = mock.versions.map((v) => ({ ...v, isCurrent: v.versionId === versionId }));
       return { taskId: mock.taskId, currentVersionId: versionId, versions: updated };
@@ -247,7 +296,7 @@ export async function exportOutputMarkdown(
   } catch (error: unknown) {
     if (isClientError(error)) throw error;
     if (isNetworkOrServerError(error) && fallbackData) {
-      message.warning('已切换至本地 Markdown 导出', 3);
+      showFallbackWarning();
       const md = buildOutputMarkdown(fallbackData.taskTitle, fallbackData.taskGoal, fallbackData.currentVersion, fallbackData.executionSteps, fallbackData.evidences, fallbackData.risks);
       const filename = `output-${fallbackData.currentVersion.label}-${Date.now()}.md`;
       return { filename, markdown: md };
@@ -269,7 +318,7 @@ export async function getTaskArchiveList(params?: { taskTitle?: string; taskType
   } catch (error: unknown) {
     if (isClientError(error)) throw error;
     if (isNetworkOrServerError(error)) {
-      message.warning('已切换至离线历史任务模式', 3);
+      showFallbackWarning();
       return filterMockTasks(params);
     }
     throw error;
@@ -289,7 +338,7 @@ export async function getTaskArchiveDetail(taskId: string): Promise<any> {
   } catch (error: unknown) {
     if (isClientError(error)) throw error;
     if (isNetworkOrServerError(error)) {
-      message.warning('已切换至离线任务详情模式', 3);
+      showFallbackWarning();
       const mock = MOCK_TASKS.find((t) => t.taskId === taskId);
       if (!mock) throw new Error('TASK_NOT_FOUND');
       return { ...mock, taskPlan: null, execution: null, currentPlanVersionId: null, currentEvidencePackVersionId: null, currentOutputVersionId: null, source: 'legacy_session', createdAt: mock.updatedAt, updatedAt: mock.updatedAt };
@@ -316,7 +365,7 @@ export async function getRecentTaskArchive(): Promise<Array<{ taskId: string; ta
   } catch (error: unknown) {
     if (isClientError(error)) throw error;
     if (isNetworkOrServerError(error)) {
-      message.warning('已切换至离线最近任务模式', 3);
+      showFallbackWarning();
       return MOCK_TASKS.slice(0, 3).map((t) => ({
         taskId: t.taskId,
         taskTitle: t.taskTitle,
@@ -340,7 +389,7 @@ export async function continueTaskArchive(taskId: string, mode: string): Promise
   } catch (error: unknown) {
     if (isClientError(error)) throw error;
     if (isNetworkOrServerError(error)) {
-      message.warning('已切换至离线继续模式', 3);
+      showFallbackWarning();
       return { resumeContext: { taskId, mode }, nextRoute: '/workbench' };
     }
     throw error;
@@ -358,7 +407,7 @@ export async function setCurrentTaskArchiveVersion(taskId: string, versionType: 
   } catch (error: unknown) {
     if (isClientError(error)) throw error;
     if (isNetworkOrServerError(error)) {
-      message.warning('已切换至离线版本管理模式', 3);
+      showFallbackWarning();
       return getTaskArchiveDetail(taskId);
     }
     throw error;

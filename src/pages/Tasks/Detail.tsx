@@ -11,7 +11,6 @@ import {
 import ContinueTaskModal from '../../components/tasks/ContinueTaskModal';
 import TaskArchiveHeader from '../../components/tasks/TaskArchiveHeader';
 import VersionRecordTable from '../../components/tasks/VersionRecordTable';
-import { MOCK_TASKS } from '../../utils/mockTasks';
 import * as archiveAdapter from '../../utils/taskApiAdapter';
 import type { TaskArchiveItem, TaskVersionRecord } from '../../types/taskArchive';
 
@@ -21,6 +20,7 @@ function TaskDetailPage() {
   const [showContinue, setShowContinue] = useState(false);
   const [task, setTask] = useState<TaskArchiveItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [detailError, setDetailError] = useState(false);
 
   useEffect(() => {
     if (!taskId) {
@@ -34,8 +34,7 @@ function TaskDetailPage() {
       }
     }).catch(() => {
       if (!cancelled) {
-        const mock = MOCK_TASKS.find((t) => t.taskId === taskId) || null;
-        setTask(mock);
+        setDetailError(true);
       }
     }).finally(() => {
       if (!cancelled) setLoading(false);
@@ -47,6 +46,20 @@ function TaskDetailPage() {
     return (
       <div style={{ maxWidth: 760, margin: '60px auto', textAlign: 'center' }}>
         <Typography.Text type="secondary">未提供任务 ID</Typography.Text>
+      </div>
+    );
+  }
+
+  if (detailError) {
+    return (
+      <div style={{ maxWidth: 760, margin: '60px auto', textAlign: 'center', padding: 24 }}>
+        <FileSearchOutlined style={{ fontSize: 48, color: '#94a3b8' }} />
+        <Typography.Title level={4} style={{ marginTop: 16 }}>任务详情加载失败</Typography.Title>
+        <Typography.Paragraph type="secondary">暂时无法获取该任务的详情信息。</Typography.Paragraph>
+        <Space>
+          <Button onClick={() => navigate('/tasks')}>返回历史任务</Button>
+          <Button type="primary" onClick={() => navigate('/workbench')}>进入工作台</Button>
+        </Space>
       </div>
     );
   }

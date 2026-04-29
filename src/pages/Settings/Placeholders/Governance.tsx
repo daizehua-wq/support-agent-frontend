@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
-import { Select } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
+import { Button, Select, Spin, Typography } from 'antd';
 import GovernanceDetailDrawer from '../../../components/settings/GovernanceDetailDrawer';
 import GovernanceLogCard from '../../../components/settings/GovernanceLogCard';
 import SettingsModuleShell from '../../../components/settings/SettingsModuleShell';
-import { MOCK_GOVERNANCE } from '../../../utils/mockSettingsModules';
+import * as settingsAdapter from '../../../utils/settingsCenterAdapter';
 import type { GovernanceEvent } from '../../../types/settingsModules';
 
 const TYPE_OPTIONS: Array<{ value: string; label: string }> = [
@@ -19,10 +19,21 @@ const TYPE_OPTIONS: Array<{ value: string; label: string }> = [
 function SettingsGovernancePage() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [detailEvent, setDetailEvent] = useState<GovernanceEvent | null>(null);
-  const filtered = useMemo(
-    () => (typeFilter === 'all' ? MOCK_GOVERNANCE : MOCK_GOVERNANCE.filter((e) => e.type === typeFilter)),
-    [typeFilter],
-  );
+  const [events, setEvents] = useState<GovernanceEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const load = () => {
+    setLoading(true); setError(false);
+    settingsAdapter.getGovernance().then((d) => setEvents(d.events || [])).catch(() => setError(true)).finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const filtered = useMemo(() => typeFilter === 'all' ? events : events.filter((e) => e.type === typeFilter), [typeFilter, events]);
+
+  if (loading) return <SettingsModuleShell title="治理历史" description=""><div style={{textAlign:'center',padding:40}}><Spin /></div></SettingsModuleShell>;
+  if (error) return <SettingsModuleShell title="治理历史" description=""><div style={{textAlign:'center',padding:40}}><Typography.Text type="secondary">设置数据加载失败</Typography.Text><br/><Button style={{marginTop:12}} onClick={load}>重新加载</Button></div></SettingsModuleShell>;
 
   return (
     <>

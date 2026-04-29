@@ -149,6 +149,12 @@ async function main() {
   const modelsKey = PERMISSION_REQUIRED['/settings/models'];
   assert('user /settings/models permission=false', userPerm[modelsKey] === false);
 
+  // UI/admin permissions
+  assert('user canAccessAdminUi=false', userPerm.canAccessAdminUi === false);
+  assert('user canAccessPlatformManager=false', userPerm.canAccessPlatformManager === false);
+  assert('system_admin canAccessAdminUi=true', adminPerm.canAccessAdminUi === true);
+  assert('system_admin canAccessPlatformManager=true', adminPerm.canAccessPlatformManager === true);
+
   // system_admin → /settings/models allowed
   assert('system_admin /settings/models permission=true', adminPerm[modelsKey] === true);
 
@@ -171,6 +177,16 @@ async function main() {
 
   // permissionAdapter fallback: user should be the conservative default
   assert('PERMISSION_REQUIRED has 8 entries', Object.keys(PERMISSION_REQUIRED).length === 8);
+
+  // settings-center API response checks
+  const appsRes = await api('GET', '/api/settings-center/apps');
+  const appsData = inner(appsRes);
+  assert('settings-center apps has platformManager', !!appsData?.platformManager);
+  assert('settings-center apps has adminUi', !!appsData?.adminUi);
+
+  const overviewRes = await api('GET', '/api/settings-center/overview');
+  const overviewData = inner(overviewRes);
+  assert('settings-center overview has degradedCapabilities', Array.isArray(overviewData?.degradedCapabilities));
   console.log('');
 
   // ====================================================================

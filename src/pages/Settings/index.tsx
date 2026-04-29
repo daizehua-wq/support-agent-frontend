@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Alert, Button, Card, Space, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Space, Spin, Tag, Typography, message } from 'antd';
 import {
   AuditOutlined,
+  ReloadOutlined,
   SettingOutlined,
   ToolOutlined,
 } from '@ant-design/icons';
@@ -19,6 +20,7 @@ import {
   getNoPermission,
 } from '../../utils/mockSettingsCenter';
 import * as permissionAdapter from '../../utils/permissionAdapter';
+import * as settingsAdapter from '../../utils/settingsCenterAdapter';
 import type { PermissionSummary } from '../../types/permissions';
 import type { SettingsCenterState, SettingsNavItem } from '../../types/settingsCenter';
 
@@ -45,12 +47,28 @@ function SettingsPage() {
   const navigate = useNavigate();
   const [scenarioKey, setScenarioKey] = useState('default');
   const [permissionSummary, setPermissionSummary] = useState<PermissionSummary | null>(null);
+  const [overviewData, setOverviewData] = useState<any>(null);
+  const [overviewLoading, setOverviewLoading] = useState(true);
+  const [overviewError, setOverviewError] = useState(false);
 
   useEffect(() => {
     permissionAdapter.getPermissionSummary().then((summary) => {
       setPermissionSummary(summary);
     });
   }, []);
+
+  const loadOverview = () => {
+    setOverviewLoading(true); setOverviewError(false);
+    settingsAdapter.getOverview().then((d) => {
+      setOverviewData(d);
+    }).catch(() => {
+      setOverviewError(true);
+    }).finally(() => {
+      setOverviewLoading(false);
+    });
+  };
+
+  useEffect(() => { loadOverview(); }, []);
 
   const state: SettingsCenterState = useMemo(() => {
     switch (scenarioKey) {
@@ -127,7 +145,29 @@ function SettingsPage() {
           </Space>
         </div>
 
-        {/* Scenario Alerts */}
+        {/* Overview Loading */}
+        {overviewLoading && (
+          <Card style={{ borderRadius: 28, textAlign: 'center', padding: 40 }}><Spin tip="加载设置数据…" /></Card>
+        )}
+
+        {/* Overview Error */}
+        {!overviewLoading && overviewError && (
+          <Card style={{ borderRadius: 28, textAlign: 'center', padding: 40 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 15, display: 'block', marginBottom: 12 }}>设置数据加载失败</Typography.Text>
+            <Typography.Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 16 }}>暂时无法获取该设置模块数据，请稍后重试。</Typography.Text>
+            <Button icon={<ReloadOutlined />} onClick={loadOverview}>重新加载</Button>
+          </Card>
+        )}
+
+        {/* API Degraded Capabilities (primary data source) */}
+        {!overviewLoading && overviewData?.degradedCapabilities?.length > 0 && (
+          <Alert type="warning" banner showIcon message="部分能力降级"
+            description={overviewData.degradedCapabilities.map((d: any) => d.label || d.key).join('、') + '。部分任务可能受影响，建议尽快检查并恢复。'}
+            style={{ borderRadius: 20, marginBottom: 18 }}
+          />
+        )}
+
+        {/* Scenario Alerts (dev-only fallback) */}
         {state.scenario === 'degraded' && (
           <Alert type="warning" banner showIcon message="部分能力降级"
             description={`以下能力处于降级状态：${state.degradedCapabilities.join('、')}。部分任务可能受影响，建议尽快检查并恢复。`}
@@ -162,44 +202,36 @@ function SettingsPage() {
           compact={isUser}
         />
 
-        {/* Admin: System Health + External Source */}
+        {/* Admin: System Health (API-first) */}
         {isAdmin && (
           <>
             <Card size="small" style={{ borderRadius: 22, marginTop: 14 }} styles={{ body: { padding: 16 } }}>
               <Typography.Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>系统健康</Typography.Text>
               <Space size={6} wrap>
-                <Tag color={state.plannerModel.status === 'ready' ? 'green' : state.plannerModel.status === 'degraded' ? 'orange' : 'red'} style={{ fontSize: 11 }}>
-                  Model Provider · {state.plannerModel.status === 'ready' ? '正常' : state.plannerModel.status}
-                </Tag>
-                <Tag color={state.defaultAssistant.status === 'healthy' ? 'green' : 'red'} style={{ fontSize: 11 }}>
-                  Assistant Runtime · {state.defaultAssistant.status === 'healthy' ? '正常' : '异常'}
-                </Tag>
-                <Tag color={state.defaultDataSource.status === 'healthy' ? 'green' : state.defaultDataSource.status === 'degraded' ? 'orange' : 'red'} style={{ fontSize: 11 }}>
-                  Data Source · {state.defaultDataSource.status === 'healthy' ? '正常' : state.defaultDataSource.status}
-                </Tag>
-                <Tag color={state.pythonRuntimeStatus === 'healthy' ? 'green' : 'red'} style={{ fontSize: 11 }}>
-                  PythonRuntime · {state.pythonRuntimeStatus === 'healthy' ? '正常' : '异常'}
-                </Tag>
-                <Tag color={state.secretVaultStatus === 'healthy' ? 'green' : 'red'} style={{ fontSize: 11 }}>
-                  Secret Vault · {state.secretVaultStatus === 'healthy' ? '正常' : '异常'}
-                </Tag>
-                <Tag color={state.apiGatewayStatus === 'healthy' ? 'green' : 'red'} style={{ fontSize: 11 }}>
-                  API Gateway · {state.apiGatewayStatus === 'healthy' ? '正常' : '异常'}
-                </Tag>
+                {(overviewData?.systemHealth || [
+                  { key: 'planner', label: '任务规划器', status: 'ok', summary: state.plannerModel.modelName },
+                  { key: 'assistant', label: 'Assistant', status: 'ok', summary: state.defaultAssistant.name },
+                  { key: 'model', label: '默认模型', status: 'ok', summary: state.defaultModel.name },
+                  { key: 'runtime', label: 'Python Runtime', status: 'ok', summary: '—' },
+                ]).map((h: any) => (
+                  <Tag key={h.key} color={h.status === 'ok' ? 'green' : h.status === 'warning' ? 'orange' : 'red'} style={{ fontSize: 11 }}>
+                    {h.label} · {h.status === 'ok' ? '正常' : h.status}
+                  </Tag>
+                ))}
               </Space>
             </Card>
 
-            {/* Recent Governance */}
-            {state.recentGovernance.length > 0 && (
+            {/* Recent Governance (API-first) */}
+            {(overviewData?.recentGovernanceEvents || state.recentGovernance).length > 0 && (
               <Card size="small" style={{ borderRadius: 22, marginTop: 14 }} styles={{ body: { padding: 16 } }}>
                 <Typography.Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
                   <AuditOutlined style={{ marginRight: 6 }} />最近治理变更
                 </Typography.Text>
-                {state.recentGovernance.map((g, i) => (
-                  <div key={i} style={{ padding: '6px 0', borderBottom: i < state.recentGovernance.length - 1 ? '1px solid rgba(203,213,225,0.36)' : 'none', fontSize: 13 }}>
-                    <Tag style={{ fontSize: 10 }}>{g.action}</Tag>
-                    <Typography.Text>{g.target}</Typography.Text>
-                    <Typography.Text type="secondary" style={{ fontSize: 11, marginLeft: 8 }}>{g.changedAt}</Typography.Text>
+                {(overviewData?.recentGovernanceEvents || state.recentGovernance).map((g: any, i: number) => (
+                  <div key={g.eventId || i} style={{ padding: '6px 0', borderBottom: i < (overviewData?.recentGovernanceEvents || state.recentGovernance).length - 1 ? '1px solid rgba(203,213,225,0.36)' : 'none', fontSize: 13 }}>
+                    <Tag style={{ fontSize: 10 }}>{g.type || g.action}</Tag>
+                    <Typography.Text>{g.title || g.target}</Typography.Text>
+                    <Typography.Text type="secondary" style={{ fontSize: 11, marginLeft: 8 }}>{g.createdAt || g.changedAt}</Typography.Text>
                   </div>
                 ))}
               </Card>
@@ -237,11 +269,11 @@ function SettingsPage() {
               </Space>
             </Card>
 
-            {(state.scenario === 'degraded' || state.degradedCapabilities.length > 0) && (
+            {(overviewData?.degradedCapabilities?.length > 0 || state.degradedCapabilities.length > 0) && (
               <Alert
                 type="warning" showIcon
                 message="部分能力降级"
-                description={`以下能力处于降级状态：${state.degradedCapabilities.join('、')}。如影响你当前的任务，请联系管理员。`}
+                description={`以下能力处于降级状态：${(overviewData?.degradedCapabilities || state.degradedCapabilities).map((d: any) => d.label || d.key || d).join('、')}。如影响你当前的任务，请联系管理员。`}
                 style={{ borderRadius: 20, marginTop: 14 }}
               />
             )}
@@ -252,19 +284,24 @@ function SettingsPage() {
           </>
         )}
 
-        {/* Quick Links - Admin only */}
+        {/* Quick Links (API-first) */}
         {isAdmin && (
           <Card size="small" style={{ borderRadius: 22, marginTop: 14 }} styles={{ body: { padding: 16 } }}>
             <Typography.Text strong style={{ display: 'block', marginBottom: 10, fontSize: 14 }}>快捷入口</Typography.Text>
             <Space size={8} wrap>
-              <Button size="small" onClick={() => navigate('/settings/models')}>配置默认模型</Button>
-              <Button size="small" onClick={() => navigate('/settings/assistants')}>管理 Assistant</Button>
-              <Button size="small" onClick={() => navigate('/settings/data-sources')}>检查数据源</Button>
-              <Button size="small" onClick={() => navigate('/settings/runtime')}>查看运行状态</Button>
-              <Button size="small" onClick={() => navigate('/settings/governance')}>查看治理历史</Button>
+              {(overviewData?.quickActions || []).map((qa: any) => (
+                <Button key={qa.key} size="small" onClick={() => navigate(qa.targetRoute)}>{qa.label}</Button>
+              ))}
+              {(!overviewData?.quickActions || overviewData.quickActions.length === 0) && (
+                <>
+                  <Button size="small" onClick={() => navigate('/settings/models')}>配置默认模型</Button>
+                  <Button size="small" onClick={() => navigate('/settings/assistants')}>管理 Assistant</Button>
+                </>
+              )}
             </Space>
           </Card>
         )}
+
       </div>
 
     </div>

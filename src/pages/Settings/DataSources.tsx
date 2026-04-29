@@ -1,14 +1,33 @@
-import { Card, Typography, Button } from 'antd';
-import { SafetyCertificateOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Button, Card, Spin, Tag, Typography } from 'antd';
+import { SafetyCertificateOutlined, CheckCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import DataSourceHealthCheckDrawer from '../../components/settings/DataSourceHealthCheckDrawer';
 import SettingsSecretReferenceDrawer from '../../components/settings/SettingsSecretReferenceDrawer';
 import SettingsModuleShell from '../../components/settings/SettingsModuleShell';
 import DatabaseManagerPage from '../DatabaseManager';
+import * as settingsAdapter from '../../utils/settingsCenterAdapter';
 
 function SettingsDataSourcesPage() {
   const [showHealth, setShowHealth] = useState(false);
   const [showSecretRef, setShowSecretRef] = useState(false);
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const load = () => {
+    setLoading(true); setError(false);
+    settingsAdapter.getDataSources().then(setData).catch(() => setError(true)).finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []);
+
+  if (loading) return <SettingsModuleShell title="数据源管理" description=""><div style={{textAlign:'center',padding:40}}><Spin /></div></SettingsModuleShell>;
+  if (error) return <SettingsModuleShell title="数据源管理" description=""><div style={{textAlign:'center',padding:40}}><Typography.Text type="secondary">设置数据加载失败，请稍后重试。</Typography.Text><br/><Button icon={<ReloadOutlined />} style={{marginTop:12}} onClick={load}>重新加载</Button></div></SettingsModuleShell>;
+
+  const ov = data?.overview || {};
+  const providerStates = data?.providerStates || [];
+  const creds = data?.credentialReferences || [];
+
   return (
     <SettingsModuleShell
       title="数据源管理"
@@ -20,8 +39,9 @@ function SettingsDataSourcesPage() {
           凭据安全说明
         </Typography.Text>
         <Typography.Text type="secondary" style={{ fontSize: 13, lineHeight: 1.7 }}>
-          真实凭据不会在界面中展示。仅展示 secret:// 或 env 引用。数据库和外部资料源统一称为"数据源"。外部源 degraded 不等于失败，系统会在降级状态下继续使用内部资料源完成检索。
+          真实凭据不会在界面中展示。仅展示 secret:// 或 env 引用。数据源总数：{ov.total || 0}，正常：{ov.healthy || 0}，降级：{ov.degraded || 0}。
         </Typography.Text>
+        {creds.length > 0 && <div style={{marginTop:6}}>{creds.map((c: string, _i: number) => <Tag key={_i} style={{fontSize:10, marginRight:4}}>{c}</Tag>)}</div>}
         <Button size="small" icon={<CheckCircleOutlined />} style={{ marginTop: 8 }} onClick={() => setShowHealth(true)}>健康检查</Button>
         <Button size="small" style={{ marginTop: 8, marginLeft: 8 }} onClick={() => setShowSecretRef(true)}>查看凭据引用</Button>
       </Card>
@@ -29,15 +49,11 @@ function SettingsDataSourcesPage() {
       <DatabaseManagerPage />
       <DataSourceHealthCheckDrawer
         open={showHealth}
-        sourceName="企业内部数据库 (SQLite) + 外部资料源 (企查查)"
-        overallStatus="degraded"
-        lastCheckTime="2026-04-28 15:00"
-        providers={[
-          { name: 'internal-kb-provider', status: 'healthy' },
-          { name: 'reference-pack-provider', status: 'ready' },
-          { name: 'external-company-provider', status: 'degraded', detail: '连接中断' },
-        ]}
-        degradedReason="外部资料源 API 超时。"
+        sourceName="企业内部数据库 (SQLite) + 外部资料源"
+        overallStatus={ov.degraded > 0 ? 'degraded' : 'healthy'}
+        lastCheckTime={new Date().toISOString()}
+        providers={providerStates.map((p: any) => ({ name: p.name, status: p.status, detail: p.impact }))}
+        degradedReason={ov.degraded > 0 ? '部分数据源不可用' : ''}
         onRecheck={() => setShowHealth(false)}
         onViewSecretRef={() => { setShowHealth(false); setShowSecretRef(true); }}
         onClose={() => setShowHealth(false)}
@@ -45,10 +61,7 @@ function SettingsDataSourcesPage() {
 
       <SettingsSecretReferenceDrawer
         open={showSecretRef}
-        references={[
-          { envKey: 'QICHACHA_API_KEY', secretRef: 'secret://providers/qichacha/default', binding: '外部资料源 · 企查查', lastRotation: '2026-04-28 08:00', status: 'active' },
-          { envKey: 'DB_PASSWORD', secretRef: 'secret://databases/internal/default', binding: '企业内部数据库', status: 'active' },
-        ]}
+        references={creds.map((c: string) => ({ envKey: c, secretRef: c, binding: '数据源', lastRotation: '—', status: 'active' as const }))}
         onClose={() => setShowSecretRef(false)}
         onRequestRotation={() => {}}
       />

@@ -4,6 +4,9 @@ import { getEmbeddedModelStatus, runEmbeddedModelJson } from '../plugins/model-a
 import { EMBEDDED_MODEL_TASKS } from '../plugins/model-adapters/embeddedModelSchemas.js';
 import { runAnalyzeRuleEngine } from '../plugins/rule-engine/index.js';
 import { runSearchRuleEngine } from '../plugins/search-rule-engine/index.js';
+import { runAnalyzeCustomerFlow } from '../flows/analyzeFlow.js';
+import { runSearchDocumentsFlow } from '../flows/searchFlow.js';
+import { runGenerateScriptFlow } from '../flows/scriptFlow.js';
 
 const FLOW_STEP_DELAYS = { analysis: 800, evidence: 1200, output: 1000, save: 400 };
 
@@ -531,34 +534,51 @@ const runAnalysisStep = async (task) => {
   step.startedAt = new Date().toISOString();
   task.updatedAt = step.startedAt;
 
+  let flowResult = null;
   try {
-    const ruleResult = await runAnalyzeRuleEngine({
-      capability: 'analyze-context',
-      rawInput: { taskInput: goal, taskSubject: goal },
-      normalizedInput: { taskInput: goal, taskSubject: goal, industryType: 'other', taskPhase: 'other', text: goal },
-      executionContext: task.taskPlan.executionContext || {},
+    flowResult = await runAnalyzeCustomerFlow({
       taskInput: goal,
       taskSubject: goal,
-      taskPhase: 'other',
+      goal,
       industryType: 'other',
-      text: goal,
+      taskPhase: 'other',
     });
-
-    const analysis = ruleResult.analysis || {};
-    const summary = analysis.summary || ruleResult.matchedRule?.summaryTemplate || '已完成客户场景分析与需求识别';
-    step.summary = summary;
-    step.details = [
-      analysis.sceneJudgement || '',
-      ...(analysis.recommendedProducts || []).map((p) => `推荐产品: ${p}`),
-      ...(analysis.followupQuestions || []).map((q) => `后续: ${q}`),
-    ].filter(Boolean);
-    step.riskNotes = analysis.riskNotes || [];
-    step.source = 'rule-engine';
   } catch {
-    step.summary = '已完成客户场景分析与需求识别';
-    step.details = FALLBACK_ANALYSIS_DETAILS;
-    step.riskNotes = [];
-    step.source = 'fallback';
+    flowResult = null;
+  }
+
+  if (flowResult?.finalAnalyzeData) {
+    const d = flowResult.finalAnalyzeData;
+    step.summary = d.summary || '已完成客户场景分析与需求识别';
+    step.details = [d.sceneJudgement || '', ...(d.recommendedProducts || []).map((p) => `推荐产品: ${p}`), ...(d.followupQuestions || []).map((q) => `后续: ${q}`)].filter(Boolean);
+    step.riskNotes = d.riskNotes || [];
+    step.source = flowResult.analysisRoute || 'analyze-flow';
+    task.taskStore = task.taskStore || {};
+    task.taskStore.analysisResult = { summary: d.summary, products: d.recommendedProducts, riskNotes: d.riskNotes, nextActions: d.nextActions };
+  } else {
+    try {
+      const ruleResult = await runAnalyzeRuleEngine({
+        capability: 'analyze-context',
+        rawInput: { taskInput: goal, taskSubject: goal },
+        normalizedInput: { taskInput: goal, taskSubject: goal, industryType: 'other', taskPhase: 'other', text: goal },
+        executionContext: task.taskPlan.executionContext || {},
+        taskInput: goal,
+        taskSubject: goal,
+        taskPhase: 'other',
+        industryType: 'other',
+        text: goal,
+      });
+      const analysis = ruleResult.analysis || {};
+      step.summary = analysis.summary || ruleResult.matchedRule?.summaryTemplate || '已完成客户场景分析与需求识别';
+      step.details = [analysis.sceneJudgement || '', ...(analysis.recommendedProducts || []).map((p) => `推荐产品: ${p}`), ...(analysis.followupQuestions || []).map((q) => `后续: ${q}`)].filter(Boolean);
+      step.riskNotes = analysis.riskNotes || [];
+      step.source = 'rule-engine';
+    } catch {
+      step.summary = '已完成客户场景分析与需求识别';
+      step.details = FALLBACK_ANALYSIS_DETAILS;
+      step.riskNotes = [];
+      step.source = 'fallback';
+    }
   }
 
   step.status = 'done';
@@ -580,28 +600,50 @@ const runEvidenceStep = async (task) => {
   exec.currentStepId = step.stepId;
   task.updatedAt = step.startedAt;
 
+  let flowResult = null;
   try {
-    const ruleResult = await runSearchRuleEngine({
-      capability: 'search-documents',
-      rawInput: { keyword: goal },
-      normalizedInput: { keyword: goal, industryType: 'other' },
+    flowResult = await runSearchDocumentsFlow({
       keyword: goal,
+      taskInput: goal,
+      taskSubject: goal,
+      goal,
       industryType: 'other',
-      executionContext: task.taskPlan.executionContext || {},
     });
-
-    const documents = Array.isArray(ruleResult.documents) ? ruleResult.documents : [];
-    step.summary = ruleResult.matchedRule?.summaryTemplate || `已检索内部知识库与参考资料 (匹配 ${documents.length} 篇文档)`;
-    step.details = documents.length > 0
-      ? documents.map((d) => `${d.title || d.docName}: ${d.summary || ''}`).filter(Boolean)
-      : FALLBACK_EVIDENCE_DETAILS;
-    step.riskNotes = [];
-    step.source = 'rule-engine';
   } catch {
-    step.summary = '已检索内部知识库与参考资料';
-    step.details = FALLBACK_EVIDENCE_DETAILS;
+    flowResult = null;
+  }
+
+  if (flowResult?.evidenceItems && flowResult.evidenceItems.length > 0) {
+    const items = flowResult.evidenceItems;
+    step.summary = flowResult.searchSummary || `已检索 ${items.length} 条资料`;
+    step.details = items.map((e) => `${e.title || e.docName}: ${e.summary || ''}`).filter(Boolean);
     step.riskNotes = [];
-    step.source = 'fallback';
+    step.source = flowResult.searchRoute || 'search-flow';
+    task.taskStore = task.taskStore || {};
+    task.taskStore.evidenceResult = { items: items.map((e) => ({ title: e.title, summary: e.summary, sourceType: e.sourceType })), searchSummary: flowResult.searchSummary, evidenceCount: items.length };
+  } else {
+    try {
+      const ruleResult = await runSearchRuleEngine({
+        capability: 'search-documents',
+        rawInput: { keyword: goal },
+        normalizedInput: { keyword: goal, industryType: 'other' },
+        keyword: goal,
+        industryType: 'other',
+        executionContext: task.taskPlan.executionContext || {},
+      });
+      const documents = Array.isArray(ruleResult.documents) ? ruleResult.documents : [];
+      step.summary = ruleResult.matchedRule?.summaryTemplate || `已检索内部知识库与参考资料 (匹配 ${documents.length} 篇文档)`;
+      step.details = documents.length > 0
+        ? documents.map((d) => `${d.title || d.docName}: ${d.summary || ''}`).filter(Boolean)
+        : FALLBACK_EVIDENCE_DETAILS;
+      step.riskNotes = [];
+      step.source = 'rule-engine';
+    } catch {
+      step.summary = '已检索内部知识库与参考资料';
+      step.details = FALLBACK_EVIDENCE_DETAILS;
+      step.riskNotes = [];
+      step.source = 'fallback';
+    }
   }
 
   step.status = 'done';
@@ -623,16 +665,49 @@ const runOutputStep = async (task) => {
   exec.currentStepId = step.stepId;
   task.updatedAt = step.startedAt;
 
+  let flowResult = null;
   try {
+    flowResult = await runGenerateScriptFlow({
+      taskInput: goal,
+      taskSubject: goal,
+      goal,
+      goalScene: 'first_reply',
+      toneStyle: 'formal',
+      outputStyle: 'standard',
+      industryType: 'other',
+      taskPhase: 'other',
+    });
+  } catch {
+    flowResult = null;
+  }
+
+  if (flowResult?.finalResult) {
+    const r = flowResult.finalResult;
+    const formal = r.formalVersion || '';
+    const concise = r.conciseVersion || r.llmVersion || '';
+    const spoken = r.spokenVersion || '';
+    step.summary = '已生成三版交付文稿（正式/简洁/口语）';
+    step.details = [
+      `正式版: ${formal.slice(0, 80)}${formal.length > 80 ? '…' : ''}`,
+      `简洁版: ${concise.slice(0, 80)}${concise.length > 80 ? '…' : ''}`,
+      `口语版: ${spoken.slice(0, 80)}${spoken.length > 80 ? '…' : ''}`,
+    ].filter(Boolean);
+    step.riskNotes = (r.cautionNotes || []).map((c) => String(c)).filter(Boolean);
+    step.source = r.generationRoute || 'script-flow';
+
+    task.taskStore = task.taskStore || {};
+    task.taskStore.outputResult = {
+      formalVersion: formal,
+      conciseVersion: concise,
+      spokenVersion: spoken,
+      generationRoute: r.generationRoute,
+      scriptStrategy: r.scriptStrategy,
+    };
+  } else {
     step.summary = '已生成三版交付文稿（正式/简洁/口语）';
     step.details = FALLBACK_OUTPUT_DETAILS;
     step.riskNotes = [];
     step.source = 'template';
-  } catch {
-    step.summary = '已生成三版交付文稿';
-    step.details = FALLBACK_OUTPUT_DETAILS;
-    step.riskNotes = [];
-    step.source = 'fallback';
   }
 
   step.status = 'done';
@@ -747,36 +822,54 @@ function generateOutputVersion(taskId, label, reason) {
 }
 
 function lazyGenerateOutputIfNeeded(task) {
-  // Only generate if execution is done and no output yet
   if (task.status !== 'done') return;
   if (task.outputVersions && task.outputVersions.length > 0) return;
 
+  const now = new Date().toISOString();
+  const v1Id = `${task.taskId}-v1`;
+
+  const storedOutput = task.taskStore?.outputResult;
+  const formalVersion = storedOutput?.formalVersion || FORMAL_CONTENT;
+  const conciseVersion = storedOutput?.conciseVersion || CONCISE_CONTENT;
+  const spokenVersion = storedOutput?.spokenVersion || SPOKEN_CONTENT;
+  const generationRoute = storedOutput?.generationRoute || 'template';
+
   const userGoal = task.taskPlan?.userGoal || '';
   const status = detectOutputStatus(userGoal);
-
-  const v1Id = `${task.taskId}-v1`;
-  const now = new Date().toISOString();
 
   const v1 = {
     versionId: v1Id,
     label: 'v1',
     status,
     isCurrent: true,
-    reason: '初始生成',
+    reason: generationRoute === 'script-flow' ? '任务执行生成' : '初始生成',
     createdAt: now,
-    formalVersion: status === 'failed' ? '' : FORMAL_CONTENT,
-    conciseVersion: status === 'failed' ? '' : CONCISE_CONTENT,
-    spokenVersion: status === 'failed' ? '' : SPOKEN_CONTENT,
+    formalVersion: status === 'failed' ? '' : formalVersion,
+    conciseVersion: status === 'failed' ? '' : conciseVersion,
+    spokenVersion: status === 'failed' ? '' : spokenVersion,
     failureReason: status === 'failed' ? '输出生成失败：模型调用返回空响应。' : undefined,
   };
 
   task.outputVersions = [v1];
   task.currentOutputVersionId = v1Id;
-  task.evidences = buildEvidences();
+
+  const storedEvidence = task.taskStore?.evidenceResult;
+  if (storedEvidence?.items) {
+    task.evidences = storedEvidence.items.map((e, i) => ({
+      id: `ev-${i + 1}`,
+      title: e.title || '资料条目',
+      sourceType: e.sourceType || 'internal_knowledge',
+      sourceName: e.sourceType === 'internal_knowledge' ? '内部知识库' : '参考资料',
+      status: 'healthy',
+      summary: e.summary || '',
+    }));
+  } else {
+    task.evidences = buildEvidences();
+  }
   task.risks = buildRisks();
   task.executionSteps = buildExecutionSteps(task.taskId);
 
-  // Generate initial Evidence Pack v1
+  const evCount = storedEvidence?.items?.length || 3;
   const evV1 = {
     versionId: `${task.taskId}-evidence-v1`,
     label: 'v1',
@@ -785,7 +878,7 @@ function lazyGenerateOutputIfNeeded(task) {
     reason: '初始证据包',
     source: 'execution',
     createdAt: now,
-    evidenceCount: 3,
+    evidenceCount: evCount,
     sources: [
       { sourceId: 'internal-kb', sourceName: '内部知识库', sourceType: 'internal_knowledge', status: 'healthy', hitCount: 2, summary: '命中内部知识库 2 条相关资料' },
       { sourceId: 'reference-pack', sourceName: 'Reference Pack', sourceType: 'reference_pack', status: 'healthy', hitCount: 1, summary: '命中参考资料库 1 条相关案例' },

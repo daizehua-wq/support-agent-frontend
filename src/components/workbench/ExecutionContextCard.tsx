@@ -6,7 +6,7 @@ import {
   QuestionCircleFilled,
   WarningFilled,
 } from '@ant-design/icons';
-import type { ExecutionContextSummary, DataSourceStatus, PlannerStatus } from '../../types/taskPlan';
+import type { ExecutionContextSummary, DataSourceStatus } from '../../types/taskPlan';
 
 type ExecutionContextCardProps = {
   context: ExecutionContextSummary;
@@ -28,15 +28,20 @@ const DATA_STATUS_LABEL: Record<DataSourceStatus, string> = {
   unknown: '未知',
 };
 
-const PLANNER_STATUS_CONFIG: Record<PlannerStatus, { color: string; label: string }> = {
+const PLANNER_STATUS_CONFIG: Record<string, { color: string; label: string }> = {
   ready: { color: 'green', label: '就绪' },
+  fallback: { color: 'orange', label: '规则兜底' },
   degraded: { color: 'orange', label: '降级' },
   unavailable: { color: 'red', label: '不可用' },
   unknown: { color: 'default', label: '未知' },
 };
 
 function ExecutionContextCard({ context }: ExecutionContextCardProps) {
-  const plannerCfg = PLANNER_STATUS_CONFIG[context.taskPlanner.status];
+  const plannerCfg = PLANNER_STATUS_CONFIG[context.taskPlanner.status] || PLANNER_STATUS_CONFIG.unknown;
+  const plannerSource = context.taskPlanner.source || context.routeSource || 'embedded_model';
+  const isPlannerFallback = context.taskPlanner.status === 'fallback' || plannerSource.includes('fallback');
+  const plannerModel = isPlannerFallback ? '规则兜底' : context.taskPlanner.modelName || context.plannerModel || 'Qwen3-0.6B';
+  const execModel = context.executionModel || context.modelName || 'qwen3-8b';
 
   return (
     <Card className="ap-execution-context" size="small" styles={{ body: { padding: 16 } }}>
@@ -59,20 +64,39 @@ function ExecutionContextCard({ context }: ExecutionContextCardProps) {
 
         <div className="ap-execution-context__item">
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            大模型
+            任务规划器
           </Typography.Text>
           <Typography.Text strong style={{ fontSize: 13 }}>
-            {context.modelName}
+            {plannerModel}
+          </Typography.Text>
+          <div style={{ marginTop: 2 }}>
+            <Tag color={plannerCfg.color} style={{ fontSize: 11, marginLeft: 0 }}>
+              {plannerCfg.label}
+            </Tag>
+            {context.fallbackReason && (
+              <Tag color="warning" style={{ fontSize: 11 }}>
+                {context.fallbackReason}
+              </Tag>
+            )}
+          </div>
+        </div>
+
+        <div className="ap-execution-context__item">
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            规划来源
+          </Typography.Text>
+          <Typography.Text strong style={{ fontSize: 13 }}>
+            {plannerSource}
           </Typography.Text>
         </div>
 
         <div className="ap-execution-context__item">
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            任务规划器
+            执行模型
           </Typography.Text>
-          <Tag color={plannerCfg.color} style={{ fontSize: 11, marginLeft: 0, marginTop: 2 }}>
-            {plannerCfg.label}
-          </Tag>
+          <Typography.Text strong style={{ fontSize: 13 }}>
+            {execModel}
+          </Typography.Text>
         </div>
       </div>
 

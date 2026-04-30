@@ -10,12 +10,14 @@ export async function createTaskPlan(userGoal: string, appId?: string): Promise<
 }
 
 export async function confirmTask(taskId: string, missingInfoValues?: Record<string, string>): Promise<TaskExecution> {
-  const res = await request.post<TaskExecution, TaskExecution>(`/api/tasks/${taskId}/confirm`, missingInfoValues ? { missingInfoValues } : {});
+  if (!taskId || !String(taskId).trim()) throw new Error('confirmTask requires taskId');
+  const res = await request.post<TaskExecution, TaskExecution>(`/api/tasks/${encodeURIComponent(taskId)}/confirm`, missingInfoValues ? { missingInfoValues } : {});
   return res;
 }
 
 export async function getTaskExecution(taskId: string): Promise<TaskExecution> {
-  const res = await request.get<TaskExecution, TaskExecution>(`/api/tasks/${taskId}/execution`);
+  if (!taskId || !String(taskId).trim()) throw new Error('getTaskExecution requires taskId');
+  const res = await request.get<TaskExecution, TaskExecution>(`/api/tasks/${encodeURIComponent(taskId)}/execution`);
   return res;
 }
 

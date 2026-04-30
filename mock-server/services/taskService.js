@@ -1,5 +1,7 @@
 import { randomUUID } from 'crypto';
 import { listLegacySessionTasks, getLegacySessionTaskDetail, isLegacySession } from './sessionTaskAdapter.js';
+import { getEmbeddedModelStatus, runEmbeddedModelJson } from '../plugins/model-adapters/embeddedModelAdapter.js';
+import { EMBEDDED_MODEL_TASKS } from '../plugins/model-adapters/embeddedModelSchemas.js';
 
 // ============================================================================
 // In-memory Task Store (P0 — no DB migration, no old session adapter)
@@ -101,26 +103,46 @@ const buildTaskSteps = (taskId) => [
 // TaskPlan: ExecutionContext
 // ---------------------------------------------------------------------------
 
-const buildExecutionContext = () => ({
-  assistantName: '默认销售助手',
-  assistantSource: 'global_default',
-  modelName: 'qwen3-8b',
-  dataSources: [
-    { name: '内部知识库', status: 'healthy' },
-    { name: '企查查', status: 'unknown' },
-    { name: '参考资料库', status: 'healthy' },
-  ],
-  taskPlanner: {
-    status: 'ready',
-    source: 'rule_engine',
-  },
-});
+const buildExecutionContext = (plannerInfo = {}) => {
+  const {
+    source = 'rule_engine',
+    modelName = 'Qwen3-0.6B-Q5_K_M',
+    fallbackReason = null,
+    latencyMs = undefined,
+    routeDecision = null,
+  } = plannerInfo;
+
+  return {
+    assistantName: '默认销售助手',
+    assistantSource: 'global_default',
+    modelName: 'qwen3-8b',
+    plannerModel: modelName,
+    executionModel: 'qwen3-8b',
+    routeSource: source,
+    fallbackApplied: source !== 'embedded_model',
+    fallbackReason: fallbackReason || undefined,
+    dataSources: [
+      { name: '内部知识库', status: 'healthy' },
+      { name: '企查查', status: 'unknown' },
+      { name: '参考资料库', status: 'healthy' },
+    ],
+    taskPlanner: {
+      status: fallbackReason ? 'fallback' : 'ready',
+      source,
+      modelName,
+      fallbackReason: fallbackReason || undefined,
+      latencyMs,
+      routeDecision: routeDecision || undefined,
+    },
+  };
+};
 
 // ---------------------------------------------------------------------------
 // TaskPlan: understanding generation (rule-based, no LLM)
 // ---------------------------------------------------------------------------
 
-const buildUnderstanding = (userGoal) => {
+const buildUnderstanding = (userGoal, embeddedUnderstanding = '') => {
+  if (embeddedUnderstanding) return embeddedUnderstanding;
   const goal = normalizeText(userGoal);
   if (goal.includes('客户') || goal.includes('销售')) {
     return `系统理解您希望对客户进行销售支持分析：${goal}。将按分析→资料检索→文稿生成的完整流程执行。`;
@@ -144,6 +166,20 @@ const inferTaskType = (userGoal) => {
   return 'full_workflow';
 };
 
+const buildRuleRouteDecision = (userGoal, taskType = inferTaskType(userGoal)) => {
+  const shouldUseExternalSources = COMPANY_NAME_KEYWORDS.test(normalizeText(userGoal));
+
+  return {
+    taskType,
+    confidence: shouldUseExternalSources ? 0.95 : 0.72,
+    requiredModules: ['analysis', 'evidence', 'output', 'save'],
+    recommendedFlow: ['analysis', 'evidence', 'output', 'save'],
+    shouldUseExternalSources,
+    shouldGenerateOutput: true,
+    missingInfoPolicy: shouldUseExternalSources ? 'strict' : 'lenient',
+  };
+};
+
 // ---------------------------------------------------------------------------
 // Risk hints
 // ---------------------------------------------------------------------------
@@ -161,23 +197,156 @@ const buildRiskHints = (userGoal) => {
 // Public: createTask(userGoal) → returns { taskId, planId, planVersion, status, taskPlan }
 // ---------------------------------------------------------------------------
 
-export const createTask = (userGoal) => {
+const PLANNER_TIMEOUT_MS = 3000;
+
+const tryEmbeddedPlanner = async (userGoal) => {
+  const status = getEmbeddedModelStatus();
+  if (!status.ready) {
+    return {
+      success: false,
+      source: 'rule_engine_fallback',
+      fallbackReason: 'embedded_model_not_ready',
+      modelStatus: status,
+    };
+  }
+
+  try {
+    const startedAt = Date.now();
+    const result = await runEmbeddedModelJson(
+      { text: userGoal, goal: userGoal },
+      {
+        task: EMBEDDED_MODEL_TASKS.TASK_PLANNER,
+        timeoutMs: PLANNER_TIMEOUT_MS,
+        maxTokens: 256,
+        temperature: 0,
+      },
+    );
+    const latencyMs = result.durationMs;
+
+    const plannerOutput = result.data;
+    if (!plannerOutput || !plannerOutput.taskType || !plannerOutput.understanding) {
+      return {
+        success: false,
+        source: 'rule_engine_fallback',
+        fallbackReason: 'invalid_planner_json',
+        latencyMs,
+      };
+    }
+
+    return {
+      success: true,
+      source: 'embedded_model',
+      modelName: status.modelName,
+      taskType: plannerOutput.taskType,
+      taskTitle: plannerOutput.taskTitle,
+      understanding: plannerOutput.understanding,
+      confidence: plannerOutput.confidence,
+      needsExternalSources: plannerOutput.needsExternalSources === true,
+      shouldGenerateOutput: plannerOutput.shouldGenerateOutput !== false,
+      missingInfoPolicy: plannerOutput.missingInfoPolicy || 'lenient',
+      latencyMs,
+      routeDecision: {
+        taskType: plannerOutput.taskType,
+        confidence: plannerOutput.confidence || 0,
+        requiredModules: ['analysis', 'evidence', 'output', 'save'],
+        recommendedFlow: ['analysis', 'evidence', 'output', 'save'],
+        shouldUseExternalSources: plannerOutput.needsExternalSources === true,
+        shouldGenerateOutput: plannerOutput.shouldGenerateOutput !== false,
+        missingInfoPolicy: plannerOutput.missingInfoPolicy || 'lenient',
+      },
+    };
+  } catch (err) {
+    const code = (err && err.code) || 'planner_inference_failed';
+    const isTimeout = code === 'MODEL_TIMEOUT';
+    return {
+      success: false,
+      source: 'rule_engine_fallback',
+      fallbackReason: isTimeout ? 'embedded_model_timeout' : `embedded_model_error:${code}`,
+    };
+  }
+};
+
+export const createTask = async (userGoal) => {
   const taskId = randomUUID();
   const planId = randomUUID();
   const planVersion = 'v1';
   const now = new Date().toISOString();
+  const goal = normalizeText(userGoal);
+
+  let plannerResult = null;
+
+  try {
+    plannerResult = await tryEmbeddedPlanner(goal);
+  } catch {
+    plannerResult = null;
+  }
+
+  if (plannerResult && plannerResult.success && plannerResult.taskType) {
+    const taskType = plannerResult.taskType;
+    const taskTitle = plannerResult.taskTitle ? truncateText(plannerResult.taskTitle) : truncateText(goal);
+    const understanding = buildUnderstanding(goal, plannerResult.understanding);
+    const taskPlan = {
+      taskId,
+      taskTitle,
+      taskType,
+      userGoal: goal,
+      understanding,
+      status: 'waiting_confirmation',
+      steps: buildTaskSteps(taskId),
+      missingInfo: buildMissingInfo(goal),
+      executionContext: buildExecutionContext({
+        source: 'embedded_model',
+        modelName: plannerResult.modelName || 'Qwen3-0.6B-Q5_K_M',
+        fallbackReason: null,
+        latencyMs: plannerResult.latencyMs,
+        routeDecision: plannerResult.routeDecision || null,
+      }),
+      riskHints: buildRiskHints(goal),
+      planVersionId: planId,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const task = {
+      taskId,
+      taskPlan,
+      taskExecution: null,
+      status: 'waiting_confirmation',
+      planVersion,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    tasks.set(taskId, task);
+
+    return {
+      taskId,
+      planId,
+      planVersion,
+      status: task.status,
+      taskPlan,
+    };
+  }
+
+  const fallbackReason = plannerResult?.fallbackReason || 'embedded_model_unavailable';
 
   const taskPlan = {
     taskId,
-    taskTitle: truncateText(userGoal),
-    taskType: inferTaskType(userGoal),
-    userGoal: normalizeText(userGoal),
-    understanding: buildUnderstanding(userGoal),
+    taskTitle: truncateText(goal),
+    taskType: inferTaskType(goal),
+    userGoal: goal,
+    understanding: buildUnderstanding(goal),
     status: 'waiting_confirmation',
     steps: buildTaskSteps(taskId),
-    missingInfo: buildMissingInfo(userGoal),
-    executionContext: buildExecutionContext(),
-    riskHints: buildRiskHints(userGoal),
+    missingInfo: buildMissingInfo(goal),
+    executionContext: buildExecutionContext({
+      source: 'rule_engine_fallback',
+      modelName: 'Qwen3-0.6B-Q5_K_M',
+      fallbackReason,
+      latencyMs: plannerResult?.latencyMs,
+      routeDecision: buildRuleRouteDecision(goal, inferTaskType(goal)),
+    }),
+    riskHints: buildRiskHints(goal),
     planVersionId: planId,
     createdAt: now,
     updatedAt: now,

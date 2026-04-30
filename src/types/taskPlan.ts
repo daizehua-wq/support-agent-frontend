@@ -8,9 +8,9 @@ export type MissingInfoLevel = 'required' | 'recommended' | 'optional';
 
 export type DataSourceStatus = 'healthy' | 'degraded' | 'unavailable' | 'disabled' | 'unknown';
 
-export type PlannerStatus = 'ready' | 'degraded' | 'unavailable' | 'unknown';
+export type PlannerStatus = 'ready' | 'fallback' | 'degraded' | 'unavailable' | 'unknown';
 
-export type PlannerSource = 'embedded_model' | 'rule_engine' | 'fallback';
+export type PlannerSource = 'embedded_model' | 'rule_engine_fallback' | 'rule_engine' | 'fallback';
 
 export type AssistantSource = 'manual' | 'app_default' | 'user_default' | 'global_default' | 'fallback';
 
@@ -30,10 +30,25 @@ export interface MissingInfoItem {
   reason?: string;
 }
 
+export interface RouteDecision {
+  taskType: string;
+  confidence: number;
+  requiredModules: string[];
+  recommendedFlow: string[];
+  shouldUseExternalSources: boolean;
+  shouldGenerateOutput: boolean;
+  missingInfoPolicy: string;
+}
+
 export interface ExecutionContextSummary {
   assistantName: string;
   assistantSource: AssistantSource;
   modelName: string;
+  plannerModel?: string;
+  executionModel?: string;
+  routeSource?: PlannerSource;
+  fallbackApplied?: boolean;
+  fallbackReason?: string;
   dataSources: Array<{
     name: string;
     status: DataSourceStatus;
@@ -41,6 +56,10 @@ export interface ExecutionContextSummary {
   taskPlanner: {
     status: PlannerStatus;
     source: PlannerSource;
+    modelName?: string;
+    fallbackReason?: string;
+    latencyMs?: number;
+    routeDecision?: RouteDecision;
   };
 }
 

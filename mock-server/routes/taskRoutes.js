@@ -45,7 +45,7 @@ const sendError = (res, statusCode, message, errorCode, details = {}) =>
 //    Output: { taskId, planId, planVersion, status, taskPlan }
 // ---------------------------------------------------------------------------
 
-router.post('/plans', (req, res) => {
+router.post('/plans', async (req, res) => {
   const { userGoal } = req.body || {};
 
   if (!userGoal || typeof userGoal !== 'string' || !userGoal.trim()) {
@@ -54,7 +54,7 @@ router.post('/plans', (req, res) => {
     });
   }
 
-  const result = createTask(userGoal.trim());
+  const result = await createTask(userGoal.trim());
 
   return sendSuccess(res, {
     message: 'TaskPlan 生成成功',

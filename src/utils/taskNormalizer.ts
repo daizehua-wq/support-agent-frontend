@@ -5,6 +5,7 @@ import type {
   MissingInfoLevel,
   PlannerSource,
   PlannerStatus,
+  RouteDecision,
   StepFailureKind,
   TaskExecution,
   TaskExecutionStatus,
@@ -79,8 +80,8 @@ const DATA_SOURCE_STATUSES: readonly DataSourceStatus[] = [
   'disabled',
   'unknown',
 ];
-const PLANNER_STATUSES: readonly PlannerStatus[] = ['ready', 'degraded', 'unavailable', 'unknown'];
-const PLANNER_SOURCES: readonly PlannerSource[] = ['embedded_model', 'rule_engine', 'fallback'];
+const PLANNER_STATUSES: readonly PlannerStatus[] = ['ready', 'fallback', 'degraded', 'unavailable', 'unknown'];
+const PLANNER_SOURCES: readonly PlannerSource[] = ['embedded_model', 'rule_engine_fallback', 'rule_engine', 'fallback'];
 const TASK_EXECUTION_STATUSES: readonly TaskExecutionStatus[] = [
   'idle',
   'running',
@@ -167,6 +168,20 @@ function normalizeMissingInfo(raw: unknown): MissingInfoItem {
 function normalizeExecutionContext(raw: unknown): TaskPlan['executionContext'] {
   const context = asUnknownRecord(raw);
   const taskPlanner = firstRecord(context, ['taskPlanner', 'task_planner']);
+  const routeDecisionRaw = firstRecord(taskPlanner, ['routeDecision', 'route_decision']);
+
+  let routeDecision: RouteDecision | undefined;
+  if (Object.keys(routeDecisionRaw).length) {
+    routeDecision = {
+      taskType: firstString(routeDecisionRaw, ['taskType', 'task_type'], 'full_workflow'),
+      confidence: readNumber(routeDecisionRaw, 'confidence', 0),
+      requiredModules: stringArray(firstPresent(routeDecisionRaw, ['requiredModules', 'required_modules'])),
+      recommendedFlow: stringArray(firstPresent(routeDecisionRaw, ['recommendedFlow', 'recommended_flow'])),
+      shouldUseExternalSources: readBoolean(routeDecisionRaw, 'shouldUseExternalSources', false),
+      shouldGenerateOutput: readBoolean(routeDecisionRaw, 'shouldGenerateOutput', true),
+      missingInfoPolicy: firstString(routeDecisionRaw, ['missingInfoPolicy', 'missing_info_policy'], 'lenient'),
+    };
+  }
 
   return {
     assistantName: firstString(context, ['assistantName', 'assistant_name']),
@@ -176,6 +191,15 @@ function normalizeExecutionContext(raw: unknown): TaskPlan['executionContext'] {
       'global_default',
     ),
     modelName: firstString(context, ['modelName', 'model_name']),
+    plannerModel: firstString(context, ['plannerModel', 'planner_model']) || undefined,
+    executionModel: firstString(context, ['executionModel', 'execution_model']) || undefined,
+    routeSource: enumValue(
+      firstString(context, ['routeSource', 'route_source']),
+      PLANNER_SOURCES,
+      'rule_engine',
+    ) as PlannerSource | undefined,
+    fallbackApplied: readBoolean(context, 'fallbackApplied', false) || undefined,
+    fallbackReason: firstString(context, ['fallbackReason', 'fallback_reason']) || undefined,
     dataSources: firstArray(context, ['dataSources', 'data_sources']).map((item) => {
       const source = asUnknownRecord(item);
       return {
@@ -186,6 +210,10 @@ function normalizeExecutionContext(raw: unknown): TaskPlan['executionContext'] {
     taskPlanner: {
       status: enumValue(readString(taskPlanner, 'status'), PLANNER_STATUSES, 'unknown'),
       source: enumValue(readString(taskPlanner, 'source'), PLANNER_SOURCES, 'embedded_model'),
+      modelName: firstString(taskPlanner, ['modelName', 'model_name']) || undefined,
+      fallbackReason: firstString(taskPlanner, ['fallbackReason', 'fallback_reason']) || undefined,
+      latencyMs: readNumber(taskPlanner, firstPresent(taskPlanner, ['latencyMs']) === undefined ? 'latency_ms' : 'latencyMs') || undefined,
+      routeDecision,
     },
   };
 }
@@ -193,7 +221,8 @@ function normalizeExecutionContext(raw: unknown): TaskPlan['executionContext'] {
 export function normalizeTaskPlanResponse(raw: unknown): TaskPlan {
   const root = asUnknownRecord(raw);
   const data = asUnknownRecord(root.data);
-  const plan = asUnknownRecord(root.taskPlan || data.taskPlan || raw);
+  const nestedData = asUnknownRecord(data.data);
+  const plan = asUnknownRecord(root.taskPlan || data.taskPlan || nestedData.taskPlan || raw);
 
   return {
     taskId: firstString(plan, ['taskId', 'task_id']),
@@ -235,8 +264,8 @@ function normalizeTaskStepExecution(raw: unknown): TaskStepExecution {
 
 export function normalizeTaskExecutionResponse(raw: unknown): TaskExecution {
   const root = asUnknownRecord(raw);
-  const data = asUnknownRecord(root.data);
-  const exec = asUnknownRecord(root.taskExecution || data.taskExecution || raw);
+  const data = unwrapData(raw);
+  const exec = asUnknownRecord(root.taskExecution || data.taskExecution || data.execution || data || raw);
   const outputPreviewSource = firstRecord(exec, ['outputPreview', 'output_preview']);
 
   let outputPreview: TaskOutputPreview | undefined;

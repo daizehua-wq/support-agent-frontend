@@ -88,6 +88,8 @@ export async function generateTaskPlan(userGoal: string, appId?: string): Promis
 }
 
 export async function confirmTask(taskId: string, goal: string, missingInfoValues?: Record<string, string>): Promise<TaskExecution> {
+  if (!taskId || !String(taskId).trim()) throw new Error('confirmTask requires taskId');
+
   if (FORCE_MOCK) {
     return runMockExecution(goal, taskId, () => {});
   }
@@ -106,6 +108,8 @@ export async function confirmTask(taskId: string, goal: string, missingInfoValue
 }
 
 export async function getExecution(taskId: string, goal: string): Promise<TaskExecution> {
+  if (!taskId || !String(taskId).trim()) throw new Error('getExecution requires taskId');
+
   if (FORCE_MOCK) {
     return runMockExecution(goal, taskId, () => {});
   }

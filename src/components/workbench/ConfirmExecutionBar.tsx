@@ -5,9 +5,12 @@ type ConfirmExecutionBarProps = {
   hasRequiredMissing: boolean;
   onConfirm: () => void;
   loading?: boolean;
+  planValid?: boolean;
 };
 
-function ConfirmExecutionBar({ hasRequiredMissing, onConfirm, loading = false }: ConfirmExecutionBarProps) {
+function ConfirmExecutionBar({ hasRequiredMissing, onConfirm, loading = false, planValid = true }: ConfirmExecutionBarProps) {
+  const disabled = hasRequiredMissing || !planValid || loading;
+
   return (
     <div className="ap-confirm-bar">
       <Alert
@@ -31,7 +34,7 @@ function ConfirmExecutionBar({ hasRequiredMissing, onConfirm, loading = false }:
         size="large"
         icon={<RocketOutlined />}
         onClick={onConfirm}
-        disabled={hasRequiredMissing}
+        disabled={disabled}
         loading={loading}
         block
         style={{ height: 52, borderRadius: 20, fontSize: 16 }}
@@ -42,6 +45,12 @@ function ConfirmExecutionBar({ hasRequiredMissing, onConfirm, loading = false }:
       {hasRequiredMissing && (
         <Typography.Text type="secondary" style={{ display: 'block', textAlign: 'center', marginTop: 8, fontSize: 13 }}>
           请先填写所有必填信息，才能确认并开始执行任务。
+        </Typography.Text>
+      )}
+
+      {!hasRequiredMissing && !planValid && (
+        <Typography.Text type="danger" style={{ display: 'block', textAlign: 'center', marginTop: 8, fontSize: 13 }}>
+          任务计划数据不完整，请重新生成任务计划。
         </Typography.Text>
       )}
     </div>

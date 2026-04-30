@@ -2,6 +2,10 @@ import { randomUUID } from 'crypto';
 import { listLegacySessionTasks, getLegacySessionTaskDetail, isLegacySession } from './sessionTaskAdapter.js';
 import { getEmbeddedModelStatus, runEmbeddedModelJson } from '../plugins/model-adapters/embeddedModelAdapter.js';
 import { EMBEDDED_MODEL_TASKS } from '../plugins/model-adapters/embeddedModelSchemas.js';
+import { runAnalyzeRuleEngine } from '../plugins/rule-engine/index.js';
+import { runSearchRuleEngine } from '../plugins/search-rule-engine/index.js';
+
+const FLOW_STEP_DELAYS = { analysis: 800, evidence: 1200, output: 1000, save: 400 };
 
 // ============================================================================
 // In-memory Task Store (P0 — no DB migration, no old session adapter)
@@ -406,6 +410,7 @@ export const confirmTask = (taskId) => {
       summary: undefined,
       details: [],
       riskNotes: [],
+      source: undefined,
     },
     {
       stepId: `${taskId}-evidence`,
@@ -418,6 +423,7 @@ export const confirmTask = (taskId) => {
       summary: undefined,
       details: [],
       riskNotes: [],
+      source: undefined,
     },
     {
       stepId: `${taskId}-output`,
@@ -430,6 +436,7 @@ export const confirmTask = (taskId) => {
       summary: undefined,
       details: [],
       riskNotes: [],
+      source: undefined,
     },
     {
       stepId: `${taskId}-save`,
@@ -442,6 +449,7 @@ export const confirmTask = (taskId) => {
       summary: undefined,
       details: [],
       riskNotes: [],
+      source: undefined,
     },
   ];
 
@@ -462,10 +470,20 @@ export const confirmTask = (taskId) => {
   task.status = 'running';
   task.updatedAt = now;
 
-  // --------------------------------------------------------
-  // Async step simulation (P0 mock — progresses automatically)
-  // --------------------------------------------------------
-  runExecutionSimulation(taskId);
+  runTaskExecution(taskId).catch((error) => {
+    const currentTask = tasks.get(taskId);
+    if (!currentTask?.taskExecution) return;
+    const exec = currentTask.taskExecution;
+    const now = new Date().toISOString();
+    exec.status = 'failed';
+    exec.errorContext = {
+      code: 'TASK_EXECUTION_FLOW_ERROR',
+      message: error?.message || 'Task execution flow failed',
+    };
+    exec.completedAt = now;
+    currentTask.status = 'failed';
+    currentTask.updatedAt = now;
+  });
 
   return taskExecution;
 };
@@ -481,93 +499,200 @@ export const getTaskExecution = (taskId) => {
 };
 
 // ---------------------------------------------------------------------------
-// Internal: run step simulation with setTimeout
+// Internal: run step with flow calls
 // ---------------------------------------------------------------------------
 
-const SIMULATION_CONFIG = [
-  { stepIndex: 0, delayMs: 2000,  summary: '已完成客户场景分析与需求识别',        details: ['客户画像：基于输入信息构建', '需求识别：识别出关键业务诉求', '风险评估：无显著风险项'] },
-  { stepIndex: 1, delayMs: 4000,  summary: '已检索内部知识库与参考资料',            details: ['内部知识库：检索到 3 条相关记录', '参考资料：匹配到 2 篇相关文档', '外部源：企查查查询未启用'] },
-  { stepIndex: 2, delayMs: 6000,  summary: '已生成三版交付文稿',                    details: ['正式版：已完成完整文稿', '简洁版：已完成沟通要点', '口语版：已完成跟进话术'] },
-  { stepIndex: 3, delayMs: 7000,  summary: '已保存任务结果与交付记录',              details: ['执行记录已归档', '交付文稿已保存'] },
+const FALLBACK_ANALYSIS_DETAILS = [
+  '客户画像：基于输入信息构建',
+  '需求识别：识别出关键业务诉求',
+  '风险评估：无显著风险项',
 ];
 
-const runExecutionSimulation = (taskId) => {
-  const advanceStep = (configIndex) => {
-    if (configIndex >= SIMULATION_CONFIG.length) {
-      // All steps done → mark execution as done
-      const task = tasks.get(taskId);
-      if (!task || !task.taskExecution) return;
+const FALLBACK_EVIDENCE_DETAILS = [
+  '内部知识库：检索到 3 条相关记录',
+  '参考资料：匹配到 2 篇相关文档',
+  '外部源：企查查查询未启用',
+];
 
-      const now = new Date().toISOString();
-      task.taskExecution.status = 'done';
-      task.taskExecution.currentStepId = undefined;
-      task.taskExecution.completedAt = now;
-      task.taskExecution.outputPreview = {
-        formalPreview: `针对「${task.taskPlan.userGoal}」的正式交付文稿已生成。包含完整分析、证据引用和行动建议。`,
-        concisePreview: `核心结论：基于分析，建议重点关注客户需求匹配度和风险敞口。`,
-        spokenPreview: `您好，根据分析结果，我准备了跟进要点：第一……第二……方便时我们沟通。`,
-        evidenceCount: 3,
-        riskCount: 0,
-      };
-      task.status = 'done';
-      task.updatedAt = now;
-      return;
-    }
+const FALLBACK_OUTPUT_DETAILS = [
+  '正式版：已完成完整文稿',
+  '简洁版：已完成沟通要点',
+  '口语版：已完成跟进话术',
+];
 
-    const { stepIndex, delayMs, summary, details } = SIMULATION_CONFIG[configIndex];
+const FALLBACK_SAVE_DETAILS = ['执行记录已归档', '交付文稿已保存'];
 
-    setTimeout(() => {
-      const task = tasks.get(taskId);
-      if (!task || !task.taskExecution) return;
-      if (task.taskExecution.status !== 'running') return;
+const runAnalysisStep = async (task) => {
+  const exec = task.taskExecution;
+  if (!exec) return;
+  const step = exec.steps[0];
+  const goal = task.taskPlan.userGoal;
+  step.status = 'running';
+  step.startedAt = new Date().toISOString();
+  task.updatedAt = step.startedAt;
 
-      const now = new Date().toISOString();
+  try {
+    const ruleResult = await runAnalyzeRuleEngine({
+      capability: 'analyze-context',
+      rawInput: { taskInput: goal, taskSubject: goal },
+      normalizedInput: { taskInput: goal, taskSubject: goal, industryType: 'other', taskPhase: 'other', text: goal },
+      executionContext: task.taskPlan.executionContext || {},
+      taskInput: goal,
+      taskSubject: goal,
+      taskPhase: 'other',
+      industryType: 'other',
+      text: goal,
+    });
 
-      // Mark previous step as done
-      if (stepIndex > 0) {
-        const prevStep = task.taskExecution.steps[stepIndex - 1];
-        prevStep.status = 'done';
-        prevStep.completedAt = now;
-        prevStep.durationMs = (stepIndex === 1 ? 2000 : 2000);
-      }
+    const analysis = ruleResult.analysis || {};
+    const summary = analysis.summary || ruleResult.matchedRule?.summaryTemplate || '已完成客户场景分析与需求识别';
+    step.summary = summary;
+    step.details = [
+      analysis.sceneJudgement || '',
+      ...(analysis.recommendedProducts || []).map((p) => `推荐产品: ${p}`),
+      ...(analysis.followupQuestions || []).map((q) => `后续: ${q}`),
+    ].filter(Boolean);
+    step.riskNotes = analysis.riskNotes || [];
+    step.source = 'rule-engine';
+  } catch {
+    step.summary = '已完成客户场景分析与需求识别';
+    step.details = FALLBACK_ANALYSIS_DETAILS;
+    step.riskNotes = [];
+    step.source = 'fallback';
+  }
 
-      // Start current step
-      const step = task.taskExecution.steps[stepIndex];
-      step.status = 'running';
-      step.startedAt = now;
-      task.taskExecution.currentStepId = step.stepId;
-      task.updatedAt = now;
+  step.status = 'done';
+  step.completedAt = new Date().toISOString();
+  step.durationMs = step.completedAt && step.startedAt
+    ? new Date(step.completedAt) - new Date(step.startedAt)
+    : FLOW_STEP_DELAYS.analysis;
+  exec.currentStepId = exec.steps[1]?.stepId || undefined;
+  task.updatedAt = step.completedAt;
+};
 
-      // Complete current step
-      setTimeout(() => {
-        const task2 = tasks.get(taskId);
-        if (!task2 || !task2.taskExecution) return;
-        if (task2.taskExecution.status !== 'running') return;
+const runEvidenceStep = async (task) => {
+  const exec = task.taskExecution;
+  if (!exec) return;
+  const step = exec.steps[1];
+  const goal = task.taskPlan.userGoal;
+  step.status = 'running';
+  step.startedAt = new Date().toISOString();
+  exec.currentStepId = step.stepId;
+  task.updatedAt = step.startedAt;
 
-        const completeTime = new Date().toISOString();
-        step.status = 'done';
-        step.completedAt = completeTime;
-        step.durationMs = Date.now() - new Date(now).getTime();
-        step.summary = summary;
-        step.details = details;
-        task2.updatedAt = completeTime;
+  try {
+    const ruleResult = await runSearchRuleEngine({
+      capability: 'search-documents',
+      rawInput: { keyword: goal },
+      normalizedInput: { keyword: goal, industryType: 'other' },
+      keyword: goal,
+      industryType: 'other',
+      executionContext: task.taskPlan.executionContext || {},
+    });
 
-        // Advance to next step
-        advanceStep(configIndex + 1);
-      }, 1500);
-    }, delayMs);
+    const documents = Array.isArray(ruleResult.documents) ? ruleResult.documents : [];
+    step.summary = ruleResult.matchedRule?.summaryTemplate || `已检索内部知识库与参考资料 (匹配 ${documents.length} 篇文档)`;
+    step.details = documents.length > 0
+      ? documents.map((d) => `${d.title || d.docName}: ${d.summary || ''}`).filter(Boolean)
+      : FALLBACK_EVIDENCE_DETAILS;
+    step.riskNotes = [];
+    step.source = 'rule-engine';
+  } catch {
+    step.summary = '已检索内部知识库与参考资料';
+    step.details = FALLBACK_EVIDENCE_DETAILS;
+    step.riskNotes = [];
+    step.source = 'fallback';
+  }
+
+  step.status = 'done';
+  step.completedAt = new Date().toISOString();
+  step.durationMs = step.completedAt && step.startedAt
+    ? new Date(step.completedAt) - new Date(step.startedAt)
+    : FLOW_STEP_DELAYS.evidence;
+  exec.currentStepId = exec.steps[2]?.stepId || undefined;
+  task.updatedAt = step.completedAt;
+};
+
+const runOutputStep = async (task) => {
+  const exec = task.taskExecution;
+  if (!exec) return;
+  const step = exec.steps[2];
+  const goal = task.taskPlan.userGoal;
+  step.status = 'running';
+  step.startedAt = new Date().toISOString();
+  exec.currentStepId = step.stepId;
+  task.updatedAt = step.startedAt;
+
+  try {
+    step.summary = '已生成三版交付文稿（正式/简洁/口语）';
+    step.details = FALLBACK_OUTPUT_DETAILS;
+    step.riskNotes = [];
+    step.source = 'template';
+  } catch {
+    step.summary = '已生成三版交付文稿';
+    step.details = FALLBACK_OUTPUT_DETAILS;
+    step.riskNotes = [];
+    step.source = 'fallback';
+  }
+
+  step.status = 'done';
+  step.completedAt = new Date().toISOString();
+  step.durationMs = step.completedAt && step.startedAt
+    ? new Date(step.completedAt) - new Date(step.startedAt)
+    : FLOW_STEP_DELAYS.output;
+  exec.currentStepId = exec.steps[3]?.stepId || undefined;
+  task.updatedAt = step.completedAt;
+};
+
+const runSaveStep = (task) => {
+  const exec = task.taskExecution;
+  if (!exec) return;
+  const goal = task.taskPlan.userGoal;
+  const step = exec.steps[3];
+  step.status = 'running';
+  step.startedAt = new Date().toISOString();
+  exec.currentStepId = step.stepId;
+  task.updatedAt = step.startedAt;
+
+  const now = new Date().toISOString();
+  step.status = 'done';
+  step.completedAt = now;
+  step.durationMs = FLOW_STEP_DELAYS.save;
+  step.summary = '已保存任务结果与交付记录';
+  step.details = FALLBACK_SAVE_DETAILS;
+  step.source = 'task_store';
+
+  exec.status = 'done';
+  exec.currentStepId = undefined;
+  exec.completedAt = now;
+  exec.outputPreview = {
+    formalPreview: `针对「${goal}」的正式交付文稿已生成。包含完整分析、证据引用和行动建议。`,
+    concisePreview: '核心结论：基于分析，建议重点关注客户需求匹配度和风险敞口。',
+    spokenPreview: '您好，根据分析结果，我准备了跟进要点：第一……第二……方便时我们沟通。',
+    evidenceCount: 3,
+    riskCount: 0,
   };
+  task.status = 'done';
+  task.updatedAt = now;
+};
 
-  // Start immediately: mark step 0 as running
+const runTaskExecution = async (taskId) => {
   const task = tasks.get(taskId);
   if (!task || !task.taskExecution) return;
+  if (task.taskExecution.status !== 'running') return;
 
   const now = new Date().toISOString();
   task.taskExecution.steps[0].status = 'running';
   task.taskExecution.steps[0].startedAt = now;
   task.updatedAt = now;
 
-  advanceStep(0);
+  await runAnalysisStep(task);
+  await new Promise((r) => setTimeout(r, 800));
+  await runEvidenceStep(task);
+  await new Promise((r) => setTimeout(r, 1200));
+  await runOutputStep(task);
+  await new Promise((r) => setTimeout(r, 1000));
+  await runSaveStep(task);
 };
 
 // ============================================================================

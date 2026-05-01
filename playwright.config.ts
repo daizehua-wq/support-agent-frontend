@@ -1,8 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Fix-4 UI 自动化：默认假定由 `npm run test:fix4:e2e` 拉起或复用 mock (:3001) + Vite (:5173)。
- * 仅本地/CI 显式跑 E2E 时使用；日常 `verify:frontend` 不包含浏览器依赖。
+ * E2E：Fix-4 默认 :5173；Fix-5 AutoRun 由 `run-fix5-e2e` 起 Vite 于 :5174 并设 `FIX5_E2E_BASE_URL`。
  */
 export default defineConfig({
   testDir: 'e2e',
@@ -14,7 +13,7 @@ export default defineConfig({
   expect: { timeout: 45_000 },
   reporter: 'list',
   use: {
-    baseURL: process.env.FIX4_E2E_BASE_URL || 'http://127.0.0.1:5173',
+    baseURL: process.env.FIX5_E2E_BASE_URL || process.env.FIX4_E2E_BASE_URL || 'http://127.0.0.1:5173',
     trace: 'on-first-retry',
     video: 'off',
     viewport: { width: 1280, height: 900 },

@@ -128,9 +128,12 @@ npm run test:fix4:verify
 
 - **默认**：与 Phase 1 一致，仍为 **手动** 点「确认并开始执行」。
 - **开启**：构建/开发环境设置 `VITE_WORKBENCH_AUTORUN=true`（例如 `.env.local`）。  
-  TaskPlan 就绪（`plan_confirm`、无必填 missing、执行侧为 `idle`）后，**自动调用一次** `start({ taskId, userGoal })`，即单次 `POST .../confirm` + 轮询；**409 / `TASK_STATUS_CONFLICT`** 仍走 `useTaskExecution` 既有恢复逻辑。
+  TaskPlan 就绪（`plan_confirm`、无必填 missing、执行侧为 `idle`）后，**自动调用一次** `start({ taskId, userGoal, trigger: 'autorun' })`，即单次 `POST .../confirm` + 轮询；**409 / `TASK_STATUS_CONFLICT`** 仍走 `useTaskExecution` 既有恢复逻辑。
 - **防双发**：同一 `taskId` 仅自动触发一次；生成**新** `taskId` 时会 `reset()` 并清空 AutoRun 记忆。
-- **CI**：根目录 `frontend-ci.yml` 当前不跑 Playwright；全量 Fix-4 门禁请本地或单独 job 执行 `npm run test:fix4:verify`。
+- **观测**：`message.info` + `console.debug('[workbench-autorun]')`；`start` / 409 分支带 `console.debug('[task-execution-start]' | '[task-execution-conflict]', { trigger })`。
+- **Playwright**：`npm run test:fix5:e2e`（起 mock + **:5174** 的 Vite 并注入 `VITE_WORKBENCH_AUTORUN=true`；与日常 `:5173` 并存）。已起栈时：`FIX5_E2E_USE_EXISTING=1`，且 Vite 须带 AutoRun；可选 `FIX5_E2E_BASE_URL`。
+- **Phase 1 全量门禁（本地）**：`npm run test:phase1:verify`（= `test:fix4:verify` + `test:fix5:e2e`）。
+- **CI**：根目录 `frontend-ci.yml` 当前不跑 Playwright；全量 Fix-4/5 门禁请本地或单独 job 执行上述命令。
 
 ---
 
@@ -150,16 +153,16 @@ npm run test:fix4:verify
 
 **批次 A 总门禁**：在 mock 栈拉起前提下，`type-check` + `lint` + `build` + `test:fix4` + `test:task:main`（若已接 CI）全绿；手测表完成。
 
-### 批次 B — Fix-5 AutoRun（进行中）
+### 批次 B — Fix-5 AutoRun（收口）
 
 | 工作包 | 做什么 | 主要触点 | 出门禁 |
 |--------|--------|----------|--------|
 | B1 开关与策略 | `VITE_WORKBENCH_AUTORUN`，默认关闭 | `Workbench/index.tsx` | 不设 env 时与现网一致 |
 | B2 自动 confirm | 就绪后单次 `start()` | 同上 + `useTaskExecution` | 同 taskId 不重复；409 走既有路径 |
-| B3 观测 | AutoRun 提示 + 可搜日志 | `message.info` / 后续可加 debug 前缀 | 可区分触发源 |
-| B4 回归 | 手动 + `VITE_WORKBENCH_AUTORUN=true` 各一条 | 本地 / stack | 两条路径均 done + Output |
+| B3 观测 | AutoRun 提示 + `trigger` debug | `Workbench/index.tsx`、`useTaskExecution.ts` | 日志可区分 `user` / `autorun` |
+| B4 回归 | Playwright `e2e/fix5-autorun.spec.ts` | `npm run test:fix5:e2e` | 不点确认仍「执行中」→「任务完成」+ 四步 |
 
-**批次 B 总门禁**：手动模式零回归；AutoRun 开环跑通一条主链（可与 Fix-4 E2E 分拆）。
+**批次 B 总门禁**：`npm run test:fix5:e2e` 绿；手动模式（不设 env）与 Fix-4 行为一致（`test:fix4:verify`）。
 
 ### 批次 C — Phase 2 入口（AutoRun 稳定后，按需拆分）
 

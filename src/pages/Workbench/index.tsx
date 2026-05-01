@@ -200,7 +200,7 @@ function WorkbenchPage() {
       return;
     }
 
-    start({ taskId: taskId.trim(), userGoal: userGoal.trim() });
+    start({ taskId: taskId.trim(), userGoal: userGoal.trim(), trigger: 'user' });
   };
 
   const confirming = isStarting || (execStatus === 'running' && effectiveWbState === 'running');
@@ -216,7 +216,7 @@ function WorkbenchPage() {
     autoRunStartedForTaskIdRef.current = plan.taskId;
     console.debug('[workbench-autorun]', { taskId: plan.taskId, userGoal });
     message.info('AutoRun：已自动确认并开始执行任务', 2);
-    start({ taskId: plan.taskId.trim(), userGoal });
+    start({ taskId: plan.taskId.trim(), userGoal, trigger: 'autorun' });
   }, [
     plan,
     planValid,
@@ -305,7 +305,7 @@ function WorkbenchPage() {
       return;
     }
     reset();
-    start({ taskId, userGoal });
+    start({ taskId, userGoal, trigger: 'user' });
   };
 
   const handleBackToPlanFromCancelled = () => {

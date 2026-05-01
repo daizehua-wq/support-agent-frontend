@@ -4,7 +4,9 @@ import type { TaskExecution, TaskExecutionStatus, StepFailureKind, TaskOutputPre
 import { getApiErrorCode } from '../utils/apiError';
 import { confirmTask, getExecution } from '../utils/taskApiAdapter';
 
-type StartParams = { taskId: string; userGoal: string };
+export type TaskExecutionStartTrigger = 'user' | 'autorun';
+
+type StartParams = { taskId: string; userGoal: string; trigger?: TaskExecutionStartTrigger };
 
 type UseTaskExecutionResult = {
   execution: TaskExecution | null;
@@ -109,8 +111,9 @@ export function useTaskExecution(): UseTaskExecutionResult {
 
   const start = useCallback(async (params: StartParams) => {
     const { taskId, userGoal } = params;
+    const trigger: TaskExecutionStartTrigger = params.trigger ?? 'user';
 
-    console.debug('[task-execution-start]', { taskId, userGoal });
+    console.debug('[task-execution-start]', { taskId, userGoal, trigger });
 
     const tid = String(taskId ?? '').trim();
     const goal = String(userGoal ?? '').trim();
@@ -182,6 +185,7 @@ export function useTaskExecution(): UseTaskExecutionResult {
       setIsStarting(false);
       const code = getApiErrorCode(e);
       if (code === 'TASK_STATUS_CONFLICT') {
+        console.debug('[task-execution-conflict]', { taskId: tid, trigger });
         message.warning('任务状态已变更，正在重新获取执行状态…', 3);
         try {
           const synced = await getExecution(tid, goal);

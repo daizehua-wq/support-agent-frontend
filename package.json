@@ -29,6 +29,8 @@
     "test:fix4:e2e": "node scripts/run-fix4-e2e.mjs",
     "test:fix4:all": "npm run test:fix4 && npm run test:fix4:e2e",
     "test:fix4:verify": "npm run verify:frontend && node scripts/run-fix4-api-mainchain.mjs && npm run test:fix4:e2e",
+    "test:fix5:e2e": "node scripts/run-fix5-e2e.mjs",
+    "test:phase1:verify": "npm run test:fix4:verify && npm run test:fix5:e2e",
     "verify:frontend": "npm run lint && npm run type-check && npm run build",
     "test:workflow:release": "node scripts/workflow-release-regression.mjs",
     "test:workflow:matrix": "node scripts/workflow-platform-regression.mjs",

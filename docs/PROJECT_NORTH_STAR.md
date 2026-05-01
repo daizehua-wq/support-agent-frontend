@@ -133,7 +133,7 @@ npm run test:fix4:verify
 - **观测**：`message.info` + `console.debug('[workbench-autorun]')`；`start` / 409 分支带 `console.debug('[task-execution-start]' | '[task-execution-conflict]', { trigger })`。
 - **Playwright**：`npm run test:fix5:e2e`（起 mock + **:5174** 的 Vite 并注入 `VITE_WORKBENCH_AUTORUN=true`；与日常 `:5173` 并存）。已起栈时：`FIX5_E2E_USE_EXISTING=1`，且 Vite 须带 AutoRun；可选 `FIX5_E2E_BASE_URL`。
 - **Phase 1 全量门禁（本地）**：`npm run test:phase1:verify`（= `test:fix4:verify` + `test:fix5:e2e`）。
-- **CI**：根目录 `frontend-ci.yml` 当前不跑 Playwright；全量 Fix-4/5 门禁请本地或单独 job 执行上述命令。
+- **CI**：仓库内暂无 GitHub Actions workflow（避免无 `workflow` scope 的 token 无法 push）；上线前可用带 `workflow` 权限的凭据单独加「lint + type-check + build」job；全量 Fix-4/5 含 Playwright 仍建议本地或单独 job 跑上述命令。
 
 ---
 

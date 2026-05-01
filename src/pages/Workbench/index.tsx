@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Alert, Button, message, Space, Spin, Tag, Typography } from 'antd';
 import {
@@ -22,6 +22,9 @@ import TaskStepTimeline from '../../components/workbench/TaskStepTimeline';
 import { useTaskExecution } from '../../hooks/useTaskExecution';
 import { generateTaskPlan } from '../../utils/taskApiAdapter';
 import type { TaskPlan } from '../../types/taskPlan';
+
+/** Fix-5：默认关闭；设为 `true` 时，TaskPlan 就绪后自动单次 confirm 并执行（仍走 `start` / 409 恢复路径）。 */
+const WORKBENCH_AUTORUN = import.meta.env.VITE_WORKBENCH_AUTORUN === 'true';
 
 type WorkbenchState = 'empty' | 'planning' | 'plan_confirm' | 'needs_info' | 'running' | 'failed' | 'degraded' | 'done' | 'cancelled';
 
@@ -94,6 +97,9 @@ function WorkbenchPage() {
     showDegradedModal: false,
   });
 
+  const latestPlanTaskIdRef = useRef<string | undefined>(undefined);
+  const autoRunStartedForTaskIdRef = useRef<string | null>(null);
+
   const { execution, execStatus, outputPreview, isStarting, start, stop, retryStep, skipEvidenceAndContinue, reset } = useTaskExecution();
 
   const executionWbState: WorkbenchState | null = useMemo(() => {
@@ -115,6 +121,17 @@ function WorkbenchPage() {
   const effectiveWbState: WorkbenchState = executionWbState ?? ui.wbState;
 
   useEffect(() => {
+    latestPlanTaskIdRef.current = plan?.taskId;
+  }, [plan?.taskId]);
+
+  useEffect(() => {
+    if (!plan?.taskId) return;
+    if (autoRunStartedForTaskIdRef.current && autoRunStartedForTaskIdRef.current !== plan.taskId) {
+      autoRunStartedForTaskIdRef.current = null;
+    }
+  }, [plan?.taskId]);
+
+  useEffect(() => {
     console.debug('[workbench-state]', {
       execStatus,
       executionStatus: execution?.status,
@@ -128,11 +145,16 @@ function WorkbenchPage() {
     if (!taskInput.trim()) return;
     dispatch({ type: 'BEGIN_PLANNING' });
     try {
+      const priorTaskId = latestPlanTaskIdRef.current;
       const generatedPlan = await generateTaskPlan(taskInput);
       if (!generatedPlan?.taskId) {
         message.error('任务计划生成失败：缺少 taskId，请重试');
         dispatch({ type: 'PLAN_FAILED' });
         return;
+      }
+      if (priorTaskId && priorTaskId !== generatedPlan.taskId) {
+        reset();
+        autoRunStartedForTaskIdRef.current = null;
       }
       setPlan(generatedPlan);
       dispatch({ type: 'PLAN_DONE' });
@@ -142,7 +164,7 @@ function WorkbenchPage() {
       dispatch({ type: 'PLAN_FAILED' });
       message.error('任务计划生成失败，请检查网络连接后重试');
     }
-  }, [taskInput]);
+  }, [taskInput, reset]);
 
   const handleMissingInfoChange = useCallback((field: string, value: string) => {
     setMissingInfoValues((prev) => ({ ...prev, [field]: value }));
@@ -182,6 +204,30 @@ function WorkbenchPage() {
   };
 
   const confirming = isStarting || (execStatus === 'running' && effectiveWbState === 'running');
+
+  useEffect(() => {
+    if (!WORKBENCH_AUTORUN) return;
+    if (!plan?.taskId || !planValid || hasRequiredMissing) return;
+    if (ui.wbState !== 'plan_confirm') return;
+    if (execStatus !== 'idle' || execution || isStarting) return;
+    if (autoRunStartedForTaskIdRef.current === plan.taskId) return;
+    const userGoal = String(plan.userGoal || taskInput || '').trim();
+    if (!userGoal) return;
+    autoRunStartedForTaskIdRef.current = plan.taskId;
+    console.debug('[workbench-autorun]', { taskId: plan.taskId, userGoal });
+    message.info('AutoRun：已自动确认并开始执行任务', 2);
+    start({ taskId: plan.taskId.trim(), userGoal });
+  }, [
+    plan,
+    planValid,
+    hasRequiredMissing,
+    ui.wbState,
+    execStatus,
+    execution,
+    isStarting,
+    start,
+    taskInput,
+  ]);
 
   const handleStop = () => {
     dispatch({ type: 'OPEN_MODAL', modal: 'showStopModal' });

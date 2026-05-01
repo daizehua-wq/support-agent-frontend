@@ -18,6 +18,24 @@ const tasks = new Map();
 
 const normalizeText = (value = '') => String(value || '').trim();
 
+/** Fix-4 regression only: strip magic prefixes and return flags (never sent by real clients). */
+const FIX4_TEST_PREFIX_FORCE_ANALYSIS_SKIP_FLOW = '__FIX4_AF__';
+const FIX4_TEST_PREFIX_FORCE_OUTPUT_TEMPLATE = '__FIX4_OT__';
+
+function parseFix4TestUserGoal(rawUserGoal) {
+  let t = normalizeText(rawUserGoal);
+  const flags = { forceAnalysisSkipFlow: false, forceOutputTemplate: false };
+  if (t.startsWith(FIX4_TEST_PREFIX_FORCE_ANALYSIS_SKIP_FLOW)) {
+    flags.forceAnalysisSkipFlow = true;
+    t = normalizeText(t.slice(FIX4_TEST_PREFIX_FORCE_ANALYSIS_SKIP_FLOW.length));
+  }
+  if (t.startsWith(FIX4_TEST_PREFIX_FORCE_OUTPUT_TEMPLATE)) {
+    flags.forceOutputTemplate = true;
+    t = normalizeText(t.slice(FIX4_TEST_PREFIX_FORCE_OUTPUT_TEMPLATE.length));
+  }
+  return { goal: t, flags };
+}
+
 const truncateText = (value = '', maxLength = 28) => {
   const s = normalizeText(value);
   return s.length <= maxLength ? s : `${s.slice(0, maxLength)}...`;
@@ -278,7 +296,7 @@ export const createTask = async (userGoal) => {
   const planId = randomUUID();
   const planVersion = 'v1';
   const now = new Date().toISOString();
-  const goal = normalizeText(userGoal);
+  const { goal, flags: fix4TestFlags } = parseFix4TestUserGoal(userGoal);
 
   let plannerResult = null;
 
@@ -322,6 +340,7 @@ export const createTask = async (userGoal) => {
       planVersion,
       createdAt: now,
       updatedAt: now,
+      fix4TestFlags,
     };
 
     tasks.set(taskId, task);
@@ -367,6 +386,7 @@ export const createTask = async (userGoal) => {
     planVersion,
     createdAt: now,
     updatedAt: now,
+    fix4TestFlags,
   };
 
   tasks.set(taskId, task);
@@ -534,17 +554,20 @@ const runAnalysisStep = async (task) => {
   step.startedAt = new Date().toISOString();
   task.updatedAt = step.startedAt;
 
+  const fix4Flags = task.fix4TestFlags || {};
   let flowResult = null;
-  try {
-    flowResult = await runAnalyzeCustomerFlow({
-      taskInput: goal,
-      taskSubject: goal,
-      goal,
-      industryType: 'other',
-      taskPhase: 'other',
-    });
-  } catch {
-    flowResult = null;
+  if (!fix4Flags.forceAnalysisSkipFlow) {
+    try {
+      flowResult = await runAnalyzeCustomerFlow({
+        taskInput: goal,
+        taskSubject: goal,
+        goal,
+        industryType: 'other',
+        taskPhase: 'other',
+      });
+    } catch {
+      flowResult = null;
+    }
   }
 
   if (flowResult?.finalAnalyzeData) {
@@ -665,20 +688,23 @@ const runOutputStep = async (task) => {
   exec.currentStepId = step.stepId;
   task.updatedAt = step.startedAt;
 
+  const fix4Flags = task.fix4TestFlags || {};
   let flowResult = null;
-  try {
-    flowResult = await runGenerateScriptFlow({
-      taskInput: goal,
-      taskSubject: goal,
-      goal,
-      goalScene: 'first_reply',
-      toneStyle: 'formal',
-      outputStyle: 'standard',
-      industryType: 'other',
-      taskPhase: 'other',
-    });
-  } catch {
-    flowResult = null;
+  if (!fix4Flags.forceOutputTemplate) {
+    try {
+      flowResult = await runGenerateScriptFlow({
+        taskInput: goal,
+        taskSubject: goal,
+        goal,
+        goalScene: 'first_reply',
+        toneStyle: 'formal',
+        outputStyle: 'standard',
+        industryType: 'other',
+        taskPhase: 'other',
+      });
+    } catch {
+      flowResult = null;
+    }
   }
 
   if (flowResult?.finalResult) {

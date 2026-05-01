@@ -58,6 +58,7 @@ data/*Log*.json
 data/*Audit*.json
 data/*Metrics*.json
 test-results/
+playwright-report/
 mock-server/test-results/
 test-evidence/
 

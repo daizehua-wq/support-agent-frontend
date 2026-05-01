@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { message } from 'antd';
 import type { TaskExecution, TaskExecutionStatus, StepFailureKind, TaskOutputPreview } from '../types/taskPlan';
+import { getApiErrorCode } from '../utils/apiError';
 import { confirmTask, getExecution } from '../utils/taskApiAdapter';
 
 type StartParams = { taskId: string; userGoal: string };
@@ -179,10 +180,52 @@ export function useTaskExecution(): UseTaskExecutionResult {
     } catch (e: unknown) {
       startingRef.current = false;
       setIsStarting(false);
-      const apiErr = e as { response?: { status?: number; data?: { error?: { code?: string } } } };
-      const code = apiErr?.response?.data?.error?.code || '';
+      const code = getApiErrorCode(e);
       if (code === 'TASK_STATUS_CONFLICT') {
         message.warning('任务状态已变更，正在重新获取执行状态…', 3);
+        try {
+          const synced = await getExecution(tid, goal);
+          setExecution(synced);
+          executionRef.current = synced;
+          if (synced.status === 'done') {
+            setExecStatus('done');
+            execStatusRef.current = 'done';
+            setOutputPreview(synced.outputPreview ?? null);
+            terminalRef.current = true;
+            return;
+          }
+          if (synced.status === 'failed' || synced.status === 'cancelled') {
+            const next = synced.status;
+            setExecStatus(next);
+            execStatusRef.current = next;
+            terminalRef.current = true;
+            if (next === 'failed') {
+              const failed = synced.steps.find((s) => s.status === 'failed');
+              if (failed) {
+                setFailureKind(failed.failureKind ?? null);
+                setFailedStep(failed.stepId);
+                setError(failed.failureReason ?? '任务执行失败');
+              }
+            }
+            return;
+          }
+          if (synced.status === 'degraded') {
+            setExecStatus('degraded');
+            execStatusRef.current = 'degraded';
+            terminalRef.current = true;
+            return;
+          }
+          if (synced.status === 'running' || synced.status === 'idle') {
+            setExecStatus('running');
+            execStatusRef.current = 'running';
+            startPoll(tid, goal);
+            return;
+          }
+        } catch {
+          /* 同步拉取失败则退回轮询 */
+        }
+        setExecStatus('running');
+        execStatusRef.current = 'running';
         startPoll(tid, goal);
         return;
       }

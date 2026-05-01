@@ -131,5 +131,3 @@ export const formatTechnicalValue = (value: unknown, fallback = '未返回'): st
   }
 };
 
-export const hasTechnicalLabelMapping = (value: unknown): boolean =>
-  typeof value === 'string' && TECHNICAL_LABEL_MAP[value.trim()] !== undefined;

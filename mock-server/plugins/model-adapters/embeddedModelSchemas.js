@@ -6,6 +6,7 @@ export const EMBEDDED_MODEL_TASKS = Object.freeze({
   REQUEST_UNDERSTANDING: 'request_understanding',
   FIELD_EXTRACTION: 'field_extraction',
   STRUCTURED_TRANSFORM: 'structured_transform',
+  TASK_PLANNER: 'task_planner',
 });
 
 export const EMBEDDED_MODEL_TASK_SET = new Set(Object.values(EMBEDDED_MODEL_TASKS));
@@ -173,11 +174,47 @@ export const STRUCTURED_TRANSFORM_OUTPUT_SCHEMA = {
   ],
 };
 
+export const TASK_PLANNER_OUTPUT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    taskType: {
+      type: 'string',
+      enum: ['full_workflow', 'customer_analysis', 'evidence_search', 'output_generation'],
+    },
+    taskTitle: {
+      type: 'string',
+      maxLength: 32,
+    },
+    understanding: {
+      type: 'string',
+      maxLength: 200,
+    },
+    confidence: {
+      type: 'number',
+      minimum: 0,
+      maximum: 1,
+    },
+    needsExternalSources: {
+      type: 'boolean',
+    },
+    shouldGenerateOutput: {
+      type: 'boolean',
+    },
+    missingInfoPolicy: {
+      type: 'string',
+      enum: ['strict', 'lenient', 'skip'],
+    },
+  },
+  required: ['taskType', 'taskTitle', 'understanding', 'confidence'],
+};
+
 export const EMBEDDED_MODEL_JSON_SCHEMAS = Object.freeze({
   [EMBEDDED_MODEL_TASKS.ROUTE_DECISION]: ROUTE_DECISION_OUTPUT_SCHEMA,
   [EMBEDDED_MODEL_TASKS.REQUEST_UNDERSTANDING]: REQUEST_UNDERSTANDING_OUTPUT_SCHEMA,
   [EMBEDDED_MODEL_TASKS.FIELD_EXTRACTION]: FIELD_EXTRACTION_OUTPUT_SCHEMA,
   [EMBEDDED_MODEL_TASKS.STRUCTURED_TRANSFORM]: STRUCTURED_TRANSFORM_OUTPUT_SCHEMA,
+  [EMBEDDED_MODEL_TASKS.TASK_PLANNER]: TASK_PLANNER_OUTPUT_SCHEMA,
 });
 
 const CONFIDENCE_GBNF = [
@@ -229,6 +266,13 @@ export const EMBEDDED_MODEL_GBNF_GRAMMARS = Object.freeze({
   [EMBEDDED_MODEL_TASKS.STRUCTURED_TRANSFORM]: [
     'root ::= "{" "\\"" "capability" "\\"" ":" capability "," "\\"" "routeDecision" "\\"" ":" route "," "\\"" "normalizedText" "\\"" ":" string "," "\\"" "keywords" "\\"" ":[" stringlist "]," "\\"" "signals" "\\"" ":[" stringlist "]," "\\"" "confidence" "\\"" ":" confidence "," "\\"" "fallback" "\\"" ":" boolean "}"',
     'stringlist ::= (string ("," string)?)?',
+    COMMON_GBNF,
+  ].join('\n'),
+  [EMBEDDED_MODEL_TASKS.TASK_PLANNER]: [
+    'root ::= "{" "\\"" "taskType" "\\"" ":" tasktype "," "\\"" "taskTitle" "\\"" ":" string "," "\\"" "understanding" "\\"" ":" longstr "," "\\"" "confidence" "\\"" ":" confidence ("," "\\"" "needsExternalSources" "\\"" ":" boolean)? ("," "\\"" "shouldGenerateOutput" "\\"" ":" boolean)? ("," "\\"" "missingInfoPolicy" "\\"" ":" policy)? "}"',
+    'tasktype ::= "\\""full_workflow\\"" | "\\""customer_analysis\\"" | "\\""evidence_search\\"" | "\\""output_generation\\""',
+    'policy ::= "\\""strict\\"" | "\\""lenient\\"" | "\\""skip\\""',
+    'longstr ::= "\\"" char{0,200} "\\""',
     COMMON_GBNF,
   ].join('\n'),
 });
@@ -380,6 +424,20 @@ export const normalizeEmbeddedModelOutput = (
     };
   }
 
+  if (normalizedTask === EMBEDDED_MODEL_TASKS.TASK_PLANNER) {
+    return {
+      schemaVersion: `${EMBEDDED_MODEL_SCHEMA_VERSION}/task-planner`,
+      task: normalizedTask,
+      taskType: normalizeText(value.taskType) || 'full_workflow',
+      taskTitle: normalizeText(value.taskTitle).slice(0, 32),
+      understanding: normalizeText(value.understanding).slice(0, 200),
+      confidence: clampConfidence(value.confidence),
+      needsExternalSources: value.needsExternalSources === true,
+      shouldGenerateOutput: value.shouldGenerateOutput !== false,
+      missingInfoPolicy: normalizeText(value.missingInfoPolicy) || 'lenient',
+    };
+  }
+
   const routeDecision = normalizeRoute(value.routeDecision || value.route);
 
   return {
@@ -406,6 +464,14 @@ export const validateEmbeddedModelOutput = (output = {}, options = {}) => {
     return {
       ok: false,
       reason: 'normalized_text_missing',
+      data: normalized,
+    };
+  }
+
+  if (task === EMBEDDED_MODEL_TASKS.TASK_PLANNER && !normalized.understanding) {
+    return {
+      ok: false,
+      reason: 'understanding_missing',
       data: normalized,
     };
   }
@@ -468,6 +534,14 @@ const TASK_PROMPT_LINES = Object.freeze({
     '任务: structured_transform',
     '输出字段: capability, routeDecision, normalizedText, keywords, signals, confidence, fallback。',
     '只做轻量结构化；复杂或不确定 routeDecision=main_workflow。',
+  ],
+  [EMBEDDED_MODEL_TASKS.TASK_PLANNER]: [
+    '任务: task_planner',
+    '输出字段: taskType, taskTitle(<=32字), understanding(<=200字), confidence(0-1), needsExternalSources(boolean), shouldGenerateOutput(boolean), missingInfoPolicy(strict|lenient|skip)。',
+    '根据用户目标选择最佳 taskType；understanding 必须用中文描述系统对任务目标的理解。',
+    '涉及企查查/工商/经营风险/外部资料 → needsExternalSources=true。',
+    '需要生成交付文稿/报告/邮件 → shouldGenerateOutput=true。',
+    '必须输出单行紧凑JSON，不要空格换行。',
   ],
 });
 

@@ -1,6 +1,6 @@
 const resolvedLocalTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
 
-export const LOCAL_TIME_ZONE = resolvedLocalTimeZone || 'local';
+const LOCAL_TIME_ZONE = resolvedLocalTimeZone || 'local';
 
 const localDateTimeFormatter = new Intl.DateTimeFormat('zh-CN', {
   timeZone: resolvedLocalTimeZone,
@@ -102,9 +102,3 @@ export const formatDateToLocalDateKey = (value: string | number | Date = new Dat
   return `${lookup.year}-${lookup.month}-${lookup.day}`;
 };
 
-export const formatDateTimeToBeijingTime = (
-  value?: string | number | Date | null,
-  options: LocalTimeFormatOptions = {},
-) => {
-  return formatDateTimeToLocalTime(value, options);
-};

@@ -1202,6 +1202,283 @@ body {
   animation: agent-debug-bar-glow-web 1.2s cubic-bezier(0.22, 1, 0.36, 1) 1;
 }
 
+/* ===== FE-3: Task Timeline ===== */
+.ap-task-timeline {
+  padding: 14px 20px;
+  border-radius: 24px;
+  background: rgba(248, 250, 252, 0.66);
+  margin-top: 22px;
+}
+
+/* ===== FE-3: Step Result Card ===== */
+.ap-step-card {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 24px;
+  margin-top: 14px;
+}
+
+.ap-step-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* ===== FE-3: Output Preview ===== */
+.ap-output-preview {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 30px;
+  margin-top: 22px;
+}
+
+.ap-output-preview__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ap-output-preview__versions {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.ap-output-preview__version {
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.ap-output-preview__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.ap-output-preview__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+/* ===== FE-3: Workbench Execution Header ===== */
+.ap-workbench-exec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* ===== FE-3: Cancelled Summary ===== */
+.ap-cancelled-summary {
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .ap-output-preview__actions {
+    flex-direction: column;
+  }
+
+  .ap-output-preview__actions .ant-btn {
+    width: 100%;
+  }
+}
+
+/* ===== FE-2: Task Input ===== */
+.ap-task-input {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.ap-task-input__field {
+  border-radius: 22px;
+  font-size: 16px;
+  line-height: 1.6;
+  padding: 14px 16px;
+  border: 1px solid rgba(203, 213, 225, 0.52);
+  background: rgba(255, 255, 255, 0.74);
+  transition: box-shadow 0.2s ease;
+}
+
+.ap-task-input__field:focus {
+  box-shadow: 0 0 0 5px rgba(96, 165, 250, 0.12);
+}
+
+.ap-task-input__action {
+  align-self: flex-end;
+  height: 46px;
+  border-radius: 18px;
+  padding-inline: 24px;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+/* ===== FE-2: Task Plan Card ===== */
+.ap-task-plan {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 30px;
+  margin-top: 22px;
+}
+
+.ap-task-plan__header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ap-task-plan__sections {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.ap-task-plan__section {
+  padding: 14px;
+  border-radius: 20px;
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.ap-task-plan__risks {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(251, 191, 36, 0.08);
+}
+
+/* ===== FE-2: Missing Info ===== */
+.ap-missing-info {
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 30px;
+  margin-top: 22px;
+}
+
+.ap-missing-info__row {
+  padding: 14px;
+  border-radius: 20px;
+  background: rgba(248, 250, 252, 0.66);
+  margin-bottom: 10px;
+}
+
+/* ===== FE-2: Execution Context ===== */
+.ap-execution-context {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 30px;
+  margin-top: 22px;
+}
+
+.ap-execution-context__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ap-execution-context__item {
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.72);
+}
+
+/* ===== FE-2: Confirm Bar ===== */
+.ap-confirm-bar {
+  margin-top: 22px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 30px;
+}
+
+/* ===== FE-2: Home Dashboard ===== */
+.ap-home-dashboard {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 4px 48px;
+}
+
+.ap-home-sections {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 22px;
+  margin-top: 42px;
+}
+
+.ap-home-section {
+  min-width: 0;
+}
+
+.ap-capability-summary {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 28px;
+}
+
+.ap-capability-summary__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.ap-capability-summary__item {
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.72);
+}
+
+/* ===== FE-2: Workbench Plan Area ===== */
+.ap-workbench-plan {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 960px) {
+  .ap-home-sections {
+    grid-template-columns: 1fr;
+  }
+
+  .ap-execution-context__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .ap-home-dashboard {
+    padding: 0 8px 24px;
+  }
+
+  .ap-task-input__action {
+    align-self: stretch;
+  }
+}
+
 .agent-debug-bar--flash-lark .ant-card {
   animation: agent-debug-bar-glow-lark 1.2s cubic-bezier(0.22, 1, 0.36, 1) 1;
 }
@@ -1264,4 +1541,399 @@ body {
       0 10px 24px rgba(22, 119, 255, 0);
     transform: translateY(0);
   }
+}
+
+/* ===== FE-4: Output Page ===== */
+.ap-output-page {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 28px 4px 48px;
+}
+
+.ap-output-target {
+  margin-bottom: 24px;
+}
+
+.ap-output-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 22px;
+}
+
+.ap-output-main {
+  min-width: 0;
+}
+
+.ap-output-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ap-output-tabs {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 30px;
+  overflow: hidden;
+}
+
+.ap-output-tabs__header {
+  padding: 8px 20px 0;
+}
+
+.ap-output-tabs__body {
+  padding: 22px;
+  min-height: 420px;
+}
+
+.ap-output-actions {
+  margin-top: 22px;
+}
+
+.ap-output-version-list {
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 28px;
+}
+
+.ap-evidence-card {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 28px;
+}
+
+.ap-evidence-card__item {
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.72);
+  margin-bottom: 8px;
+}
+
+.ap-risk-panel {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 28px;
+}
+
+.ap-risk-panel__item {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.72);
+}
+
+@media (max-width: 1024px) {
+  .ap-output-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .ap-output-aside {
+    order: 2;
+  }
+}
+
+@media (max-width: 640px) {
+  .ap-output-tabs__body {
+    padding: 14px;
+  }
+
+  .ap-output-actions .ant-space {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .ap-output-actions .ant-btn {
+    width: 100%;
+  }
+}
+
+/* ===== FE-5: Tasks Page & Table ===== */
+.ap-tasks-page {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 28px 4px 48px;
+}
+
+.ap-task-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.ap-task-table-card {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 28px;
+  overflow: hidden;
+}
+
+.ap-task-table .ant-table {
+  font-size: 13px;
+}
+
+/* ===== FE-5: Continue Highlight ===== */
+.ap-task-highlight {
+  padding: 20px;
+  border: 1px solid rgba(96, 165, 250, 0.24);
+  background: rgba(239, 246, 255, 0.52);
+  border-radius: 28px;
+  margin-bottom: 22px;
+}
+
+.ap-task-card {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.06);
+  border-radius: 24px;
+  margin-bottom: 10px;
+}
+
+/* ===== FE-5: Task Detail ===== */
+.ap-task-detail {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 28px 4px 48px;
+}
+
+.ap-task-archive-header {
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 28px;
+}
+
+.ap-version-record .ant-table {
+  font-size: 13px;
+}
+
+@media (max-width: 960px) {
+  .ap-task-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ap-task-filters .ant-select,
+  .ap-task-filters .ant-input {
+    width: 100% !important;
+  }
+}
+
+/* ===== FE-6: Settings Center ===== */
+.ap-settings-center {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 22px;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 28px 4px 48px;
+}
+
+.ap-settings-sidenav {
+  position: sticky;
+  top: 90px;
+  align-self: start;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 28px;
+  overflow: hidden;
+}
+
+.ap-settings-sidenav .ant-menu {
+  background: transparent;
+  border: 0;
+}
+
+.ap-settings-overview {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.ap-planner-model {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 28px;
+  margin-bottom: 14px;
+}
+
+.ap-planner-model__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ap-planner-model__item {
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.ap-permission-lock {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  border-radius: 28px;
+}
+
+.ap-admin-entry {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  border-radius: 20px;
+}
+
+@media (max-width: 960px) {
+  .ap-settings-center {
+    grid-template-columns: 1fr;
+  }
+
+  .ap-settings-sidenav {
+    position: static;
+  }
+}
+
+/* ===== FE-7c: Rules Card ===== */
+.ap-rule-card {
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.72);
+  margin-bottom: 8px;
+}
+
+@media (max-width: 640px) {
+  .ap-settings-center .ap-settings-overview > div > div[style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ===== FE-7d: Settings Module Shell ===== */
+.ap-settings-module-shell {
+  display: flex;
+  flex-direction: column;
+}
+
+.ap-settings-module-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.ap-settings-embedded-panel {
+  flex: 1;
+}
+
+.ap-settings-embedded-panel--legacy {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px);
+  border-radius: 28px;
+  padding: 20px;
+}
+
+/* ===== FE-9: Design System & Responsive Polish ===== */
+
+/* --- 1024 narrow screen --- */
+@media (max-width: 1024px) {
+  .ap-settings-center {
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .ap-home-sections {
+    grid-template-columns: 1fr;
+  }
+
+  .ap-main-layout--nav-collapsed .ap-shell__menu .ant-menu-item {
+    padding-inline: 12px;
+    font-size: 13px;
+  }
+
+  .ap-workbench-plan {
+    padding: 0 8px;
+  }
+
+  .ap-task-detail {
+    padding: 20px 8px 40px;
+  }
+
+  .ap-task-table .ant-table-thead > tr > th:nth-child(5),
+  .ap-task-table .ant-table-tbody > tr > td:nth-child(5) {
+    display: none;
+  }
+}
+
+/* --- 1280 desktop narrow --- */
+@media (max-width: 1280px) {
+  .ap-output-layout {
+    gap: 14px;
+  }
+
+  .ap-tasks-page {
+    padding: 24px 12px 40px;
+  }
+
+  .ap-settings-center {
+    gap: 14px;
+  }
+
+  .ap-home-dashboard {
+    padding: 0 12px 40px;
+  }
+}
+
+/* --- Global state consistency --- */
+.ap-state-empty,
+.ap-state-loading,
+.ap-state-failed {
+  display: grid;
+  place-items: center;
+  min-height: 300px;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.ap-state-empty__icon,
+.ap-state-failed__icon {
+  font-size: 48px;
+  color: #94a3b8;
+  margin-bottom: 16px;
+}
+
+.ap-state-failed__description {
+  max-width: 400px;
+  margin: 0 auto 20px;
+}
+
+/* --- Prevent overflow on embedded legacy pages --- */
+.ap-settings-embedded-panel--legacy .ant-card,
+.ap-settings-embedded-panel--legacy .ant-table {
+  overflow-x: auto;
+}
+
+.ap-settings-embedded-panel--legacy img,
+.ap-settings-embedded-panel--legacy pre {
+  max-width: 100%;
 }
